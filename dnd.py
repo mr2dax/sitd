@@ -219,6 +219,8 @@ class Character:
                         self.perc += self.prof_bonus
                         self.wis_st += self.prof_bonus
                         self.cha_st += self.prof_bonus
+                print("You have " + str(self.gold) + " GP to spend.")
+                starting_shop = Shop()
                 self.gen_starting_equipment(inv, class_choice, self.fighting_style)
         def gen_fighting_style(self, inv):
                 styles = {
@@ -696,6 +698,30 @@ class Battle:
                         self.foes_fled = True
                 return end
 
+class Shop:
+        "Shop creation."
+        def __init__(self):
+                # name: [cost, dmg, dmg type, weight, light/heavy, finesse, hands, thrown]
+                self.simple_melee_weapons = {
+                        "club": [0.1, 4, "b", 2, 1, False, 1, False],
+                        "dagger": [2, 4, "p", 1, 1, True, 1, True],
+                        "greatclub": [0.2, 8, "b", 10, 0, 0, 2, False],
+                        "handaxe": [5, 6, "s", 2, 1, 0, 1, True],
+                        "javelin": [0.5, 6, "p", 2, 0, 0, 1, True],
+                        "light hammer": [2, 4, "b", 4, 1, 0, 1, False],
+                        "mace": [5, 6, "b", 4, 0, 0, 1, False],
+                        "quarterstaff": [0.2, 6, "b", 4, 0, 0, 1.5, False],
+                        "sickle": [1, 4, "s", 2, 1, 0, 1, False],
+                        "spear": [1, 6, "p", 3, 0, 0, 1.5, True]
+                        }
+                # name: [cost, dmg, dmg type, weight, finesse, hands, load]
+                self.simple_ranged_weapons = {
+                        "light crossbow": [25, 8, "p", 5, False, 2, True],
+                        "dart": [0.05, 4, "p", 0.25, True, 1, False],
+                        "shortbow": [25, 6, "p", 2, False, 2, False],
+                        "sling": [0.1, 4, "b", 0, False, 1, False]
+                        }
+
 def gen_stats():
         stre = 0
         dex = 0
@@ -1052,9 +1078,9 @@ def gen_char(name, starting_level):
         if class_choice == 5:
                 char = Paladin(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level)
         inv = Inventory(char.player_id)
+        char.gen_starting_gold(char.char_class)
         char.gen_class(inv, char.char_class)
         char.action_economy()
-        char.gen_starting_gold(char.char_class)
         return char
 
 def init_chars():
@@ -1080,8 +1106,6 @@ def init_chars():
         print(name)
         p4_char = gen_char(name, starting_level)
         
-        #allies = [p1_char]
-        #enemies = [p3_char]
         allies = [p1_char, p2_char]
         enemies = [p3_char, p4_char]
         return allies, enemies
@@ -1122,7 +1146,7 @@ def main():
 main()
 
 #TODO: after every 2nd battle pcs level up
-#TODO: implement specials (rage, actions surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
+#TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: tkinter (action-bonus action-special-skip menu)
 #TODO: 1 merchant before level 5
 #TODO: use equipped weapons, shield and armor instead of fighting style
