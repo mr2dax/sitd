@@ -168,6 +168,9 @@ class Character:
                         self.gold += roll_dice(4, 0, 0)[0]
                 if char_class != 2:
                         self.gold *= 10
+        def gen_starting_equipment(self, all_items):
+                starting_shop = Shop(all_items)
+                starting_shop.shopping_flow(self)
         def gen_class(self, class_choice):
                 if class_choice == 1:
                         self.char_class = 1
@@ -221,10 +224,6 @@ class Character:
                         self.perc += self.prof_bonus
                         self.wis_st += self.prof_bonus
                         self.cha_st += self.prof_bonus
-                print("You have " + str(self.gold) + " GP to spend.")
-                starting_shop = Shop()
-                starting_shop.shopping_flow()
-                self.gen_starting_equipment(class_choice, self.fighting_style)
         def gen_fighting_style(self, inv):
                 styles = {
                         1: "sword and board (defense)",
@@ -268,111 +267,51 @@ class Character:
                                 self.fighting_style = 4
                                 self.offhand_dmg_mod = True
                                 self.bonus_attack = True
-        def gen_starting_equipment(self, class_choice, style_choice):
-                if class_choice == 1:
-                        if style_choice == 1:
-                                self.inv.add_item("longsword")
-                                self.inv.add_item("shield")
-                                self.inv.add_item("medium armor")
-                                self.eq_weapon_main = "longsword"
-                                self.dmg_die = 8
-                                self.dmg_die_cnt = 1
-                                self.eq_weapon_offhand = "shield"
-                                self.ac += 2
-                                self.eq_armor = "medium armor"
-                                if self.dex_mod <= 2:
-                                        self.ac += 5 + 1
-                                else:
-                                        self.ac = 10 + 2 + 5 + 1
-                        elif style_choice == 2:
-                                self.inv.add_item("greatsword")
-                                self.inv.add_item("heavy armor")
-                                self.eq_weapon_main = "greatsword"
-                                self.dmg_die = 6
-                                self.dmg_die_cnt = 2
-                                self.eq_armor = "heavy armor"
-                                if self.dex_mod <= 0:
-                                        self.ac = 18
-                                else:
-                                        self.ac += 8 - self.dex_mod
-                        elif style_choice == 3:
-                                self.inv.add_item("longsword")
-                                self.inv.add_item("heavy armor")
-                                self.eq_weapon_main = "longsword"
-                                self.dmg_die = 8
-                                self.dmg_die_cnt = 1
-                                self.eq_armor = "heavy armor"
-                                if self.dex_mod <= 0:
-                                        self.ac = 18
-                                else:
-                                        self.ac += 8 - self.dex_mod
-                        elif style_choice == 4:
-                                self.inv.add_item("rapier")
-                                self.inv.add_item("scimitar")
-                                self.inv.add_item("light armor")
-                                self.eq_weapon_main = "shortsword"
-                                self.eq_weapon_offhand = "scimitar"
-                                self.dmg_die = 8
-                                self.dmg_die_cnt = 1
-                                self.dmg_die_offhand = 6
-                                self.dmg_die_cnt_offhand = 1
-                                self.eq_armor = "light armor"
-                                self.ac += 2
-                        elif style_choice == 5:
-                                self.inv.add_item("longbow")
-                                self.inv.add_item("arrow")
-                                self.inv.add_item("medium armor")
-                                self.eq_weapon_main = "longbow"
-                                self.dmg_die = 8
-                                self.dmg_die_cnt = 1
-                                self.eq_armor = "medium armor"
-                                if self.dex_mod <= 2:
-                                        self.ac += 5
-                                else:
-                                        self.ac = 10 + 2 + 5
-                elif class_choice == 2:
-                        self.inv.add_item("quarterstaff")
-                        self.dmg_die = 8
-                        self.dmg_die_cnt = 1
-                        self.dmg_die_offhand = 4
-                        self.dmg_die_cnt_offhand = 1
-                        self.eq_weapon_main = "quarterstaff"
-                        self.eq_weapon_offhand = "unarmed strike"
+        def equip(self, all_items):
+                if self.char_class == 1:
+                        if self.fighting_style == 1:
+                                # +1 def
+                                pass
+                        elif self.fighting_style == 2:
+                                pass
+                        elif self.fighting_style == 3:
+                                pass
+                        elif self.fighting_style == 4:
+                                pass
+                        elif self.fighting_style == 5:
+                                pass
+                elif self.char_class == 2:
                         if self.wis_mod > 0:
                                 self.ac += self.wis_mod
-                elif class_choice == 3:
-                        self.inv.add_item("greataxe")
-                        self.dmg_die = 12
-                        self.dmg_die_cnt = 1
-                        self.eq_weapon_main = "greataxe"
+                elif self.char_class == 3:
+                        if self.fighting_style == 1:
+                                # +1 def
+                                pass
+                        elif self.fighting_style == 2:
+                                pass
+                        elif self.fighting_style == 3:
+                                pass
+                        elif self.fighting_style == 4:
+                                pass
                         if self.con_mod > 0:
                                 self.ac += self.con_mod
-                elif class_choice == 4:
-                        self.inv.add_item("shortsword")
-                        self.inv.add_item("shortsword")
-                        self.inv.add_item("light armor")
-                        self.dmg_die = 6
-                        self.dmg_die_cnt = 1
-                        self.dmg_die_offhand = 6
-                        self.dmg_die_cnt_offhand = 1
-                        self.eq_weapon_main = "shortsword"
-                        self.eq_weapon_offhand = "shortsword"
-                        self.eq_armor = "light armor"
-                        self.ac += 2
-                elif class_choice == 5:
-                        self.inv.add_item("warhammer")
-                        self.inv.add_item("heavy armor")
-                        self.inv.add_item("shield")
-                        self.eq_weapon_main = "warhammer"
-                        self.eq_weapon_offhand = "shield"
-                        self.dmg_die = 8
-                        self.dmg_die_cnt = 1
-                        self.eq_armor = "heavy armor"
-                        if self.dex_mod <= 0:
-                                self.ac = 18
-                        else:
-                                self.ac += 8 - self.dex_mod
-                        self.ac += 2
+                elif self.char_class == 4:
+                        pass
+                elif self.char_class == 5:
+                        pass
+                        #light
+                        #self.ac += 2
+                        #medium
+                        #if self.dex_mod <= 2:
+                        #        self.ac += 5 + 1
+                        #else:
+                        #        self.ac = 10 + 2 + 5 + 1
+                        #heavy
+                        #if self.dex_mod <= 0:
+                        #        self.ac = 18
+                        #else:
+                        #        self.ac += 8 - self.dex_mod
+                        #self.ac += 2
         def level_up(self, levels):
                 for l in levels:
                         self.level += 1
@@ -480,13 +419,16 @@ class Inventory:
         "Inventory creation."
         def __init__(self, owner):
                 self.owner = owner
-                self.inv = {"nothing": 0}
-        def add_item(self, item):
-                self.inv[item] = 1
+                # name: type, quantity
+                self.inv = {}
+        def add_item(self, item, type):
+                if item in self.inv:
+                        self.inv[item][1] += 1
+                else:
+                        self.inv[item] = [type, 1]
         def print_inv(self):
                 print(vars(self))
-        def get_inv_by_name(self, player_id):
-                return self.inv
+
 class Dungeon:
         "Dungeon creation."
         def __init__(self, enc_cnt, pc_list):
@@ -702,8 +644,8 @@ class Battle:
                         self.foes_fled = True
                 return end
 
-class Shop:
-        "Shop creation."
+class AllItems:
+        "Item listing."
         def __init__(self):
                 # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown]
                 self.simple_melee_weapons = {
@@ -773,10 +715,33 @@ class Shop:
                 self.shields = {
                         "shield": [10, 2, 0, 0, 0, False, 6]
                         }
+                #name: [cost, die, die cnt, mod]
+                self.potions = {
+                        "potion of healing": [50, 4, 2, 2],
+                        "potion of greater healing": [225, 4, 4, 4]
+                        }
+
+class Shop:
+        "Shop creation."
+        def __init__(self, all_items):
+                self.simple_melee_weapons = all_items.simple_melee_weapons
+                self.martial_melee_weapons = all_items.martial_melee_weapons
+                self.simple_ranged_weapons = all_items.simple_ranged_weapons
+                self.martial_ranged_weapons = all_items.martial_ranged_weapons
+                self.armors = all_items.armors
+                self.shields = all_items.shields
+                self.potions = all_items.potions
                 self.shop_list_melee_weapons = []
                 self.shop_list_ranged_weapons = []
                 self.shop_list_armors = []
+                self.shop_list_potions = []
                 self.gen_shop_listing()
+                self.shop_types = {
+                        1: "weaponsmith",
+                        2: "bowyer/fletcher",
+                        3: "armorer",
+                        4: "alchemist"
+                        }
         def gen_shop_listing(self):
                 index = 0
                 for i in range(math.floor(len(self.simple_melee_weapons) / 2)):
@@ -799,28 +764,61 @@ class Shop:
                 for i in range(math.ceil(len(self.shields) / 2)):
                         index += 1
                         self.shop_list_armors.append([random.choice(list(self.shields.keys())), index])
+                index = 0
+                for i in range(len(self.potions) * 2):
+                        index += 1
+                        self.shop_list_potions.append([random.choice(list(self.potions.keys())), index])
                 #self.shop_list_melee_weapons.sort()
                 #self.shop_list_ranged_weapons.sort()
                 #self.shop_list_armors.sort()
-        def shopping_flow(self):
+                #self.shop_list_potions.sort()
+        def shopping_flow(self, char):
                 done = False
+                print("You have " + str(char.gold) + " GP to spend.")
                 while done == False:
-                        print("Tabaxi has wares if you have coin.")
-                        print("Melee:")
-                        print(self.shop_list_melee_weapons)
-                        purchase_choice = int(input("What do you seek?\n"))
-                        print(self.shop_list_melee_weapons[purchase_choice - 1][0])
-                        print("Ranged:")
-                        print(self.shop_list_ranged_weapons)
-                        purchase_choice = int(input("What do you seek?\n"))
-                        print(self.shop_list_ranged_weapons[purchase_choice - 1][0])
-                        print("Armor:")
-                        print(self.shop_list_armors)
-                        purchase_choice = int(input("What do you seek?\n"))
-                        print(self.shop_list_armors[purchase_choice - 1][0])
-                        finished = int(input("Another look? (1/0) "))
+                        self.shop_purchase(1, char)
+                        self.shop_purchase(2, char)
+                        self.shop_purchase(3, char)
+                        self.shop_purchase(4, char)
+                        finished = int(input("Take another look? (1 - Yes / 0 - No) "))
                         if finished == 0:
                                 done = True
+        def shop_purchase(self, type, char):
+                print(random.choice(["Tabaxi has wares if you have coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition."]))
+                print("Welcome to my " + self.shop_types[type] + " stand. Take a look:")
+                if type == 1:
+                        shop_list = self.shop_list_melee_weapons
+                        print(shop_list)
+                        purchase_choice = int(input("What do you need?\n"))
+                        item_list = {**self.simple_melee_weapons, **self.martial_melee_weapons}
+                elif type == 2:
+                        shop_list = self.shop_list_ranged_weapons
+                        print(shop_list)
+                        purchase_choice = int(input("What do you need?\n"))
+                        item_list = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
+                elif type == 3:
+                        shop_list = self.shop_list_armors
+                        print(shop_list)
+                        purchase_choice = int(input("What do you need?\n"))
+                        item_list = {**self.armors, **self.shields}
+                elif type == 4:
+                        shop_list = self.shop_list_potions
+                        print(shop_list)
+                        purchase_choice = int(input("Name your poison!\n"))
+                        item_list = self.potions
+                purchased_item = shop_list[purchase_choice - 1][0]
+                purchased_item_price = item_list[purchased_item][0]
+                if int(input("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)? (1 - Yes / 0 - No) ")) == 1:
+                        if char.gold >= purchased_item_price:
+                                char.inv.add_item(purchased_item, type)
+                                char.gold -= purchased_item_price
+                                print("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
+                                print("Remaining funds: " + str(char.gold) + " GP.")
+                        else:
+                                print(random.choice(["Not enough gold.", "You've not enough gold coins."]))
+                else:
+                        print("Ah, you've changed your mind, I see...")
+                print(char.inv.print_inv())
 
 def gen_stats():
         stre = 0
@@ -1156,7 +1154,7 @@ def calc_dmg(source, crit, dmg_mod, type):
         dmg += dmg_mod
         return dmg
 
-def gen_char(name, starting_level):
+def gen_char(name, starting_level, all_items):
         stats = gen_stats()
         classes = {
                 1: "fighter",
@@ -1179,31 +1177,33 @@ def gen_char(name, starting_level):
                 char = Paladin(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level)
         char.gen_starting_gold(char.char_class)
         char.gen_class(char.char_class)
+        char.gen_starting_equipment(all_items)
+        char.equip(all_items)
         char.action_economy()
         return char
 
-def init_chars():
+def init_chars(all_items):
         starting_level = 1
         name = input("Name your hero: ")
         if name == "":
                 name = "Rick"
         print(name)
-        p1_char = gen_char(name, starting_level)
+        p1_char = gen_char(name, starting_level, all_items)
         print("")
         
         name = "Elisa"
         print(name)
-        p2_char = gen_char(name, starting_level)
+        p2_char = gen_char(name, starting_level, all_items)
         print("")
         
         name = "Bandit"
         print(name)
-        p3_char = gen_char(name, starting_level)
+        p3_char = gen_char(name, starting_level, all_items)
         print("")
         
         name = "Rogue"
         print(name)
-        p4_char = gen_char(name, starting_level)
+        p4_char = gen_char(name, starting_level, all_items)
         
         allies = [p1_char, p2_char]
         enemies = [p3_char, p4_char]
@@ -1213,7 +1213,8 @@ def main():
         print("====================================")
         print("= Shining in the Dungeon (5e Duel) =")
         print("====================================\n")
-        chars = init_chars()
+        all_items = AllItems()
+        chars = init_chars(all_items)
         allies = chars[0]
         enemies = chars[1]
         encounters = 10
@@ -1245,11 +1246,14 @@ def main():
 main()
 
 #TODO: use equipped weapons, shield and armor instead of fighting style
-#TODO: eqiupment chooser and equipper routines
+#TODO: equipper routines
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
 #TODO: tkinter (action-bonus action-special-skip menu)
 #TODO: 1 merchant before level 5
 #TODO: after every 2nd battle pcs level up
 #TODO: add damage type to damage notification
-#TODO: net restrain
+#TODO: net restrain, whip pull
+#TODO: front-back positioning
+#TODO: push/pull mechanic
+#TODO: help action
