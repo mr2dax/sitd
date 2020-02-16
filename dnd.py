@@ -33,10 +33,14 @@ class Character:
                 self.melee_att_mod = self.str_mod + self.prof_bonus
                 self.ranged_dmg_mod = max(0, self.dex_mod)
                 self.melee_dmg_mod = max(0, self.str_mod)
-                self.dmg_die = 1
-                self.dmg_die_cnt = 1
-                self.dmg_die_offhand = 1
-                self.dmg_die_cnt_offhand = 1
+                self.dmg_die_main = 1
+                self.dmg_die_cnt_main = 1
+                self.dmg_die_type_main = "b"
+                self.ench_main = 0
+                self.dmg_die_off = 1
+                self.dmg_die_cnt_off = 1
+                self.dmg_die_type_off = "b"
+                self.ench_off = 0
                 self.ac = 10 + self.dex_mod
                 self.init_mod = self.dex_mod
                 self.max_hp = 0
@@ -57,6 +61,7 @@ class Character:
                 self.death_st = 0
                 self.death_st_success = 0
                 self.death_st_fail = 0
+                self.carry = self.str * 15
                 self.athl = self.str_mod
                 self.acro = self.dex_mod
                 self.perc = self.wis_mod
@@ -267,7 +272,37 @@ class Character:
                                 self.fighting_style = 4
                                 self.offhand_dmg_mod = True
                                 self.bonus_attack = True
-        def equip(self, all_items):
+        def equip(self, item, type, all_items):
+                dmg_die = all_items[item][1]
+                dmg_die_cnt = all_items[item][2]
+                ench = all_items[item][3]
+                dmg_type = all_items[item][4]
+                light_heavy = all_items[item][6]
+                finesse = all_items[item][7]
+                hands = all_items[item][8]
+                thrown = all_items[item][9]
+                if type == 1:
+                        if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "shield" and hands < 2:
+                                self.eq_weapon_main = item
+                                self.dmg_die_main = dmg_die
+                                self.dmg_die_cnt_main = dmg_die_cnt
+                                self.dmg_type_main = dmg_type
+                                self.ench_main = ench
+                                self.bonus_attack = False
+                                self.offhand_dmg_mod = False
+                        elif self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "nothing":
+                                self.eq_weapon_main = item
+                                self.eq_weapon_off = item
+                                self.dmg_die_main = dmg_die
+                                if hands == 1.5:
+                                        self.dmg_die_main += 2
+                                self.dmg_die_cnt_main = dmg_die_cnt
+                                self.dmg_type_main = dmg_type
+                                self.ench_main = ench
+                                self.bonus_attack = False
+                                self.offhand_dmg_mod = False
+                        elif self.eq_weapon_main != "unarmed strike" and self.eq_weapon_offhand != "shield" and hands < 2:
+                                self.eq_weapon_offhand = item
                 if self.char_class == 1:
                         if self.fighting_style == 1:
                                 # +1 def
@@ -313,9 +348,9 @@ class Character:
                         #        self.ac += 8 - self.dex_mod
                         #self.ac += 2
         def level_up(self, levels):
-                for l in levels:
-                        self.level += 1
-                        self.hd_cnt += 1
+                for lvl in levels:
+                        self.level = 1 + lvl
+                        self.hd_cnt += 1 + lvl
                         rolled_hp = roll_dice(self.hd, self.con_mod, 0)[0]
                         self.max_hp += rolled_hp
                         self.hp += rolled_hp
@@ -808,12 +843,20 @@ class Shop:
                         item_list = self.potions
                 purchased_item = shop_list[purchase_choice - 1][0]
                 purchased_item_price = item_list[purchased_item][0]
+                purchased_item_weight = item_list[purchased_item][5]
                 if int(input("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)? (1 - Yes / 0 - No) ")) == 1:
                         if char.gold >= purchased_item_price:
-                                char.inv.add_item(purchased_item, type)
-                                char.gold -= purchased_item_price
-                                print("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
-                                print("Remaining funds: " + str(char.gold) + " GP.")
+                                if char.carry - purchased_item_weight < 0:
+                                        print("You cannot purchase the " + purchased_item + ". Get rid of something first.")
+                                else:
+                                        char.inv.add_item(purchased_item, type)
+                                        char.gold -= purchased_item_price
+                                        char.carry -= purchased_item_weight
+                                        print("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
+                                        print("Remaining funds: " + str(char.gold) + " GP.")
+                                        if type != 4:
+                                                if int(input("Wanna equip the " + purchased_item + "? (1 - Yes / 0 - No) ")) == 1:
+                                                        char.equip(purchased_item, type, item_list)
                         else:
                                 print(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                 else:
@@ -1022,21 +1065,24 @@ def target_selector(source, battle, targets):
         return battle.get_target_by_name(targets[target_choice])
 
 def attack(source, target, type, adv_disadv, battle):
+        ench = 0
         if type == 1:
                 print(source.name + " attacks " + target.name + " with " + source.eq_weapon_main + ".")
+                ench = source.ench_main
         elif type == 2:
                 print(source.name + " attacks " + target.name + " with " + source.eq_weapon_offhand + ".")
+                ench = source.ench_off
         if source.ranged:
-                att_mod = source.ranged_att_mod
-                dmg_mod = source.ranged_dmg_mod
+                att_mod = source.ranged_att_mod + ench
+                dmg_mod = source.ranged_dmg_mod + ench
         elif source.fighting_style == 4 or source.char_class == 2:
-                att_mod = max(source.ranged_att_mod, source.melee_att_mod)
-                dmg_mod = max(source.ranged_dmg_mod, source.melee_dmg_mod)
+                att_mod = max(source.ranged_att_mod, source.melee_att_mod) + ench
+                dmg_mod = max(source.ranged_dmg_mod, source.melee_dmg_mod) + ench
         else:
-                att_mod = source.melee_att_mod
-                dmg_mod = source.melee_dmg_mod
-        if type == 2 and source.fighting_style != 4 and source.char_class != 6:
-                dmg_mod = min(0, max(source.ranged_dmg_mod, source.melee_dmg_mod))
+                att_mod = source.melee_att_mod + ench
+                dmg_mod = source.melee_dmg_mod + ench
+        if type == 2 and source.fighting_style != 4 and source.char_class != 2:
+                dmg_mod = min(0, max(source.ranged_dmg_mod, source.melee_dmg_mod)) + ench
         to_hit = roll_dice(20, att_mod, adv_disadv)
         crit = to_hit[1]
         if crit == 1:
@@ -1133,14 +1179,14 @@ def calc_dmg(source, crit, dmg_mod, type):
         die_cnt = 1
         dmg_die = 1
         if type == 1:
-                die_cnt = source.dmg_die_cnt
-                dmg_die = source.dmg_die
+                die_cnt = source.dmg_die_cnt_main
+                dmg_die = source.dmg_die_main
         if type == 2:
-                die_cnt = source.dmg_die_cnt_offhand
-                dmg_die = source.dmg_die_offhand
+                die_cnt = source.dmg_die_cnt_off
+                dmg_die = source.dmg_die_off
         if type == 3:
-                die_cnt = source.dmg_die_cnt
-                dmg_die = source.dmg_die
+                die_cnt = source.dmg_die_cnt_main
+                dmg_die = source.dmg_die_main
         if crit == 1:
                 die_cnt *= 2
         else:
@@ -1178,7 +1224,6 @@ def gen_char(name, starting_level, all_items):
         char.gen_starting_gold(char.char_class)
         char.gen_class(char.char_class)
         char.gen_starting_equipment(all_items)
-        char.equip(all_items)
         char.action_economy()
         return char
 
@@ -1247,6 +1292,7 @@ main()
 
 #TODO: use equipped weapons, shield and armor instead of fighting style
 #TODO: equipper routines
+#TODO: get price for shop listing
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
 #TODO: tkinter (action-bonus action-special-skip menu)
