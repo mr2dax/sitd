@@ -273,6 +273,7 @@ class Character:
                                 self.offhand_dmg_mod = True
                                 self.bonus_attack = True
         def equip(self, item, type, all_items):
+                # stats of the item to be equipped
                 dmg_die = all_items[item][1]
                 dmg_die_cnt = all_items[item][2]
                 ench = all_items[item][3]
@@ -281,7 +282,19 @@ class Character:
                 finesse = all_items[item][7]
                 hands = all_items[item][8]
                 thrown = all_items[item][9]
+                # stats of the item that is currently equipped in main hand
+                if self.eq_weapon_main == "unarmed strike":
+                        eq_main_light_heavy = 0
+                else:
+                        eq_main_light_heavy = all_items[self.eq_weapon_main][6]
+                # stats of the items that is currently equipped in the off-hand
+                if self.eq_weapon_offhand == "nothing":
+                        eq_off_light_heavy = 0
+                else:
+                        eq_off_light_heavy = all_items[self.eq_weapon_offhand][6]
+                # melee weapon to equip
                 if type == 1:
+                        # 1. nothing in main hand, shield in off-hand and weapon to equip is one-handed or versatile (1.5 hands)
                         if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "shield" and hands < 2:
                                 self.eq_weapon_main = item
                                 self.dmg_die_main = dmg_die
@@ -289,20 +302,76 @@ class Character:
                                 self.dmg_type_main = dmg_type
                                 self.ench_main = ench
                                 self.bonus_attack = False
-                                self.offhand_dmg_mod = False
-                        elif self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "nothing":
+                        # 2. something or nothing in main hand, nothing in off-hand
+                        elif self.eq_weapon_offhand == "nothing":
+                                # nothing in main hand, then equip to main hand
+                                if self.eq_weapon_main == "nothing":
+                                        self.eq_weapon_main = item
+                                        self.dmg_die_main = dmg_die
+                                        # if versatile, then raise main hand damage die by one grade
+                                        if hands == 1.5:
+                                                self.dmg_die_main += 2
+                                                self.eq_weapon_offhand = item
+                                        elif hands == 2:
+                                                self.eq_weapon_offhand = item
+                                        self.dmg_die_cnt_main = dmg_die_cnt
+                                        self.dmg_type_main = dmg_type
+                                        self.ench_main = ench
+                                # something in main hand, then equip to off-hand if not 2-handed weapon
+                                elif self.eq_weapon_main != "nothing" and hands < 2:
+                                        self.eq_weapon_offhand = item
+                                        self.dmg_die_cnt_off = dmg_die_cnt
+                                        self.dmg_type_off = dmg_type
+                                        self.ench_off = ench
+                                        # check for two-weapon fighting
+                                        if light_heavy and eq_main_light_heavy:
+                                                self.bonus_attack = True
+                                        else:
+                                                self.bonus_attack = False
+                                # something in main hand, but want to equip 2-handed, then switch weapons in main hand
+                                elif self.eq_weapon_main != "nothing" and hands == 2:
+                                        self.eq_weapon_main = item
+                                        self.eq_weapon_offhand= item
+                                        self.dmg_die_main = dmg_die
+                                        self.dmg_die_cnt_main = dmg_die_cnt
+                                        self.dmg_type_main = dmg_type
+                                        self.ench_main = ench
+                        # 3. something in main hand, something in off-hand
+                        elif self.eq_weapon_main != "unarmed strike" and self.eq_weapon_offhand != "nothing":
+                                # unequip off-hand (shield or weapon)
+                                if hands == 2:
+                                        self.ac -= 2
+                                        self.dmg_die_off = 1
+                                        self.dmg_die_cnt_off = 1
+                                        self.dmg_die_type_off = "b"
+                                        self.ench_off = 0
+                                        self.eq_weapon_offhand = item
                                 self.eq_weapon_main = item
-                                self.eq_weapon_off = item
                                 self.dmg_die_main = dmg_die
-                                if hands == 1.5:
-                                        self.dmg_die_main += 2
+                                self.dmg_die_cnt_main = dmg_die_cnt
+                                self.dmg_type_main = dmg_type
+                                self.ench_main = ench
+                                # check for two-weapon fighting
+                                if light_heavy and eq_off_light_heavy:
+                                        self.bonus_attack = True
+                                else:
+                                        self.bonus_attack = False
+                        # 4. nothing in main hand, weapon or shield in off-hand and weapon to equip is 2-handed
+                        elif self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand != "nothing" and hands == 2:
+                                self.eq_weapon_main = item
+                                if self.eq_weapon_offhand == "shield":
+                                        self.ac -= 2
+                                else:
+                                        self.dmg_die_off = 1
+                                        self.dmg_die_cnt_off = 1
+                                        self.dmg_die_type_off = "b"
+                                        self.ench_off = 0
+                                self.eq_weapon_offhand = item
+                                self.dmg_die_main = dmg_die
                                 self.dmg_die_cnt_main = dmg_die_cnt
                                 self.dmg_type_main = dmg_type
                                 self.ench_main = ench
                                 self.bonus_attack = False
-                                self.offhand_dmg_mod = False
-                        elif self.eq_weapon_main != "unarmed strike" and self.eq_weapon_offhand != "shield" and hands < 2:
-                                self.eq_weapon_offhand = item
                 if self.char_class == 1:
                         if self.fighting_style == 1:
                                 # +1 def
@@ -686,14 +755,14 @@ class AllItems:
                 self.simple_melee_weapons = {
                         "club": [0.1, 4, 1, 0, "b", 2, 1, False, 1, False],
                         "dagger": [2, 4, 1, 0, "p", 1, 1, True, 1, True],
-                        "greatclub": [0.2, 8, 1, 0, "b", 10, 0, 0, 2, False],
-                        "handaxe": [5, 6, 1, 0, "s", 2, 1, 0, 1, True],
-                        "javelin": [0.5, 6, 1, 0, "p", 2, 0, 0, 1, True],
-                        "light hammer": [2, 4, 1, 0, "b", 4, 1, 0, 1, False],
-                        "mace": [5, 6, 1, 0, "b", 4, 0, 0, 1, False],
-                        "quarterstaff": [0.2, 6, 1, 0, "b", 4, 0, 0, 1.5, False],
-                        "sickle": [1, 4, 1, 0, "s", 2, 1, 0, 1, False],
-                        "spear": [1, 6, 1, 0, "p", 3, 0, 0, 1.5, True]
+                        "greatclub": [0.2, 8, 1, 0, "b", 10, 0, False, 2, False],
+                        "handaxe": [5, 6, 1, 0, "s", 2, 1, False, 1, True],
+                        "javelin": [0.5, 6, 1, 0, "p", 2, 0, False, 1, True],
+                        "light hammer": [2, 4, 1, 0, "b", 4, 1, False, 1, False],
+                        "mace": [5, 6, 1, 0, "b", 4, 0, False, 1, False],
+                        "quarterstaff": [0.2, 6, 1, 0, "b", 4, 0, False, 1.5, False],
+                        "sickle": [1, 4, 1, 0, "s", 2, 1, False, 1, False],
+                        "spear": [1, 6, 1, 0, "p", 3, 0, False, 1.5, True]
                         }
                 # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, load]
                 self.simple_ranged_weapons = {
