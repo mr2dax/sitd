@@ -29,8 +29,8 @@ class Character:
                 self.wis_mod = math.floor((self.wis - 10) / 2)
                 self.int_mod = math.floor((self.int - 10) / 2)
                 self.cha_mod = math.floor((self.cha - 10) / 2)
-                self.ranged_att_mod = self.dex_mod + self.prof_bonus
-                self.melee_att_mod = self.str_mod + self.prof_bonus
+                self.ranged_att_mod = self.dex_mod
+                self.melee_att_mod = self.str_mod
                 self.ranged_dmg_mod = max(0, self.dex_mod)
                 self.melee_dmg_mod = max(0, self.str_mod)
                 self.dmg_die_main = 1
@@ -64,9 +64,9 @@ class Character:
                 self.carry = self.str * 15
                 self.athl = self.str_mod
                 self.acro = self.dex_mod
-                self.perc = self.wis_mod
-                self.inve = self.int_mod
-                self.stea = self.dex_mod
+                self.perception = self.wis_mod
+                self.investigation = self.int_mod
+                self.stealth = self.dex_mod
                 self.reroll_dmg = False
                 self.offhand_dmg_mod = False
                 self.eq_weapon_main = "unarmed strike"
@@ -196,7 +196,7 @@ class Character:
                         self.max_hp = self.hp
                         self.bonus_attack = True
                         self.acro += self.prof_bonus
-                        self.perc += self.prof_bonus
+                        self.perception += self.prof_bonus
                         self.str_st += self.prof_bonus
                         self.dex_st += self.prof_bonus
                 elif class_choice == 3:
@@ -216,7 +216,7 @@ class Character:
                         self.max_hp = self.hp
                         self.bonus_attack = True
                         self.acro += self.prof_bonus * 2
-                        self.stea += self.prof_bonus * 2
+                        self.stealth += self.prof_bonus * 2
                         self.dex_st += self.prof_bonus
                         self.int_st += self.prof_bonus
                         self.specials["sneak attack"] = [6, 1]
@@ -226,12 +226,12 @@ class Character:
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
                         self.athl += self.prof_bonus
-                        self.perc += self.prof_bonus
+                        self.perception += self.prof_bonus
                         self.wis_st += self.prof_bonus
                         self.cha_st += self.prof_bonus
         def gen_fighting_style(self, inv):
                 styles = {
-                        1: "sword and board (defense)",
+                        1: "defense",
                         2: "great weapon fighting",
                         3: "dueling",
                         4: "two-weapon fighting",
@@ -272,28 +272,32 @@ class Character:
                                 self.fighting_style = 4
                                 self.offhand_dmg_mod = True
                                 self.bonus_attack = True
-        def equip(self, item, type, all_items):
-                # stats of the item to be equipped
-                dmg_die = all_items[item][1]
-                dmg_die_cnt = all_items[item][2]
-                ench = all_items[item][3]
-                dmg_type = all_items[item][4]
-                light_heavy = all_items[item][6]
-                finesse = all_items[item][7]
-                hands = all_items[item][8]
-                thrown = all_items[item][9]
-                # stats of the item that is currently equipped in main hand
-                if self.eq_weapon_main == "unarmed strike":
-                        eq_main_light_heavy = 0
-                else:
-                        eq_main_light_heavy = all_items[self.eq_weapon_main][6]
-                # stats of the items that is currently equipped in the off-hand
-                if self.eq_weapon_offhand == "nothing":
-                        eq_off_light_heavy = 0
-                else:
-                        eq_off_light_heavy = all_items[self.eq_weapon_offhand][6]
-                # melee weapon to equip
-                if type == 1:
+        def equip(self, item, type, item_list, all_items):
+                # melee or ranged weapon
+                if type in [1, 2]:
+                        # stats of the weapon to be equipped
+                        dmg_die = item_list[item][1]
+                        dmg_die_cnt = item_list[item][2]
+                        ench = item_list[item][3]
+                        dmg_type = item_list[item][4]
+                        light_heavy = item_list[item][6]
+                        finesse = item_list[item][7]
+                        hands = item_list[item][8]
+                        if type == 1:
+                                thrown = item_list[item][9]
+                        elif type == 2:
+                                load = item_list[item][9]
+                                self.ranged = True
+                        # stats of the weapon that is currently equipped in main hand
+                        if self.eq_weapon_main == "unarmed strike":
+                                eq_main_light_heavy = 0
+                        else:
+                                eq_main_light_heavy = item_list[self.eq_weapon_main][6]
+                        # stats of the weapon that is currently equipped in the off-hand
+                        if self.eq_weapon_offhand == "nothing":
+                                eq_off_light_heavy = 0
+                        else:
+                                eq_off_light_heavy = item_list[self.eq_weapon_offhand][6]
                         # 1. nothing in main hand, shield in off-hand and weapon to equip is one-handed or versatile (1.5 hands)
                         if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "shield" and hands < 2:
                                 self.eq_weapon_main = item
@@ -372,50 +376,103 @@ class Character:
                                 self.dmg_type_main = dmg_type
                                 self.ench_main = ench
                                 self.bonus_attack = False
+                        else:
+                                print("Impossible to equip.")
+                # armor or shield
+                elif type == 3:
+                        # stats of the armor/shield to be equipped
+                        armor_class = item_list[item][1]
+                        armor_ench = item_list[item][2]
+                        str_req = item_list[item][3]
+                        armor_type = item_list[item][4]
+                        # light armor: unlimited +/- DEX bonus
+                        if armor_type == 0:
+                                self.eq_armor = item
+                                self.ac = armor_class + self.dex_mod + armor_ench
+                        # medium armor: +2 max / unlimited negative DEX bonus
+                        elif armor_type == 1:
+                                self.eq_armor = item
+                                if self.dex_mod <= 2:
+                                        self.ac = armor_class + self.dex_mod + armor_ench
+                                else:
+                                        self.ac = armor_class + 2 + armor_ench
+                        # heavy armor: no +/- DEX bonus
+                        elif armor_type == 2:
+                                if item not in ["chain shirt", "splint", "plate"]:
+                                        self.eq_armor = item
+                                elif (item == "chain shirt" and self.str >= str_req) or (item in ["splint", "plate"] and self.str >= str_req):
+                                        self.eq_armor = item
+                                        self.ac = armor_class + armor_ench
+                                else:
+                                        print("Not strong enough to don a " + item + ".")
+                        # shield: +2 AC
+                        elif armor_type == 3:
+                                if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
+                                        self.ac += 2
+                                elif self.eq_weapon_offhand == "shield":
+                                        pass
+                                else:
+                                        # unequip 2-handed weapon
+                                        if self.eq_weapon_main == self.eq_weapon_offhand:
+                                                self.eq_weapon_main = "unarmed strike"
+                                                self.dmg_die_main = 1
+                                                self.dmg_die_cnt_main = 1
+                                                self.dmg_die_type_main = "b"
+                                                self.ench_main = 0
+                                        # unequip off-hand weapon
+                                        else:
+                                                self.dmg_die_off = 1
+                                                self.dmg_die_cnt_off = 1
+                                                self.dmg_die_type_off = "b"
+                                                self.ench_off = 0
+                                                self.bonus_attack = False
+                                        self.ac += 2
+                                self.eq_weapon_offhand = item
+                        else:
+                                print("Impossible to equip.")
                 if self.char_class == 1:
-                        if self.fighting_style == 1:
-                                # +1 def
-                                pass
-                        elif self.fighting_style == 2:
-                                pass
-                        elif self.fighting_style == 3:
-                                pass
-                        elif self.fighting_style == 4:
-                                pass
-                        elif self.fighting_style == 5:
-                                pass
+                        if self.fighting_style == 1 and self.eq_armor != "nothing":
+                                self.ac += 1
+                        elif self.fighting_style == 2 and self.eq_weapon_main != "unarmed" and self.eq_weapon_offhand == "nothing":
+                                self.melee_dmg_mod += 2
+                                self.ranged_dmg_mod += 2
+                        elif self.fighting_style == 3 and self.eq_weapon_main == self.eq_weapon_offhand:
+                                self.reroll_dmg = True
+                        elif self.fighting_style == 4 and self.bonus_attack:
+                                self.offhand_dmg_mod = True
+                        elif self.fighting_style == 5 and self.ranged:
+                                self.ranged_att_mod += 2
                 elif self.char_class == 2:
-                        if self.wis_mod > 0:
-                                self.ac += self.wis_mod
+                        if self.eq_armor == "nothing" and self.eq_weapon_offhand != "shield":
+                                if self.wis_mod > 0:
+                                        self.ac += self.wis_mod
+                        else:
+                                if self.eq_weapon_main == "unarmed strike":
+                                        self.bonus_attack = False
+                                        self.offhand_dmg_mod = False
+                                        self.dmg_die_off = 1
+                                        self.dmg_die_cnt_off = 1
+                                        self.dmg_die_type_off = "b"
+                                        self.ench_off = 0
+                        if self.eq_weapon_main in [all_items.simple_melee_weapons, all_items.simple_ranged_weapons] or self.eq_weapon_main == "shortsword":
+                                self.melee_att_mod += self.prof_bonus
+                                self.ranged_att_mod += self.prof_bonus
+                        #tbc
                 elif self.char_class == 3:
-                        if self.fighting_style == 1:
-                                # +1 def
-                                pass
-                        elif self.fighting_style == 2:
-                                pass
-                        elif self.fighting_style == 3:
-                                pass
-                        elif self.fighting_style == 4:
-                                pass
-                        if self.con_mod > 0:
+                        if self.eq_armor == "nothing" and self.con_mod > 0:
                                 self.ac += self.con_mod
                 elif self.char_class == 4:
                         pass
                 elif self.char_class == 5:
-                        pass
-                        #light
-                        #self.ac += 2
-                        #medium
-                        #if self.dex_mod <= 2:
-                        #        self.ac += 5 + 1
-                        #else:
-                        #        self.ac = 10 + 2 + 5 + 1
-                        #heavy
-                        #if self.dex_mod <= 0:
-                        #        self.ac = 18
-                        #else:
-                        #        self.ac += 8 - self.dex_mod
-                        #self.ac += 2
+                        if self.fighting_style == 1 and self.eq_armor != "nothing":
+                                self.ac += 1
+                        elif self.fighting_style == 2 and self.eq_weapon_main != "unarmed" and self.eq_weapon_offhand == "nothing":
+                                self.melee_dmg_mod += 2
+                                self.ranged_dmg_mod += 2
+                        elif self.fighting_style == 3 and self.eq_weapon_main == self.eq_weapon_offhand:
+                                self.reroll_dmg = True
+                        elif self.fighting_style == 4 and self.bonus_attack:
+                                self.offhand_dmg_mod = True
         def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -817,7 +874,7 @@ class AllItems:
                         }
                 # name: [cost, ac, ench, str, type, stealth disadv, weight]
                 self.shields = {
-                        "shield": [10, 2, 0, 0, 0, False, 6]
+                        "shield": [10, 2, 0, 0, 3, False, 6]
                         }
                 #name: [cost, die, die cnt, mod]
                 self.potions = {
@@ -828,13 +885,14 @@ class AllItems:
 class Shop:
         "Shop creation."
         def __init__(self, all_items):
-                self.simple_melee_weapons = all_items.simple_melee_weapons
-                self.martial_melee_weapons = all_items.martial_melee_weapons
-                self.simple_ranged_weapons = all_items.simple_ranged_weapons
-                self.martial_ranged_weapons = all_items.martial_ranged_weapons
-                self.armors = all_items.armors
-                self.shields = all_items.shields
-                self.potions = all_items.potions
+                self.all_items = all_items
+                self.simple_melee_weapons = self.all_items.simple_melee_weapons
+                self.martial_melee_weapons = self.all_items.martial_melee_weapons
+                self.simple_ranged_weapons = self.all_items.simple_ranged_weapons
+                self.martial_ranged_weapons = self.all_items.martial_ranged_weapons
+                self.armors = self.all_items.armors
+                self.shields = self.all_items.shields
+                self.potions = self.all_items.potions
                 self.shop_list_melee_weapons = []
                 self.shop_list_ranged_weapons = []
                 self.shop_list_armors = []
@@ -880,10 +938,9 @@ class Shop:
                 done = False
                 print("You have " + str(char.gold) + " GP to spend.")
                 while done == False:
-                        self.shop_purchase(1, char)
-                        self.shop_purchase(2, char)
-                        self.shop_purchase(3, char)
-                        self.shop_purchase(4, char)
+                        for i in range(3):
+                                i += 1
+                                self.shop_purchase(i, char)
                         finished = int(input("Take another look? (1 - Yes / 0 - No) "))
                         if finished == 0:
                                 done = True
@@ -925,7 +982,7 @@ class Shop:
                                         print("Remaining funds: " + str(char.gold) + " GP.")
                                         if type != 4:
                                                 if int(input("Wanna equip the " + purchased_item + "? (1 - Yes / 0 - No) ")) == 1:
-                                                        char.equip(purchased_item, type, item_list)
+                                                        char.equip(purchased_item, type, item_list, self.all_items)
                         else:
                                 print(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                 else:
@@ -1360,7 +1417,7 @@ def main():
 main()
 
 #TODO: use equipped weapons, shield and armor instead of fighting style
-#TODO: equipper routines
+#TODO: equipper routines, unequipper routines
 #TODO: get price for shop listing
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
