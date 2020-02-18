@@ -22,6 +22,8 @@ class Character:
                 self.gold = 0
                 self.prof_bonus = 2
                 self.attacks = 1
+                self.attack_adv = False
+                self.attack_disadv = False
                 self.bonus_attack = False
                 self.str_mod = math.floor((self.str - 10) / 2)
                 self.dex_mod = math.floor((self.dex - 10) / 2)
@@ -46,32 +48,33 @@ class Character:
                 self.max_hp = 0
                 self.hp = 0
                 self.temp_hp = 0
-                self.str_st = self.str_mod
-                self.str_st_adv = False
-                self.dex_st = self.dex_mod
-                self.dex_st_adv = False
-                self.con_st = self.con_mod
-                self.con_st_adv = False
-                self.wis_st = self.wis_mod
-                self.wis_st_adv = False
-                self.int_st = self.int_mod
-                self.int_st_adv = False
-                self.cha_st = self.cha_mod
-                self.cha_st_adv = False
+                # name: mod, bonus, adv, disadv
+                self.saving_throws = {
+                        "str": [self.str_mod, 0, False, False],
+                        "dex": [self.dex_mod, 0, False, False],
+                        "con": [self.con_mod, 0, False, False],
+                        "wis": [self.wis_mod, 0, False, False],
+                        "int": [self.int_mod, 0, False, False],
+                        "cha": [self.cha_mod, 0, False, False]
+                        }
                 self.death_st = 0
                 self.death_st_success = 0
                 self.death_st_fail = 0
                 self.carry = self.str * 15
-                self.athl = self.str_mod
-                self.acro = self.dex_mod
-                self.perception = self.wis_mod
-                self.investigation = self.int_mod
-                self.stealth = self.dex_mod
+                # name: mod, bonus, adv, disadv
+                self.skills = {
+                        "athletics": [self.str_mod, 0, False, False],
+                        "acrobatics": [self.dex_mod, 0, False, False],
+                        "perception": [self.wis_mod, 0, False, False],
+                        "investigation": [self.int_mod, 0, False, False],
+                        "stealth": [self.dex_mod, 0, False, False],
+                        "persuation": [self.cha_mod, 0, False, False]
+                }
                 self.reroll_dmg = False
                 self.offhand_dmg_mod = False
                 self.eq_weapon_main = "unarmed strike"
                 self.eq_weapon_offhand = "nothing"
-                self.eq_armor = "nothing"
+                self.eq_armor = "unarmored"
                 self.ranged = False
                 self.fighting_style = 0
                 if name == "":
@@ -182,12 +185,12 @@ class Character:
                         self.hd = 10
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
-                        self.athl += self.prof_bonus
-                        self.acro += self.prof_bonus
                         self.second_wind = True
                         self.second_wind_cnt = 1
-                        self.str_st += self.prof_bonus
-                        self.con_st += self.prof_bonus
+                        self.skills["athletics"][0] += self.prof_bonus
+                        self.skills["acrobatics"][0] += self.prof_bonus
+                        self.saving_throws["str"][0] += self.prof_bonus
+                        self.saving_throws["con"][0] += self.prof_bonus
                         self.gen_fighting_style(self.inv)
                 elif class_choice == 2:
                         self.char_class = 2
@@ -195,19 +198,19 @@ class Character:
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
                         self.bonus_attack = True
-                        self.acro += self.prof_bonus
-                        self.perception += self.prof_bonus
-                        self.str_st += self.prof_bonus
-                        self.dex_st += self.prof_bonus
+                        self.skills["acrobatics"][0] += self.prof_bonus
+                        self.skills["perception"][0] += self.prof_bonus
+                        self.saving_throws["str"][0] += self.prof_bonus
+                        self.saving_throws["dex"][0] += self.prof_bonus
                 elif class_choice == 3:
                         self.char_class = 3
                         self.hd = 12
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
-                        self.athl += self.prof_bonus
-                        self.acro += self.prof_bonus
-                        self.str_st += self.prof_bonus
-                        self.con_st += self.prof_bonus
+                        self.skills["athletics"][0] += self.prof_bonus
+                        self.skills["acrobatics"][0] += self.prof_bonus
+                        self.saving_throws["str"][0] += self.prof_bonus
+                        self.saving_throws["con"][0] += self.prof_bonus
                         self.specials["rage"] = 2
                 elif class_choice == 4:
                         self.char_class = 4
@@ -215,20 +218,20 @@ class Character:
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
                         self.bonus_attack = True
-                        self.acro += self.prof_bonus * 2
-                        self.stealth += self.prof_bonus * 2
-                        self.dex_st += self.prof_bonus
-                        self.int_st += self.prof_bonus
+                        self.skills["stealth"][0] += self.prof_bonus * 2
+                        self.skills["acrobatics"][0] += self.prof_bonus * 2
+                        self.saving_throws["dex"][0] += self.prof_bonus
+                        self.saving_throws["int"][0] += self.prof_bonus
                         self.specials["sneak attack"] = [6, 1]
                 elif class_choice == 5:
                         self.char_class = 5
                         self.hd = 10
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
-                        self.athl += self.prof_bonus
-                        self.perception += self.prof_bonus
-                        self.wis_st += self.prof_bonus
-                        self.cha_st += self.prof_bonus
+                        self.skills["athletics"][0] += self.prof_bonus
+                        self.skills["persuation"][0] += self.prof_bonus
+                        self.saving_throws["wis"][0] += self.prof_bonus
+                        self.saving_throws["cha"][0] += self.prof_bonus
         def gen_fighting_style(self, inv):
                 styles = {
                         1: "defense",
@@ -430,49 +433,103 @@ class Character:
                                 self.eq_weapon_offhand = item
                         else:
                                 print("Impossible to equip.")
+                # class specific adjustments
+                # fighter
                 if self.char_class == 1:
-                        if self.fighting_style == 1 and self.eq_armor != "nothing":
+                        # defense: +1 AC if wearing armor
+                        if self.fighting_style == 1 and self.eq_armor != "unarmored":
                                 self.ac += 1
-                        elif self.fighting_style == 2 and self.eq_weapon_main != "unarmed" and self.eq_weapon_offhand == "nothing":
+                        # dueling: +2 dmg if nothing in off-hand
+                        elif self.fighting_style == 2 and self.eq_weapon_main != "unarmed strike" and self.eq_weapon_offhand == "nothing":
                                 self.melee_dmg_mod += 2
                                 self.ranged_dmg_mod += 2
+                        # great weapon fighting: reroll 1s and 2s on dmg
                         elif self.fighting_style == 3 and self.eq_weapon_main == self.eq_weapon_offhand:
                                 self.reroll_dmg = True
+                        # two weapon fighting: add dmg mod to bonus attack
                         elif self.fighting_style == 4 and self.bonus_attack:
                                 self.offhand_dmg_mod = True
+                        # archery: +2 to attack mod with ranged weapons
                         elif self.fighting_style == 5 and self.ranged:
                                 self.ranged_att_mod += 2
+                        # fighters are proficient with all weapons and armor
+                        self.melee_att_mod += self.prof_bonus
+                        self.ranged_att_mod += self.prof_bonus
+                # monk
                 elif self.char_class == 2:
-                        if self.eq_armor == "nothing" and self.eq_weapon_offhand != "shield":
+                        # monks get their WIS mod to AC, martial arts die, unarmed finesse and bonus action unarmed strike if they don't wear armor and shield
+                        if self.eq_armor == "unarmored" and self.eq_weapon_offhand != "shield":
                                 if self.wis_mod > 0:
                                         self.ac += self.wis_mod
                         else:
                                 if self.eq_weapon_main == "unarmed strike":
                                         self.bonus_attack = False
                                         self.offhand_dmg_mod = False
+                                        self.unarmed_finesse = False
                                         self.dmg_die_off = 1
                                         self.dmg_die_cnt_off = 1
                                         self.dmg_die_type_off = "b"
                                         self.ench_off = 0
-                        if self.eq_weapon_main in [all_items.simple_melee_weapons, all_items.simple_ranged_weapons] or self.eq_weapon_main == "shortsword":
+                        # monks are proficient with simple weapons and shortswords only, no armor and shield proficiencies
+                        if self.eq_weapon_main == "unarmed strike" or self.eq_weapon_main in [all_items.simple_melee_weapons.keys(), all_items.simple_ranged_weapons.keys()] or self.eq_weapon_main == "shortsword":
                                 self.melee_att_mod += self.prof_bonus
                                 self.ranged_att_mod += self.prof_bonus
-                        #tbc
+                        if self.eq_armor != "unarmored" or self.eq_weapon_offhand != "shield":
+                                for s in self.skills.keys():
+                                        self.skills[s][3] = True
+                                for st in self.saving_throws.keys():
+                                        self.saving_throws[st][3] = True
+                                self.attack_disadv = True
+                # barbarian
                 elif self.char_class == 3:
-                        if self.eq_armor == "nothing" and self.con_mod > 0:
-                                self.ac += self.con_mod
+                        # barbarians get to add their CON mod to AC if not wearing any armor
+                        if self.eq_armor == "unarmored":
+                                if self.con_mod > 0:
+                                        self.ac += self.con_mod
+                        # barbarians are not proficient in heavy armor
+                        elif all_items[self.eq_armor][4] == 2:
+                                for s in self.skills.keys():
+                                        self.skills[s][3] = True
+                                for st in self.saving_throws.keys():
+                                        self.saving_throws[st][3] = True
+                                self.attack_disadv = True
+                        # barbarians are proficient in all weapons
+                        self.melee_att_mod += self.prof_bonus
+                        self.ranged_att_mod += self.prof_bonus
+                # rogue
                 elif self.char_class == 4:
-                        pass
+                        # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
+                        if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
+                                self.melee_att_mod += self.prof_bonus
+                                self.ranged_att_mod += self.prof_bonus
+                                print("test")
+                        print(self.eq_armor + all_items.armors[self.eq_armor])
+                        #tbc - deal with unarmored here, only martial classes are prof with unarmed
+                        if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
+                                if all_items[self.eq_armor][4] in [1, 2] or self.eq_weapon_offhand == "shield":
+                                        for s in self.skills.keys():
+                                                self.skills[s][3] = True
+                                        for st in self.saving_throws.keys():
+                                                self.saving_throws[st][3] = True
+                                        self.attack_disadv = True
+                # paladin
                 elif self.char_class == 5:
-                        if self.fighting_style == 1 and self.eq_armor != "nothing":
+                        # defense: +1 AC if wearing armor
+                        if self.fighting_style == 1 and self.eq_armor != "unarmored":
                                 self.ac += 1
+                        # dueling: +2 dmg if nothing in off-hand
                         elif self.fighting_style == 2 and self.eq_weapon_main != "unarmed" and self.eq_weapon_offhand == "nothing":
                                 self.melee_dmg_mod += 2
                                 self.ranged_dmg_mod += 2
+                        # great weapon fighting: reroll 1s and 2s on dmg
                         elif self.fighting_style == 3 and self.eq_weapon_main == self.eq_weapon_offhand:
                                 self.reroll_dmg = True
+                        # two weapon fighting: add dmg mod to bonus attack
                         elif self.fighting_style == 4 and self.bonus_attack:
                                 self.offhand_dmg_mod = True
+                        # paladins are proficient in all weapons
+                        self.melee_att_mod += self.prof_bonus
+                        self.ranged_att_mod += self.prof_bonus
         def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -554,6 +611,7 @@ class Monk(Character):
         def __init__(self, name, str, dex, con, wis, int, cha, starting_lvl):
                 super().__init__(name, str, dex, con, wis, int, cha, starting_lvl)
                 self.char_class = 2
+                self.martial_arts = True
 
 class Barbarian(Character):
         "Child for barbarian class."
@@ -1070,6 +1128,10 @@ def get_adv_disadv(source, target):
                 roll_mod -= 1
         elif target.conditions["dodge"]:
                 roll_mod -= 1
+        if source.attack_adv:
+                roll_mod += 1
+        elif source.attack_disadv:
+                roll_mod -= 1
         if roll_mod < -1:
                 roll_mod = -1
         elif roll_mod > 1:
@@ -1201,7 +1263,7 @@ def attack(source, target, type, adv_disadv, battle):
         if source.ranged:
                 att_mod = source.ranged_att_mod + ench
                 dmg_mod = source.ranged_dmg_mod + ench
-        elif source.fighting_style == 4 or source.char_class == 2:
+        elif source.fighting_style == 4 or (source.char_class == 2 and source.unarmed_finesse):
                 att_mod = max(source.ranged_att_mod, source.melee_att_mod) + ench
                 dmg_mod = max(source.ranged_dmg_mod, source.melee_dmg_mod) + ench
         else:
@@ -1246,8 +1308,8 @@ def attack(source, target, type, adv_disadv, battle):
                         target.conditions["dead"] = True
 
 def shove(source, target):
-        att_check = roll_dice(20, source.athl, 0)[0]
-        def_check = roll_dice(20, max(target.athl, target.acro), 0)[0]
+        att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], 0)[0]
+        def_check = roll_dice(20, max(target.skills["athletics"][0] + target.skills["athletics"][1], target.skills["acrobatics"][0] + target.skills["acrobatics"][1]), 0)[0]
         print("Contested check: " + str(att_check) + " vs " + str(def_check))
         if att_check > def_check:
                 target.conditions["prone"] = True
@@ -1285,8 +1347,8 @@ def release_grapple(grappler, battle):
 
 def escape_grapple(grapplee, battle):
         grappler = battle.get_char_by_id(grapplee.grappled_by)
-        att_check = roll_dice(20, max(grapplee.athl, grapplee.acro), 0)[0]
-        def_check = roll_dice(20, grappler.athl, 0)[0]
+        att_check = roll_dice(20, max(grapplee.skills["athletics"][0] + grapplee.skills["athletics"][1], grapplee.skills["acrobatics"][0] + grapplee.skills["acrobatics"][1]), 0)[0]
+        def_check = roll_dice(20, grappler.skills["athletics"][0] + grappler.skills["athletics"][1], 0)[0]
         print("Contested check: " + str(att_check) + " vs " + str(def_check))
         if att_check > def_check:
                 grapplee.grappled_by = ""
