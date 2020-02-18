@@ -108,7 +108,7 @@ class Character:
                         }
                 if self.str >= 13:
                         self.actions[4] = "shove"
-                if self.str >= 13 and (self.fighting_style in [2, 3, 5] or self.char_class == 2):
+                if self.str >= 13 and (self.eq_weapon_main == "unarmed strike" or self.eq_weapon_offhand in ["unarmed strike", "nothing"] or self.eq_weapon_main == self.eq_weapon_offhand):
                         self.actions[5] = "grapple"
                 if self.char_class == 5:
                         self.actions[7] = "lay on hands"
@@ -275,7 +275,7 @@ class Character:
                                 self.fighting_style = 4
                                 self.offhand_dmg_mod = True
                                 self.bonus_attack = True
-        def equip(self, item, type, item_list, all_items):
+        def equip(self, item, type, item_list, all_items, everything):
                 # melee or ranged weapon
                 if type in [1, 2]:
                         # stats of the weapon to be equipped
@@ -295,12 +295,12 @@ class Character:
                         if self.eq_weapon_main == "unarmed strike":
                                 eq_main_light_heavy = 0
                         else:
-                                eq_main_light_heavy = item_list[self.eq_weapon_main][6]
+                                eq_main_light_heavy = everything[self.eq_weapon_main][6]
                         # stats of the weapon that is currently equipped in the off-hand
                         if self.eq_weapon_offhand == "nothing":
                                 eq_off_light_heavy = 0
                         else:
-                                eq_off_light_heavy = item_list[self.eq_weapon_offhand][6]
+                                eq_off_light_heavy = everything[self.eq_weapon_offhand][6]
                         # 1. nothing in main hand, shield in off-hand and weapon to equip is one-handed or versatile (1.5 hands)
                         if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "shield" and hands < 2:
                                 self.eq_weapon_main = item
@@ -502,11 +502,12 @@ class Character:
                         if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
                                 self.melee_att_mod += self.prof_bonus
                                 self.ranged_att_mod += self.prof_bonus
-                                print("test")
-                        print(self.eq_armor + all_items.armors[self.eq_armor])
-                        #tbc - deal with unarmored here, only martial classes are prof with unarmed
                         if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
-                                if all_items[self.eq_armor][4] in [1, 2] or self.eq_weapon_offhand == "shield":
+                                if self.eq_armor == "unarmored":
+                                        armor_type = 0
+                                else:
+                                        armor_type = all_items[self.eq_armor][4]
+                                if armor_type in [1, 2] or self.eq_weapon_offhand == "shield":
                                         for s in self.skills.keys():
                                                 self.skills[s][3] = True
                                         for st in self.saving_throws.keys():
@@ -951,6 +952,7 @@ class Shop:
                 self.armors = self.all_items.armors
                 self.shields = self.all_items.shields
                 self.potions = self.all_items.potions
+                self.everything = {**self.simple_melee_weapons, **self.martial_melee_weapons, **self.simple_ranged_weapons, **self.martial_ranged_weapons, **self.armors, **self.shields, **self.potions}
                 self.shop_list_melee_weapons = []
                 self.shop_list_ranged_weapons = []
                 self.shop_list_armors = []
@@ -988,13 +990,10 @@ class Shop:
                 for i in range(len(self.potions) * 2):
                         index += 1
                         self.shop_list_potions.append([random.choice(list(self.potions.keys())), index])
-                #self.shop_list_melee_weapons.sort()
-                #self.shop_list_ranged_weapons.sort()
-                #self.shop_list_armors.sort()
-                #self.shop_list_potions.sort()
         def shopping_flow(self, char):
                 done = False
                 print("You have " + str(char.gold) + " GP to spend.")
+                print("You have " + str(char.carry) + " lbs carry weight left.")
                 while done == False:
                         for i in range(3):
                                 i += 1
@@ -1007,24 +1006,29 @@ class Shop:
                 print("Welcome to my " + self.shop_types[type] + " stand. Take a look:")
                 if type == 1:
                         shop_list = self.shop_list_melee_weapons
-                        print(shop_list)
-                        purchase_choice = int(input("What do you need?\n"))
                         item_list = {**self.simple_melee_weapons, **self.martial_melee_weapons}
+                        for i in shop_list:
+                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][0]) + " GP - " + str(item_list[i[0]][5]) + " lbs]")
+                        purchase_choice = int(input("What do you need?\n"))
                 elif type == 2:
                         shop_list = self.shop_list_ranged_weapons
-                        print(shop_list)
-                        purchase_choice = int(input("What do you need?\n"))
                         item_list = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
+                        for i in shop_list:
+                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][0]) + " GP - " + str(item_list[i[0]][5]) + " lbs]")
+                        purchase_choice = int(input("What do you need?\n"))
                 elif type == 3:
                         shop_list = self.shop_list_armors
-                        print(shop_list)
-                        purchase_choice = int(input("What do you need?\n"))
                         item_list = {**self.armors, **self.shields}
+                        for i in shop_list:
+                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][0]) + " GP - " + str(item_list[i[0]][5]) + " lbs]")
+                        purchase_choice = int(input("What do you need?\n"))
                 elif type == 4:
                         shop_list = self.shop_list_potions
-                        print(shop_list)
-                        purchase_choice = int(input("Name your poison!\n"))
                         item_list = self.potions
+                        for i in shop_list:
+                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][0]) + " GP - " + str(item_list[i[0]][5]) + " lbs]")
+                        purchase_choice = int(input("Name your poison!\n"))
+                        
                 purchased_item = shop_list[purchase_choice - 1][0]
                 purchased_item_price = item_list[purchased_item][0]
                 purchased_item_weight = item_list[purchased_item][5]
@@ -1038,9 +1042,10 @@ class Shop:
                                         char.carry -= purchased_item_weight
                                         print("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
                                         print("Remaining funds: " + str(char.gold) + " GP.")
+                                        print("Remaining carry weight: " + str(char.carry) + " lbs.")
                                         if type != 4:
                                                 if int(input("Wanna equip the " + purchased_item + "? (1 - Yes / 0 - No) ")) == 1:
-                                                        char.equip(purchased_item, type, item_list, self.all_items)
+                                                        char.equip(purchased_item, type, item_list, self.all_items, self.everything)
                         else:
                                 print(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                 else:
@@ -1144,7 +1149,7 @@ def get_adv_disadv(source, target):
                 print("Straight roll.")
         return roll_mod
 
-def turn(attacker, battle):
+def turn(attacker, battle, all_items):
         if not attacker.conditions["down"]:
                 attacker.reset_until_next_turn_conditions()
                 print("Action. Make your choice:")
@@ -1159,7 +1164,7 @@ def turn(attacker, battle):
                                 defender = target_selector(attacker, battle, targets)
                                 roll_mod = get_adv_disadv(attacker, defender)
                                 for i in range(attacker.attacks):
-                                        attack(attacker, defender, 1, roll_mod, battle)
+                                        attack(attacker, defender, 1, roll_mod, battle, all_items)
                         else:
                                 print("Noone to attack.")
                 elif action in attacker.actions and action == 2:
@@ -1188,13 +1193,13 @@ def turn(attacker, battle):
                                 defender = target_selector(attacker, battle, targets)
                                 roll_mod = get_adv_disadv(attacker, defender)
                                 for i in range(attacker.attacks):
-                                        grapple(attacker, defender, roll_mod)
+                                        grapple(attacker, defender, roll_mod, all_items)
                                 if attacker.fighting_style == 4 or attacker.char_class == 2:
                                         attacker.bonus_actions.pop(1)
                         else:
                                 print("Noone to grapple.")
                 elif action in attacker.actions and action == 6:
-                        escape_grapple(attacker, battle)
+                        escape_grapple(attacker, battle, all_items)
                         if attacker.fighting_style == 4 or attacker.char_class == 2:
                                 attacker.bonus_actions.pop(1)
                 elif action in attacker.actions and action == 7:
@@ -1220,7 +1225,7 @@ def turn(attacker, battle):
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets)
                                         roll_mod = get_adv_disadv(attacker, defender)
-                                        attack(attacker, defender, 2, roll_mod, battle)
+                                        attack(attacker, defender, 2, roll_mod, battle, all_items)
                                 else:
                                         print("Noone to attack.")
                         elif bonus_action in attacker.bonus_actions and (bonus_action == 1 or bonus_action == 2):
@@ -1252,7 +1257,7 @@ def target_selector(source, battle, targets):
         print("")
         return battle.get_target_by_name(targets[target_choice])
 
-def attack(source, target, type, adv_disadv, battle):
+def attack(source, target, type, adv_disadv, battle, all_items):
         ench = 0
         if type == 1:
                 print(source.name + " attacks " + target.name + " with " + source.eq_weapon_main + ".")
@@ -1302,7 +1307,7 @@ def attack(source, target, type, adv_disadv, battle):
                 target.conditions["down"] = True
                 print(target.name + " is down.")
                 if target.grappling != "":
-                        release_grapple(target, battle)
+                        release_grapple(target, battle, all_items)
                 if target.max_hp * -1 >= target.hp:
                         print("Death blow! " + target.name + " falls dead. RIP")
                         target.conditions["dead"] = True
@@ -1319,7 +1324,7 @@ def shove(source, target):
         else:
                 print("Shove attempt failed.")
 
-def grapple(source, target, adv_disadv):
+def grapple(source, target, adv_disadv, all_items):
         att_mod = max(source.ranged_att_mod, source.melee_att_mod)
         to_hit = roll_dice(20, att_mod, adv_disadv)
         print("Hit: " + str(to_hit[0]) + " vs AC " + str(target.ac) + "\n")
@@ -1330,22 +1335,26 @@ def grapple(source, target, adv_disadv):
                 target.actions.pop(3)
                 target.actions[6] = "escape grapple"
                 print(target.name + " is grappled by " + source.name + ".")
-                if source.fighting_style in [2, 5]:
+                if all_items[source.eq_weapon_main][8] == 2:
                         source.actions.pop(1)
+                elif all_items[source.eq_weapon_main][8] == 1.5:
+                        source.dmg_die_main -= 2
         else:
                 print(source.name + " failed to grapple " + target.name + ".")
 
-def release_grapple(grappler, battle):
+def release_grapple(grappler, battle, all_items):
         grapplee = battle.get_char_by_id(grappler.grappling)
         grapplee.grappled_by = ""
         grapplee.conditions["grappled"] = False
         grappler.grappling = ""
         grapplee.actions[3] = "disengage"
         grapplee.actions.pop(6)
-        if grappler.fighting_style in [2, 5]:
+        if all_items[grappler.eq_weapon_main][8] == 2:
                 grappler.actions[1] = "attack"
+        elif all_items[grappler.eq_weapon_main][8] == 1.5:
+                grappler.dmg_die_main += 2
 
-def escape_grapple(grapplee, battle):
+def escape_grapple(grapplee, battle, all_items):
         grappler = battle.get_char_by_id(grapplee.grappled_by)
         att_check = roll_dice(20, max(grapplee.skills["athletics"][0] + grapplee.skills["athletics"][1], grapplee.skills["acrobatics"][0] + grapplee.skills["acrobatics"][1]), 0)[0]
         def_check = roll_dice(20, grappler.skills["athletics"][0] + grappler.skills["athletics"][1], 0)[0]
@@ -1356,8 +1365,10 @@ def escape_grapple(grapplee, battle):
                 grappler.grappling = ""
                 grapplee.actions[3] = "disengage"
                 grapplee.actions.pop(6)
-                if grappler.fighting_style in [2, 5]:
+                if all_items[grappler.eq_weapon_main][8] == 2:
                         grappler.actions[1] = "attack"
+                if all_items[grappler.eq_weapon_main][8] == 1.5:
+                        grappler.dmg_die_main += 2
                 print(grapplee.name + " has escaped the grapple.")
         else:
                 print("Grapple escape attempt failed.")
@@ -1463,7 +1474,7 @@ def main():
                 while not battle_end:
                         battle.get_hp_init_board()
                         attacker = battle.get_current_init()
-                        turn(attacker, battle)
+                        turn(attacker, battle, all_items)
                         if battle.check_end():
                                 battle.get_hp_init_board()
                                 battle_end = battle.end()
@@ -1479,8 +1490,7 @@ def main():
 main()
 
 #TODO: use equipped weapons, shield and armor instead of fighting style
-#TODO: equipper routines, unequipper routines
-#TODO: get price for shop listing
+#TODO: unequipper routines
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
 #TODO: tkinter (action-bonus action-special-skip menu)
