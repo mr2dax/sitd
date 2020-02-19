@@ -302,7 +302,7 @@ class Character:
                         else:
                                 eq_main_light_heavy = everything[self.eq_weapon_main][6]
                         # stats of the weapon that is currently equipped in the off-hand
-                        if self.eq_weapon_offhand == "nothing":
+                        if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
                                 eq_off_light_heavy = 0
                         else:
                                 eq_off_light_heavy = everything[self.eq_weapon_offhand][6]
@@ -318,7 +318,7 @@ class Character:
                         # 2. something or nothing in main hand, nothing in off-hand
                         elif self.eq_weapon_offhand == "nothing":
                                 # nothing in main hand, then equip to main hand
-                                if self.eq_weapon_main == "nothing":
+                                if self.eq_weapon_main == "unarmed strike":
                                         self.eq_weapon_main = item
                                         self.dmg_die_main = dmg_die
                                         # if versatile, then raise main hand damage die by one grade
@@ -332,7 +332,7 @@ class Character:
                                         self.ench_main = ench
                                         self.eq_weapon_main_finesse = finesse
                                 # something in main hand, then equip to off-hand if not 2-handed weapon
-                                elif self.eq_weapon_main != "nothing" and hands < 2:
+                                elif self.eq_weapon_main != "unarmed strike" and hands < 2:
                                         self.eq_weapon_offhand = item
                                         self.dmg_die_cnt_off = dmg_die_cnt
                                         self.dmg_type_off = dmg_type
@@ -344,7 +344,7 @@ class Character:
                                         else:
                                                 self.bonus_attack = False
                                 # something in main hand, but want to equip 2-handed, then switch weapons in main hand
-                                elif self.eq_weapon_main != "nothing" and hands == 2:
+                                elif self.eq_weapon_main != "unarmed strike" and hands == 2:
                                         self.eq_weapon_main = item
                                         self.eq_weapon_offhand= item
                                         self.dmg_die_main = dmg_die
@@ -471,11 +471,10 @@ class Character:
                         elif self.fighting_style == 5 and self.ranged:
                                 self.ranged_att_mod += 2
                         # fighters are proficient with all weapons and armor
-                        self.melee_att_mod += self.prof_bonus
-                        self.ranged_att_mod += self.prof_bonus
+                        self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                        self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
                 # monk
                 elif self.char_class == 2:
-                        #tbc add monk weapons def
                         # monks get their WIS mod to AC, martial arts die, unarmed finesse and bonus action unarmed strike if they don't wear armor or shield, and only wielding monk weapons
                         if self.eq_armor == "unarmored" and self.eq_weapon_offhand != "shield":
                                 if self.wis_mod > 0:
@@ -490,12 +489,33 @@ class Character:
                                         self.dmg_die_type_off = "b"
                                         self.ench_off = 0
                                         self.eq_weapon_main_finesse = False
+                                else:
+                                        self.eq_weapon_main_finesse = finesse
+                        monk_weapon_main = False
+                        monk_weapon_offhand = False
+                        if self.eq_weapon_main == "unarmed strike":
+                                monk_weapon_main = True
+                        else:
+                                monk_weapon_main = all_items.simple_melee_weapons[self.eq_weapon_main][10]
+                        if self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
+                                monk_weapon_offhand = True
+                        else:
+                                monk_weapon_offhand = all_items.simple_melee_weapons[self.eq_weapon_offhand][10]
                         # monks are proficient with simple weapons and shortswords only, no armor and shield proficiencies
-                        if (self.eq_weapon_main == "unarmed strike" or self.eq_weapon_main in [all_items.simple_melee_weapons.keys(), all_items.simple_ranged_weapons.keys()] or self.eq_weapon_main == "shortsword") and (self.eq_weapon_offhand == "unarmed strike" or self.eq_weapon_offhand in [all_items.simple_melee_weapons.keys(), all_items.simple_ranged_weapons.keys()] or self.eq_weapon_offhand == "shortsword"):
-                                self.melee_att_mod += self.prof_bonus
-                                self.ranged_att_mod += self.prof_bonus
+                        if monk_weapon_main or self.eq_weapon_main == "shortsword":
+                                self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                                self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
                                 self.eq_weapon_main_finesse = True
-                                self.eq_weapon_main_finesse = True
+                        if monk_weapon_offhand or self.eq_weapon_offhand == "shortsword":
+                                self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                                self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
+                                self.eq_weapon_offhand_finesse = True
+                        if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
+                                self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                                self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
+                                self.martial_arts = False
+                                self.bonus_attack = False
+                                self.eq_weapon_main_finesse = False
                         if self.eq_armor != "unarmored" or self.eq_weapon_offhand != "shield":
                                 for s in self.skills.keys():
                                         self.skills[s][3] = True
@@ -516,14 +536,14 @@ class Character:
                                         self.saving_throws[st][3] = True
                                 self.attack_disadv = True
                         # barbarians are proficient in all weapons
-                        self.melee_att_mod += self.prof_bonus
-                        self.ranged_att_mod += self.prof_bonus
+                        self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                        self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
                 # rogue
                 elif self.char_class == 4:
                         # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
                         if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
-                                self.melee_att_mod += self.prof_bonus
-                                self.ranged_att_mod += self.prof_bonus
+                                self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                                self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
                         if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
                                 if self.eq_armor == "unarmored":
                                         armor_type = 0
@@ -551,8 +571,8 @@ class Character:
                         elif self.fighting_style == 4 and self.bonus_attack:
                                 self.offhand_dmg_mod = True
                         # paladins are proficient in all weapons
-                        self.melee_att_mod += self.prof_bonus
-                        self.ranged_att_mod += self.prof_bonus
+                        self.melee_att_mod = self.melee_att_mod + self.prof_bonus + self.ench_main
+                        self.ranged_att_mod = self.ranged_att_mod + self.prof_bonus + self.ench_off
         def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -637,6 +657,8 @@ class Monk(Character):
                 self.eq_weapon_main_finesse = True
                 self.eq_weapon_offhand_finesse = True
                 self.martial_arts = True
+                self.melee_att_mod += self.prof_bonus
+                self.ranged_att_mod += self.prof_bonus
 
 class Barbarian(Character):
         "Child for barbarian class."
@@ -891,18 +913,18 @@ class Battle:
 class AllItems:
         "Item listing."
         def __init__(self):
-                # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown]
+                # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown, monk weapon]
                 self.simple_melee_weapons = {
-                        "club": [0.1, 4, 1, 0, "b", 2, 1, False, 1, False],
-                        "dagger": [2, 4, 1, 0, "p", 1, 1, True, 1, True],
-                        "greatclub": [0.2, 8, 1, 0, "b", 10, 0, False, 2, False],
-                        "handaxe": [5, 6, 1, 0, "s", 2, 1, False, 1, True],
-                        "javelin": [0.5, 6, 1, 0, "p", 2, 0, False, 1, True],
-                        "light hammer": [2, 4, 1, 0, "b", 4, 1, False, 1, False],
-                        "mace": [5, 6, 1, 0, "b", 4, 0, False, 1, False],
-                        "quarterstaff": [0.2, 6, 1, 0, "b", 4, 0, False, 1.5, False],
-                        "sickle": [1, 4, 1, 0, "s", 2, 1, False, 1, False],
-                        "spear": [1, 6, 1, 0, "p", 3, 0, False, 1.5, True]
+                        "club": [0.1, 4, 1, 0, "b", 2, 1, False, 1, False, True],
+                        "dagger": [2, 4, 1, 0, "p", 1, 1, True, 1, True, True],
+                        "greatclub": [0.2, 8, 1, 0, "b", 10, 0, False, 2, False, False],
+                        "handaxe": [5, 6, 1, 0, "s", 2, 1, False, 1, True, True],
+                        "javelin": [0.5, 6, 1, 0, "p", 2, 0, False, 1, True, True],
+                        "light hammer": [2, 4, 1, 0, "b", 4, 1, False, 1, False, True],
+                        "mace": [5, 6, 1, 0, "b", 4, 0, False, 1, False, True],
+                        "quarterstaff": [0.2, 6, 1, 0, "b", 4, 0, False, 1.5, False, True],
+                        "sickle": [1, 4, 1, 0, "s", 2, 1, False, 1, False, True],
+                        "spear": [1, 6, 1, 0, "p", 3, 0, False, 1.5, True, True]
                         }
                 # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, load]
                 self.simple_ranged_weapons = {
@@ -911,26 +933,26 @@ class AllItems:
                         "shortbow": [25, 6, 1, 0, "p", 2, 0, False, 2, False],
                         "sling": [0.1, 4, 1, 0, "b", 0, 0, False, 1, False]
                         }
-                # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown]
+                # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown, monk weapon]
                 self.martial_melee_weapons = {
-                        "battleaxe": [10, 8, 1, 0, "s", 4, 0, False, 1.5, False],
-                        "flail": [10, 8, 1, 0, "b", 2, 0, False, 1, False],
-                        "glaive": [20, 10, 1, 0, "s", 6, 2, False, 2, False],
-                        "greataxe": [30, 12, 1, 0, "s", 7, 2, False, 2, False],
-                        "greatsword": [50, 6, 2, 0, "s", 6, 2, False, 2, False],
-                        "halberd": [20, 10, 1, 0, "s", 6, 2, False, 2, False],
-                        "lance": [10, 12, 1, 0, "p", 6, 2, False, 2, False],
-                        "longsword": [15, 8, 1, 0, "s", 3, 0, False, 1.5, False],
-                        "maul": [10, 6, 2, 0, "b", 10, 2, False, 2, False],
-                        "morningstar": [15, 8, 1, 0, "p", 4, 0, False, 1, False],
-                        "pike": [5, 10, 1, 0, "p", 18, 2, False, 2, False],
-                        "rapier": [25, 8, 1, 0, "p", 2, 0, True, 1, False],
-                        "scimitar": [25, 6, 1, 0, "s", 3, 1, True, 1, False],
-                        "shortsword": [10, 6, 1, 0, "p", 2, 1, True, 1, False],
-                        "trident": [5, 6, 1, 0, "p", 4, 0, False, 1.5, True],
-                        "war pick": [5, 8, 1, 0, "p", 2, 0, False, 1, False],
-                        "warhammer": [15, 8, 1, 0, "b", 2, 0, False, 1.5, False],
-                        "whip": [2, 4, 1, 0, "s", 3, 0, True, 1, False]
+                        "battleaxe": [10, 8, 1, 0, "s", 4, 0, False, 1.5, False, False],
+                        "flail": [10, 8, 1, 0, "b", 2, 0, False, 1, False, False],
+                        "glaive": [20, 10, 1, 0, "s", 6, 2, False, 2, False, False],
+                        "greataxe": [30, 12, 1, 0, "s", 7, 2, False, 2, False, False],
+                        "greatsword": [50, 6, 2, 0, "s", 6, 2, False, 2, False, False],
+                        "halberd": [20, 10, 1, 0, "s", 6, 2, False, 2, False, False],
+                        "lance": [10, 12, 1, 0, "p", 6, 2, False, 2, False, False],
+                        "longsword": [15, 8, 1, 0, "s", 3, 0, False, 1.5, False, False],
+                        "maul": [10, 6, 2, 0, "b", 10, 2, False, 2, False, False],
+                        "morningstar": [15, 8, 1, 0, "p", 4, 0, False, 1, False, False],
+                        "pike": [5, 10, 1, 0, "p", 18, 2, False, 2, False, False],
+                        "rapier": [25, 8, 1, 0, "p", 2, 0, True, 1, False, False],
+                        "scimitar": [25, 6, 1, 0, "s", 3, 1, True, 1, False, False],
+                        "shortsword": [10, 6, 1, 0, "p", 2, 1, True, 1, False, True],
+                        "trident": [5, 6, 1, 0, "p", 4, 0, False, 1.5, True, False],
+                        "war pick": [5, 8, 1, 0, "p", 2, 0, False, 1, False, False],
+                        "warhammer": [15, 8, 1, 0, "b", 2, 0, False, 1.5, False, False],
+                        "whip": [2, 4, 1, 0, "s", 3, 0, True, 1, False, False]
                         }
                 # name: [cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, load]
                 self.martial_ranged_weapons = {
@@ -1565,14 +1587,12 @@ def main():
 
 main()
 
-#TODO: finesse
 #TODO: unequipper routines
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
 #TODO: tkinter (action-bonus action-special-skip menu)
 #TODO: 1 merchant before level 5
 #TODO: after every 2nd battle pcs level up
-#TODO: add damage type to damage notification
 #TODO: net restrain, whip pull
 #TODO: front-back positioning
 #TODO: push/pull mechanic
