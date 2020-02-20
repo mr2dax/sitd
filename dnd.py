@@ -33,8 +33,8 @@ class Character:
                 self.cha_mod = math.floor((self.cha - 10) / 2)
                 self.dex_att_mod = self.dex_mod
                 self.str_att_mod = self.str_mod
-                self.dex_dmg_mod = max(0, self.dex_mod)
-                self.str_dmg_mod = max(0, self.str_mod)
+                self.dex_dmg_mod = self.dex_mod
+                self.str_dmg_mod = self.str_mod
                 self.dmg_die_main = 1
                 self.dmg_die_cnt_main = 1
                 self.dmg_die_type_main = "b"
@@ -253,6 +253,7 @@ class Character:
                 if self.char_class != 5:
                         if style_choice == 1:
                                 self.fighting_style = 1
+                                self.ac += 1
                         elif style_choice == 2:
                                 self.fighting_style = 2
                                 self.reroll_dmg = True
@@ -428,6 +429,7 @@ class Character:
                         elif armor_type == 2:
                                 if item not in ["chain mail", "splint", "plate"]:
                                         self.eq_armor = item
+                                        self.ac = armor_class + armor_ench
                                 elif (item == "chain mail" and self.str >= str_req) or (item in ["splint", "plate"] and self.str >= str_req):
                                         self.eq_armor = item
                                         self.ac = armor_class + armor_ench
@@ -461,6 +463,7 @@ class Character:
                 # class specific adjustments
                 # fighter
                 if self.char_class == 1:
+                        #tbc
                         # defense: +1 AC if wearing armor
                         if self.fighting_style == 1 and self.eq_armor != "unarmored":
                                 self.ac += 1
@@ -478,8 +481,8 @@ class Character:
                         elif self.fighting_style == 5 and self.ranged:
                                 self.dex_att_mod += 2
                         # fighters are proficient with all weapons and armor
-                        self.str_att_mod += self.prof_bonus + self.ench_main
-                        self.dex_att_mod += self.prof_bonus + self.ench_off
+                        self.str_att_mod += self.prof_bonus
+                        self.dex_att_mod += self.prof_bonus
                 # monk
                 elif self.char_class == 2:
                         # monk weapons
@@ -539,14 +542,14 @@ class Character:
                                         self.saving_throws[st][3] = True
                                 self.attack_disadv = True
                         # barbarians are proficient in all weapons
-                        self.str_att_mod += self.prof_bonus + self.ench_main
-                        self.dex_att_mod += self.prof_bonus + self.ench_off
+                        self.str_att_mod += self.prof_bonus
+                        self.dex_att_mod += self.prof_bonus
                 # rogue
                 elif self.char_class == 4:
                         # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
                         if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
-                                self.str_att_mod += self.prof_bonus + self.ench_main
-                                self.dex_att_mod += self.prof_bonus + self.ench_off
+                                self.str_att_mod += self.prof_bonus
+                                self.dex_att_mod += self.prof_bonus
                         if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
                                 if self.eq_armor == "unarmored":
                                         armor_type = 0
@@ -574,8 +577,8 @@ class Character:
                         elif self.fighting_style == 4 and self.bonus_attack:
                                 self.offhand_dmg_mod = True
                         # paladins are proficient in all weapons
-                        self.str_att_mod += self.prof_bonus + self.ench_main
-                        self.dex_att_mod += self.prof_bonus + self.ench_off
+                        self.str_att_mod += self.prof_bonus
+                        self.dex_att_mod += self.prof_bonus
         def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -1357,7 +1360,7 @@ def attack(source, target, type, adv_disadv, battle, all_items):
         elif (type == 1 and source.eq_weapon_main_finesse) or (type == 2 and source.eq_weapon_offhand_finesse):
                 att_mod = max(source.dex_att_mod, source.str_att_mod) + ench
                 dmg_mod = max(source.dex_dmg_mod, source.str_dmg_mod) + ench
-        # melee weapons use STR
+        # melee weapons and non-monk unarmed strikes use STR
         else:
                 att_mod = source.str_att_mod + ench
                 dmg_mod = source.str_dmg_mod + ench
@@ -1505,6 +1508,9 @@ def calc_dmg(source, crit, dmg_mod, type, all_items):
                         dmg_reroll = roll_dice(dmg_die, 0, 0)[0]
                 dmg += max(dmg_roll, dmg_reroll)
         dmg += dmg_mod
+        # the minimum damage one can deal is 0
+        if dmg < 0:
+                dmg = 0
         return dmg, dmg_type
 
 def gen_char(name, starting_level, all_items):
@@ -1543,22 +1549,24 @@ def init_chars(all_items):
         p1_char = gen_char(name, starting_level, all_items)
         print("")
         
-        name = "Elisa"
-        print(name)
-        p2_char = gen_char(name, starting_level, all_items)
-        print("")
+        #name = "Elisa"
+        #print(name)
+        #p2_char = gen_char(name, starting_level, all_items)
+        #print("")
         
         name = "Bandit"
         print(name)
         p3_char = gen_char(name, starting_level, all_items)
         print("")
         
-        name = "Rogue"
-        print(name)
-        p4_char = gen_char(name, starting_level, all_items)
+        #name = "Rogue"
+        #print(name)
+        #p4_char = gen_char(name, starting_level, all_items)
         
-        allies = [p1_char, p2_char]
-        enemies = [p3_char, p4_char]
+        allies = [p1_char]
+        enemies = [p3_char]
+        #allies = [p1_char, p2_char]
+        #enemies = [p3_char, p4_char]
         return allies, enemies
 
 def main():
@@ -1597,6 +1605,7 @@ def main():
 
 main()
 
+#TODO: fix multi-equip bug (separate class specific adjustments by type of item to be equipped, #tbc)
 #TODO: debug and comment code
 #TODO: unequipper routines
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
