@@ -253,7 +253,6 @@ class Character:
                 if self.char_class != 5:
                         if style_choice == 1:
                                 self.fighting_style = 1
-                                self.ac += 1
                         elif style_choice == 2:
                                 self.fighting_style = 2
                                 self.reroll_dmg = True
@@ -271,7 +270,8 @@ class Character:
                 else:
                         if style_choice == 1:
                                 self.fighting_style = 1
-                                self.ac += 1
+                                if self.eq_armor != "unarmored":
+                                        self.ac += 1
                         elif style_choice == 2:
                                 self.fighting_style = 2
                                 self.reroll_dmg = True
@@ -463,7 +463,6 @@ class Character:
                 # class specific adjustments
                 # fighter
                 if self.char_class == 1:
-                        #tbc
                         # defense: +1 AC if wearing armor
                         if self.fighting_style == 1 and self.eq_armor != "unarmored":
                                 self.ac += 1
@@ -481,8 +480,6 @@ class Character:
                         elif self.fighting_style == 5 and self.ranged:
                                 self.dex_att_mod += 2
                         # fighters are proficient with all weapons and armor
-                        self.str_att_mod += self.prof_bonus
-                        self.dex_att_mod += self.prof_bonus
                 # monk
                 elif self.char_class == 2:
                         # monk weapons
@@ -517,8 +514,8 @@ class Character:
                                 if monk_weapon_offhand:
                                         self.eq_weapon_offhand_finesse = True
                         else:
-                                self.str_att_mod -= self.prof_bonus
-                                self.dex_att_mod -= self.prof_bonus
+                                self.str_att_mod = self.str_mod
+                                self.dex_att_mod = self.dex_mod
                         if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
                                 self.bonus_attack = False
                                 self.eq_weapon_main_finesse = False
@@ -542,14 +539,12 @@ class Character:
                                         self.saving_throws[st][3] = True
                                 self.attack_disadv = True
                         # barbarians are proficient in all weapons
-                        self.str_att_mod += self.prof_bonus
-                        self.dex_att_mod += self.prof_bonus
                 # rogue
                 elif self.char_class == 4:
                         # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
                         if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
-                                self.str_att_mod += self.prof_bonus
-                                self.dex_att_mod += self.prof_bonus
+                                self.str_att_mod = self.str_mod + self.prof_bonus
+                                self.dex_att_mod = self.dex_mod + self.prof_bonus
                         if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
                                 if self.eq_armor == "unarmored":
                                         armor_type = 0
@@ -577,8 +572,6 @@ class Character:
                         elif self.fighting_style == 4 and self.bonus_attack:
                                 self.offhand_dmg_mod = True
                         # paladins are proficient in all weapons
-                        self.str_att_mod += self.prof_bonus
-                        self.dex_att_mod += self.prof_bonus
         def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -654,6 +647,8 @@ class Fighter(Character):
                 self.char_class = 1
                 self.second_wind = True
                 self.second_wind_cnt = 1
+                self.str_att_mod = self.str_mod + self.prof_bonus
+                self.dex_att_mod = self.dex_mod + self.prof_bonus
 
 class Monk(Character):
         "Child for monk class."
@@ -662,8 +657,8 @@ class Monk(Character):
                 self.char_class = 2
                 self.eq_weapon_main_finesse = True
                 self.eq_weapon_offhand_finesse = True
-                self.str_att_mod += self.prof_bonus
-                self.dex_att_mod += self.prof_bonus
+                self.str_att_mod = self.str_mod + self.prof_bonus
+                self.dex_att_mod = self.dex_mod + self.prof_bonus
                 if self.wis_mod > 0:
                         self.ac = 10 + self.dex_mod + self.wis_mod
                 else:
@@ -674,12 +669,16 @@ class Barbarian(Character):
         def __init__(self, name, str, dex, con, wis, int, cha, starting_lvl):
                 super().__init__(name, str, dex, con, wis, int, cha, starting_lvl)
                 self.char_class = 3
+                self.str_att_mod = self.str_mod + self.prof_bonus
+                self.dex_att_mod = self.dex_mod + self.prof_bonus
 
 class Rogue(Character):
         "Child for rogue class."
         def __init__(self, name, str, dex, con, wis, int, cha, starting_lvl):
                 super().__init__(name, str, dex, con, wis, int, cha, starting_lvl)
                 self.char_class = 4
+                self.str_att_mod = self.str_mod + self.prof_bonus
+                self.dex_att_mod = self.dex_mod + self.prof_bonus
 
 class Paladin(Character):
         "Child for paladin class."
@@ -689,6 +688,8 @@ class Paladin(Character):
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
                 self.lay_on_hands_pool = self.lay_on_hands_pool_max
+                self.str_att_mod = self.str_mod + self.prof_bonus
+                self.dex_att_mod = self.dex_mod + self.prof_bonus
 
 class Inventory:
         "Inventory creation."
@@ -1069,7 +1070,8 @@ class Shop:
                         item_list = {**self.simple_melee_weapons, **self.martial_melee_weapons}
                         weight_pos = 5
                         for i in shop_list:
-                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
+                                if i[0] != "sold":
+                                        print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         purchase_choice = int(input("What do you need?\n"))
                 # ranged weaponsmith
                 elif type == 2:
@@ -1077,7 +1079,8 @@ class Shop:
                         item_list = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
                         weight_pos = 5
                         for i in shop_list:
-                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
+                                if i[0] != "sold":
+                                        print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         purchase_choice = int(input("What do you need?\n"))
                 # armorer
                 elif type == 3:
@@ -1085,7 +1088,8 @@ class Shop:
                         item_list = {**self.armors, **self.shields}
                         weight_pos = 6
                         for i in shop_list:
-                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
+                                if i[0] != "sold":
+                                        print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         purchase_choice = int(input("What do you need?\n"))
                 # alchemist
                 elif type == 4:
@@ -1093,7 +1097,8 @@ class Shop:
                         item_list = self.potions
                         weight_pos = 4
                         for i in shop_list:
-                                print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
+                                if i[0] != "sold":
+                                        print("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         purchase_choice = int(input("Name your poison!\n"))
                 purchased_item = shop_list[purchase_choice - 1][0]
                 purchased_item_price = item_list[purchased_item][price_pos]
@@ -1106,7 +1111,7 @@ class Shop:
                                         char.inv.add_item(purchased_item, type)
                                         char.gold -= purchased_item_price
                                         char.carry -= purchased_item_weight
-                                        shop_list.pop(purchase_choice - 1)
+                                        shop_list[purchase_choice - 1][0] = "sold"
                                         print("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
                                         print("Remaining funds: " + str(char.gold) + " GP.")
                                         print("Remaining carry weight: " + str(char.carry) + " lbs.")
@@ -1605,7 +1610,8 @@ def main():
 
 main()
 
-#TODO: fix multi-equip bug (separate class specific adjustments by type of item to be equipped, #tbc)
+#TODO: equip shield then armor does not work
+#TODO: versatile weapon got unequipped when shield got equipped
 #TODO: debug and comment code
 #TODO: unequipper routines
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
