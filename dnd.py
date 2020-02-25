@@ -542,10 +542,17 @@ class Character:
                                 self.attack_disadv = True
                 # barbarian
                 elif self.char_class == 3:
-                        # barbarians get to add their CON mod to AC if not wearing any armor
+                        # barbarians get to add their CON mod to AC if not wearing any armor, shield bonuses apply though
                         if self.eq_armor == "unarmored":
+                                barb_shield_mod = 0
+                                barb_shield_ench = 0
+                                if self.eq_weapon_offhand in all_items.shields:
+                                        barb_shield_mod = all_items.shields[self.eq_weapon_offhand][1]
+                                        barb_shield_ench = all_items.shields[self.eq_weapon_offhand][2]
                                 if self.con_mod > 0:
-                                        self.ac += self.con_mod
+                                        self.ac = 10 + self.dex_mod + self.con_mod + barb_shield_mod + barb_shield_ench
+                                else:
+                                        self.ac = 10 + self.dex_mod + barb_shield_mod + barb_shield_ench
                         # barbarians are not proficient in heavy armor
                         elif all_items.armors[self.eq_armor][4] == 2:
                                 for s in self.skills.keys():
@@ -574,19 +581,22 @@ class Character:
                 # paladin
                 elif self.char_class == 5:
                         # defense: +1 AC if wearing armor
-                        if self.fighting_style == 1 and self.eq_armor != "unarmored":
-                                self.ac += 1
-                        # dueling: +2 dmg if nothing in off-hand
-                        elif self.fighting_style == 2 and self.eq_weapon_main != "unarmed" and self.eq_weapon_offhand == "nothing":
-                                self.str_dmg_mod += 2
-                                self.dex_dmg_mod += 2
+                        if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
+                                if armor_type != 3:
+                                        self.ac += 1
                         # great weapon fighting: reroll 1s and 2s on dmg
-                        elif self.fighting_style == 3 and self.eq_weapon_main == self.eq_weapon_offhand:
+                        elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                 self.reroll_dmg = True
+                        # dueling: +2 dmg if nothing in off-hand
+                        elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
+                                self.str_dmg_mod = self.str_mod + self.prof_bonus + 2
+                                self.dex_dmg_mod = self.dex_mod + self.prof_bonus + 2
+                                if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
+                                        self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
                         # two weapon fighting: add dmg mod to bonus attack
                         elif self.fighting_style == 4 and self.bonus_attack:
                                 self.offhand_dmg_mod = True
-                        # paladins are proficient in all weapons
+                        # paladins are proficient in all weapons and armor
         def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -686,6 +696,10 @@ class Barbarian(Character):
                 self.char_class = 3
                 self.str_att_mod = self.str_mod + self.prof_bonus
                 self.dex_att_mod = self.dex_mod + self.prof_bonus
+                if self.con_mod > 0:
+                        self.ac = 10 + self.dex_mod + self.con_mod
+                else:
+                        self.ac = 10 + self.dex_mod
 
 class Rogue(Character):
         "Child for rogue class."
