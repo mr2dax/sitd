@@ -255,34 +255,22 @@ class Character:
                                 self.fighting_style = 1
                         elif style_choice == 2:
                                 self.fighting_style = 2
-                                self.reroll_dmg = True
                         elif style_choice == 3:
                                 self.fighting_style = 3
-                                self.str_dmg_mod += 2
                         elif style_choice == 4:
                                 self.fighting_style = 4
-                                self.offhand_dmg_mod = True
-                                self.bonus_attack = True
                         elif style_choice == 5:
                                 self.fighting_style = 5
-                                self.dex_att_mod += 2
-                                self.ranged = True
                 else:
                         if style_choice == 1:
                                 self.fighting_style = 1
-                                if self.eq_armor != "unarmored":
-                                        self.ac += 1
                         elif style_choice == 2:
                                 self.fighting_style = 2
-                                self.reroll_dmg = True
                         elif style_choice == 3:
                                 self.fighting_style = 3
-                                self.str_dmg_mod += 2
                         elif style_choice == 4:
                                 self.fighting_style = 4
-                                self.offhand_dmg_mod = True
-                                self.bonus_attack = True
-        def equip(self, item, type, item_list, all_items, everything, all_melee_weapons):
+        def equip(self, item, type, item_list, all_items, everything, all_melee_weapons, all_ranged_weapons):
                 print(item_list[item])
                 # stats for currently equipped armor, shield and/or weapon
                 curr_armor_ac = 0
@@ -353,6 +341,7 @@ class Character:
                                 # something in main hand, then equip to off-hand if not 2-handed weapon
                                 elif self.eq_weapon_main != "unarmed strike" and hands < 2:
                                         self.eq_weapon_offhand = item
+                                        self.dmg_die_off = dmg_die
                                         self.dmg_die_cnt_off = dmg_die_cnt
                                         self.dmg_die_type_off = dmg_type
                                         self.ench_off = ench
@@ -418,6 +407,8 @@ class Character:
                         # set ranged
                         if type == 2:
                                 self.ranged = True
+                        elif type == 1:
+                                self.ranged = False
                 # armor or shield
                 elif type == 3:
                         # stats of the armor/shield to be equipped
@@ -456,7 +447,7 @@ class Character:
                                         self.ac -= curr_shield_ac - curr_shield_ench + armor_class + armor_ench
                                 else:
                                         # unequip 2-handed weapon
-                                        if all_melee_weapons[self.eq_weapon_main][8] == 2:
+                                        if all_melee_weapons[self.eq_weapon_main][8] == 2 or (self.ranged and all_ranged_weapons[self.eq_weapon_main][8] == 2):
                                                 self.eq_weapon_main = "unarmed strike"
                                                 self.dmg_die_main = 1
                                                 self.dmg_die_cnt_main = 1
@@ -466,6 +457,7 @@ class Character:
                                                 self.dmg_die_cnt_off = 1
                                                 self.dmg_die_type_off = "b"
                                                 self.ench_off = 0
+                                                self.ranged = False
                                         # one-hand if weapon held is versatile
                                         elif all_melee_weapons[self.eq_weapon_main][8] == 1.5:
                                                 self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
@@ -1029,6 +1021,7 @@ class Shop:
                 self.simple_ranged_weapons = self.all_items.simple_ranged_weapons
                 self.martial_ranged_weapons = self.all_items.martial_ranged_weapons
                 self.all_melee_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons}
+                self.all_ranged_weapons = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
                 self.armors = self.all_items.armors
                 self.shields = self.all_items.shields
                 self.potions = self.all_items.potions
@@ -1142,7 +1135,7 @@ class Shop:
                                         print("Remaining carry weight: " + str(char.carry) + " lbs.")
                                         if type != 4:
                                                 if int(input("Wanna equip the " + purchased_item + "? (1 - Yes / 0 - No) ")) == 1:
-                                                        char.equip(purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons)
+                                                        char.equip(purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons, self.all_ranged_weapons)
                         else:
                                 print(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                 else:
@@ -1637,6 +1630,7 @@ main()
 
 #TODO: debug and comment code
 #TODO: unequipper routines
+#TODO: get loot from opposing team
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
 #TODO: tkinter (action-bonus action-special-skip menu)
