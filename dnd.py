@@ -712,7 +712,6 @@ class Character:
                                                 self.saving_throws[st][3] = True
                                         self.attack_disadv = True
                         # barbarian
-                        #tbc
                         elif self.char_class == 3:
                                 if self.eq_armor == "unarmored":
                                         barb_shield_mod = 0
@@ -726,6 +725,15 @@ class Character:
                                                 self.ac = 10 + self.dex_mod + barb_shield_mod + barb_shield_ench
                         # rogue
                         elif self.char_class == 4:
+                                if type in [1, 2]:
+                                        if self.eq_weapon_main == "unarmed strike":
+                                                self.str_att_mod = self.str_mod
+                                                self.dex_att_mod = self.dex_mod
+                                                self.str_dmg_mod = self.str_mod
+                                                self.dex_dmg_mod = self.dex_mod
+                                                self.eq_weapon_main_finesse = False
+                                                self.bonus_attack = False
+                                                #tbc
                                 # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
                                 if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
                                         self.str_att_mod = self.str_mod + self.prof_bonus
