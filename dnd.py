@@ -35,6 +35,8 @@ class Character:
                 self.str_att_mod = self.str_mod
                 self.dex_dmg_mod = self.dex_mod
                 self.str_dmg_mod = self.str_mod
+                self.main_hand_prof = False
+                self.off_hand_prof = False
                 self.dmg_die_main = 1
                 self.dmg_die_cnt_main = 1
                 self.dmg_die_type_main = "b"
@@ -477,6 +479,11 @@ class Character:
                         # class specific adjustments
                         # fighter
                         if self.char_class == 1:
+                                # fighters are proficient with all weapons and armor
+                                self.main_hand_prof = True
+                                self.off_hand_prof = True
+                                self.str_att_mod = self.str_mod + self.prof_bonus
+                                self.dex_att_mod = self.dex_mod + self.prof_bonus
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -496,7 +503,6 @@ class Character:
                                 # archery: +2 to attack mod with ranged weapons
                                 elif self.fighting_style == 5 and self.ranged:
                                         self.dex_att_mod = self.dex_mod + self.prof_bonus + 2
-                                # fighters are proficient with all weapons and armor
                         # monk
                         elif self.char_class == 2:
                                 # monk weapons
@@ -528,11 +534,13 @@ class Character:
                                 if monk_weapon_main or self.eq_weapon_main == "shortsword" or monk_weapon_offhand or self.eq_weapon_offhand == "shortsword":
                                         if monk_weapon_main:
                                                 self.eq_weapon_main_finesse = True
+                                                self.main_hand_prof = True
                                         if monk_weapon_offhand:
                                                 self.eq_weapon_offhand_finesse = True
+                                                self.off_hand_prof = True
                                 else:
-                                        self.str_att_mod = self.str_mod
-                                        self.dex_att_mod = self.dex_mod
+                                        self.main_hand_prof = False
+                                        self.off_hand_prof = False
                                 if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
                                         self.bonus_attack = False
                                         self.eq_weapon_main_finesse = False
@@ -544,6 +552,11 @@ class Character:
                                         self.attack_disadv = True
                         # barbarian
                         elif self.char_class == 3:
+                                # barbarians are proficient in all weapons
+                                self.main_hand_prof = True
+                                self.off_hand_prof = True
+                                self.str_att_mod = self.str_mod + self.prof_bonus
+                                self.dex_att_mod = self.dex_mod + self.prof_bonus
                                 # barbarians get to add their CON mod to AC if not wearing any armor, shield bonuses apply though
                                 if self.eq_armor == "unarmored":
                                         barb_shield_mod = 0
@@ -562,7 +575,6 @@ class Character:
                                         for st in self.saving_throws.keys():
                                                 self.saving_throws[st][3] = True
                                         self.attack_disadv = True
-                                # barbarians are proficient in all weapons
                         # rogue
                         elif self.char_class == 4:
                                 # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
@@ -582,6 +594,11 @@ class Character:
                                                 self.attack_disadv = True
                         # paladin
                         elif self.char_class == 5:
+                                # paladins are proficient in all weapons and armor
+                                self.main_hand_prof = True
+                                self.off_hand_prof = True
+                                self.str_att_mod = self.str_mod + self.prof_bonus
+                                self.dex_att_mod = self.dex_mod + self.prof_bonus
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -598,37 +615,30 @@ class Character:
                                 # two weapon fighting: add dmg mod to bonus attack
                                 elif self.fighting_style == 4 and self.bonus_attack:
                                         self.offhand_dmg_mod = True
-                                # paladins are proficient in all weapons and armor
                 # unequip
                 elif eq_uneq == 0:
-                        # melee weapon
-                        if type == 1:
-                                if item == self.eq_weapon_main:
+                        # melee or ranged weapon
+                        if type in [1, 2]:
+                                # when unequipping main hand weapon, also take off off-hand (in case of versatile, dual wield or 2-handed), if not a shield
+                                if item == self.eq_weapon_main and self.eq_weapon_offhand not in all_items.shields:
                                         self.eq_weapon_main = "unarmed strike"
                                         self.dmg_die_main = 1
                                         self.dmg_die_cnt_main = 1
                                         self.dmg_die_type_main = "b"
                                         self.ench_main = 0
-                                        self.eq_weapon_main_finesse = False
-                                        self.bonus_attack = False
-                                        self.reroll_dmg = 0
-                                elif item == self.eq_weapon_offhand:
                                         self.eq_weapon_offhand = "nothing"
                                         self.dmg_die_off = 1
                                         self.dmg_die_cnt_off = 1
                                         self.dmg_die_type_off = "b"
                                         self.ench_off = 0
+                                        self.eq_weapon_main_finesse = False
                                         self.eq_weapon_offhand_finesse = False
                                         self.bonus_attack = False
                                         self.offhand_dmg_mod = False
-                                #tbc: create variable for prof in main and off weapon
-                                self.str_att_mod = self.str_mod + self.prof_bonus
-                                self.str_dmg_mod = self.str_mod
-                                self.dex_att_mod = self.dex_mod + self.prof_bonus
-                                self.dex_dmg_mod = self.dex_mod
-                        # ranged weapon
-                        elif type == 2:
-                                if item == self.eq_weapon_main:
+                                        self.reroll_dmg = False
+                                        self.ranged == False
+                                # when unequipping main hand weapon and off-hand has a shield, then unequip main hand only
+                                elif item == self.eq_weapon_main and self.eq_weapon_offhand in all_items.shields:
                                         self.eq_weapon_main = "unarmed strike"
                                         self.dmg_die_main = 1
                                         self.dmg_die_cnt_main = 1
@@ -643,6 +653,9 @@ class Character:
                                         self.dmg_die_type_off = "b"
                                         self.ench_off = 0
                                         self.eq_weapon_offhand_finesse = False
+                                        self.bonus_attack = False
+                                        self.offhand_dmg_mod = False
+                                #tbc: create variable for prof in main and off weapon
                                 self.str_att_mod = self.str_mod + self.prof_bonus
                                 self.str_dmg_mod = self.str_mod
                                 self.dex_att_mod = self.dex_mod + self.prof_bonus
@@ -731,9 +744,11 @@ class Character:
                                                 self.dex_att_mod = self.dex_mod
                                                 self.str_dmg_mod = self.str_mod
                                                 self.dex_dmg_mod = self.dex_mod
-                                                self.eq_weapon_main_finesse = False
-                                                self.bonus_attack = False
+                                        #elif item == 
+                                        #if self.
                                                 #tbc
+                                if type == 3:
+                                        pass
                                 # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
                                 if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
                                         self.str_att_mod = self.str_mod + self.prof_bonus
@@ -848,8 +863,8 @@ class Fighter(Character):
                 self.char_class = 1
                 self.second_wind = True
                 self.second_wind_cnt = 1
-                self.str_att_mod = self.str_mod + self.prof_bonus
-                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                self.main_hand_prof = True
+                self.off_hand_prof = True
 
 class Monk(Character):
         "Child for monk class."
@@ -858,8 +873,8 @@ class Monk(Character):
                 self.char_class = 2
                 self.eq_weapon_main_finesse = True
                 self.eq_weapon_offhand_finesse = True
-                self.str_att_mod = self.str_mod + self.prof_bonus
-                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                self.main_hand_prof = True
+                self.off_hand_prof = True
                 if self.wis_mod > 0:
                         self.ac = 10 + self.dex_mod + self.wis_mod
                 else:
@@ -870,8 +885,8 @@ class Barbarian(Character):
         def __init__(self, name, str, dex, con, wis, int, cha, starting_lvl):
                 super().__init__(name, str, dex, con, wis, int, cha, starting_lvl)
                 self.char_class = 3
-                self.str_att_mod = self.str_mod + self.prof_bonus
-                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                self.main_hand_prof = True
+                self.off_hand_prof = True
                 if self.con_mod > 0:
                         self.ac = 10 + self.dex_mod + self.con_mod
                 else:
@@ -882,8 +897,8 @@ class Rogue(Character):
         def __init__(self, name, str, dex, con, wis, int, cha, starting_lvl):
                 super().__init__(name, str, dex, con, wis, int, cha, starting_lvl)
                 self.char_class = 4
-                self.str_att_mod = self.str_mod + self.prof_bonus
-                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                self.main_hand_prof = False
+                self.off_hand_prof = False
 
 class Paladin(Character):
         "Child for paladin class."
@@ -893,8 +908,8 @@ class Paladin(Character):
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
                 self.lay_on_hands_pool = self.lay_on_hands_pool_max
-                self.str_att_mod = self.str_mod + self.prof_bonus
-                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                self.main_hand_prof = True
+                self.off_hand_prof = True
 
 class Inventory:
         "Inventory creation."
