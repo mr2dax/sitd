@@ -31,12 +31,16 @@ class Character:
                 self.wis_mod = math.floor((self.wis - 10) / 2)
                 self.int_mod = math.floor((self.int - 10) / 2)
                 self.cha_mod = math.floor((self.cha - 10) / 2)
-                self.dex_att_mod = self.dex_mod
-                self.str_att_mod = self.str_mod
-                self.dex_dmg_mod = self.dex_mod
-                self.str_dmg_mod = self.str_mod
                 self.main_hand_prof = False
+                self.main_str_att_mod = self.str_mod
+                self.main_dex_att_mod = self.dex_mod
+                self.main_str_dmg_mod = self.str_mod
+                self.main_dex_dmg_mod = self.dex_mod
                 self.off_hand_prof = False
+                self.off_str_att_mod = self.str_mod
+                self.off_dex_att_mod = self.dex_mod
+                self.off_str_dmg_mod = self.str_mod
+                self.off_dex_dmg_mod = self.dex_mod
                 self.dmg_die_main = 1
                 self.dmg_die_cnt_main = 1
                 self.dmg_die_type_main = "b"
@@ -481,9 +485,15 @@ class Character:
                         if self.char_class == 1:
                                 # fighters are proficient with all weapons and armor
                                 self.main_hand_prof = True
+                                self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.main_str_dmg_mod = self.str_mod
+                                self.main_dex_dmg_mod = self.dex_mod
                                 self.off_hand_prof = True
-                                self.str_att_mod = self.str_mod + self.prof_bonus
-                                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_dmg_mod = self.str_mod
+                                self.off_dex_dmg_mod = self.dex_mod
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -493,8 +503,8 @@ class Character:
                                         self.reroll_dmg = True
                                 # dueling: +2 dmg if nothing in off-hand
                                 elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
-                                        self.str_dmg_mod = self.str_mod + self.prof_bonus + 2
-                                        self.dex_dmg_mod = self.dex_mod + self.prof_bonus + 2
+                                        self.main_str_dmg_mod = self.str_mod + 2
+                                        self.main_dex_dmg_mod = self.dex_mod + 2
                                         if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
                                                 self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
                                 # two weapon fighting: add dmg mod to bonus attack
@@ -535,12 +545,28 @@ class Character:
                                         if monk_weapon_main:
                                                 self.eq_weapon_main_finesse = True
                                                 self.main_hand_prof = True
+                                                self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                                self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                                self.main_str_dmg_mod = self.str_mod
+                                                self.main_dex_dmg_mod = self.dex_mod
                                         if monk_weapon_offhand:
                                                 self.eq_weapon_offhand_finesse = True
                                                 self.off_hand_prof = True
+                                                self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                                self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                                self.off_str_dmg_mod = self.str_mod
+                                                self.off_dex_dmg_mod = self.dex_mod
                                 else:
                                         self.main_hand_prof = False
+                                        self.main_str_att_mod = self.str_mod
+                                        self.main_dex_att_mod = self.dex_mod
+                                        self.main_str_dmg_mod = self.str_mod
+                                        self.main_dex_dmg_mod = self.dex_mod
                                         self.off_hand_prof = False
+                                        self.off_str_att_mod = self.str_mod
+                                        self.off_dex_att_mod = self.dex_mod
+                                        self.off_str_dmg_mod = self.str_mod
+                                        self.off_dex_dmg_mod = self.dex_mod
                                 if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
                                         self.bonus_attack = False
                                         self.eq_weapon_main_finesse = False
@@ -554,9 +580,15 @@ class Character:
                         elif self.char_class == 3:
                                 # barbarians are proficient in all weapons
                                 self.main_hand_prof = True
+                                self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.main_str_dmg_mod = self.str_mod
+                                self.main_dex_dmg_mod = self.dex_mod
                                 self.off_hand_prof = True
-                                self.str_att_mod = self.str_mod + self.prof_bonus
-                                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_dmg_mod = self.str_mod
+                                self.off_dex_dmg_mod = self.dex_mod
                                 # barbarians get to add their CON mod to AC if not wearing any armor, shield bonuses apply though
                                 if self.eq_armor == "unarmored":
                                         barb_shield_mod = 0
@@ -578,9 +610,18 @@ class Character:
                         # rogue
                         elif self.char_class == 4:
                                 # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
-                                if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
-                                        self.str_att_mod = self.str_mod + self.prof_bonus
-                                        self.dex_att_mod = self.dex_mod + self.prof_bonus
+                                if self.eq_weapon_main in all_items.simple_melee_weapons or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier"]:
+                                        self.main_hand_prof = True
+                                        self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                        self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                        self.main_str_dmg_mod = self.str_mod
+                                        self.main_dex_dmg_mod = self.dex_mod
+                                if self.eq_weapon_offhand in all_items.simple_melee_weapons or self.eq_weapon_offhand in ["shortsword", "hand crossbow", "longsword", "rapier"]:
+                                        self.off_hand_prof = True
+                                        self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                        self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                        self.off_str_dmg_mod = self.str_mod
+                                        self.off_dex_dmg_mod = self.dex_mod
                                 if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
                                         if self.eq_armor == "unarmored":
                                                 armor_type = 0
@@ -596,9 +637,15 @@ class Character:
                         elif self.char_class == 5:
                                 # paladins are proficient in all weapons and armor
                                 self.main_hand_prof = True
+                                self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.main_str_dmg_mod = self.str_mod
+                                self.main_dex_dmg_mod = self.dex_mod
                                 self.off_hand_prof = True
-                                self.str_att_mod = self.str_mod + self.prof_bonus
-                                self.dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_dmg_mod = self.str_mod
+                                self.off_dex_dmg_mod = self.dex_mod
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -608,8 +655,8 @@ class Character:
                                         self.reroll_dmg = True
                                 # dueling: +2 dmg if nothing in off-hand
                                 elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
-                                        self.str_dmg_mod = self.str_mod + self.prof_bonus + 2
-                                        self.dex_dmg_mod = self.dex_mod + self.prof_bonus + 2
+                                        self.str_dmg_mod = self.str_mod + 2
+                                        self.dex_dmg_mod = self.dex_mod + 2
                                         if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
                                                 self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
                                 # two weapon fighting: add dmg mod to bonus attack
@@ -637,6 +684,11 @@ class Character:
                                         self.offhand_dmg_mod = False
                                         self.reroll_dmg = False
                                         self.ranged == False
+                                        self.main_hand_prof = True
+                                        self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                        self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                        self.main_str_dmg_mod = self.str_mod
+                                        self.main_dex_dmg_mod = self.dex_mod
                                 # when unequipping main hand weapon and off-hand has a shield, then unequip main hand only
                                 elif item == self.eq_weapon_main and self.eq_weapon_offhand in all_items.shields:
                                         self.eq_weapon_main = "unarmed strike"
@@ -646,6 +698,12 @@ class Character:
                                         self.ench_main = 0
                                         self.eq_weapon_main_finesse = False
                                         self.ranged == False
+                                        self.main_hand_prof = True
+                                        self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                        self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                        self.main_str_dmg_mod = self.str_mod
+                                        self.main_dex_dmg_mod = self.dex_mod
+                                # unequip off-hand weapon
                                 elif item == self.eq_weapon_offhand:
                                         self.eq_weapon_offhand = "nothing"
                                         self.dmg_die_off = 1
@@ -655,11 +713,11 @@ class Character:
                                         self.eq_weapon_offhand_finesse = False
                                         self.bonus_attack = False
                                         self.offhand_dmg_mod = False
-                                #tbc: create variable for prof in main and off weapon
-                                self.str_att_mod = self.str_mod + self.prof_bonus
-                                self.str_dmg_mod = self.str_mod
-                                self.dex_att_mod = self.dex_mod + self.prof_bonus
-                                self.dex_dmg_mod = self.dex_mod
+                                        self.off_hand_prof = False
+                                        self.off_str_att_mod = self.str_mod
+                                        self.off_dex_att_mod = self.dex_mod
+                                        self.off_str_dmg_mod = self.str_mod
+                                        self.off_dex_dmg_mod = self.dex_mod
                         # armor or shield
                         elif type == 3:
                                 if item in all_items.armors:
@@ -681,49 +739,23 @@ class Character:
                                 pass
                         # monk
                         elif self.char_class == 2:
-                                # monk weapons
-                                monk_weapon_main = False
-                                monk_weapon_offhand = False
                                 if self.eq_weapon_main == "unarmed strike":
-                                        monk_weapon_main = True
-                                else:
-                                        monk_weapon_main = all_melee_weapons[self.eq_weapon_main][10]
-                                if self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
-                                        monk_weapon_offhand = True
-                                elif self.eq_weapon_offhand in all_items.shields:
-                                        monk_weapon_offhand = False
-                                else:
-                                        monk_weapon_offhand = all_melee_weapons[self.eq_weapon_offhand][10]
-                                # monks get their WIS mod to AC, martial arts die, unarmed finesse and bonus action unarmed strike if they don't wear armor or shield, and only wielding monk weapons
-                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand in all_items.shields or not monk_weapon_main or not monk_weapon_offhand:
-                                        if self.eq_weapon_main == "unarmed strike":
-                                                self.bonus_attack = False
-                                                self.offhand_dmg_mod = False
-                                                self.dmg_die_off = 1
-                                                self.dmg_die_cnt_off = 1
-                                                self.dmg_die_type_off = "b"
-                                                self.ench_off = 0
-                                                self.eq_weapon_main_finesse = False
-                                        if self.eq_armor == "unarmored":
-                                                self.ac = self.dex_mod
-                                # monks are proficient with simple weapons and shortswords only, no armor and shield proficiencies
-                                if monk_weapon_main or self.eq_weapon_main == "shortsword" or monk_weapon_offhand or self.eq_weapon_offhand == "shortsword":
-                                        if monk_weapon_main:
-                                                self.eq_weapon_main_finesse = True
-                                        if monk_weapon_offhand:
-                                                self.eq_weapon_offhand_finesse = True
-                                else:
-                                        self.str_att_mod = self.str_mod
-                                        self.dex_att_mod = self.dex_mod
-                                if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
-                                        self.bonus_attack = False
-                                        self.eq_weapon_main_finesse = False
-                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
-                                        for s in self.skills.keys():
-                                                self.skills[s][3] = True
-                                        for st in self.saving_throws.keys():
-                                                self.saving_throws[st][3] = True
-                                        self.attack_disadv = True
+                                        self.main_hand_prof = False
+                                        self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                        self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                        self.main_str_dmg_mod = self.str_mod
+                                        self.main_dex_dmg_mod = self.dex_mod
+                                if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
+                                        self.off_hand_prof = False
+                                        self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                        self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                        self.off_str_dmg_mod = self.str_mod
+                                        self.off_dex_dmg_mod = self.dex_mod
+                                if self.eq_armor == "unarmored":
+                                        if self.wis_mod > 0:
+                                                self.ac = 10 + self.dex_mod + self.wis_mod
+                                        else:
+                                                self.ac = 10 + self.dex_mod
                         # barbarian
                         elif self.char_class == 3:
                                 if self.eq_armor == "unarmored":
@@ -738,55 +770,21 @@ class Character:
                                                 self.ac = 10 + self.dex_mod + barb_shield_mod + barb_shield_ench
                         # rogue
                         elif self.char_class == 4:
-                                if type in [1, 2]:
-                                        if self.eq_weapon_main == "unarmed strike":
-                                                self.str_att_mod = self.str_mod
-                                                self.dex_att_mod = self.dex_mod
-                                                self.str_dmg_mod = self.str_mod
-                                                self.dex_dmg_mod = self.dex_mod
-                                        #elif item == 
-                                        #if self.
-                                                #tbc
-                                if type == 3:
-                                        pass
-                                # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
-                                if self.eq_weapon_main in all_items.simple_melee_weapons.keys() or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier", "unarmed strike"]:
-                                        self.str_att_mod = self.str_mod + self.prof_bonus
-                                        self.dex_att_mod = self.dex_mod + self.prof_bonus
-                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
-                                        if self.eq_armor == "unarmored":
-                                                armor_type = 0
-                                        else:
-                                                armor_type = all_items.armors[self.eq_armor][4]
-                                        if armor_type in [1, 2] or self.eq_weapon_offhand == "shield":
-                                                for s in self.skills.keys():
-                                                        self.skills[s][3] = True
-                                                for st in self.saving_throws.keys():
-                                                        self.saving_throws[st][3] = True
-                                                self.attack_disadv = True
+                                if self.eq_weapon_main == "unarmed strike":
+                                        self.main_hand_prof = False
+                                        self.main_str_att_mod = self.str_mod
+                                        self.main_dex_att_mod = self.dex_mod
+                                        self.main_str_dmg_mod = self.str_mod
+                                        self.main_dex_dmg_mod = self.dex_mod
+                                if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
+                                        self.off_hand_prof = False
+                                        self.off_str_att_mod = self.str_mod
+                                        self.off_dex_att_mod = self.dex_mod
+                                        self.off_str_dmg_mod = self.str_mod
+                                        self.off_dex_dmg_mod = self.dex_mod
                         # paladin
                         elif self.char_class == 5:
-                                # defense: +1 AC if wearing armor
-                                if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
-                                        if armor_type != 3:
-                                                self.ac += 1
-                                # great weapon fighting: reroll 1s and 2s on dmg
-                                elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
-                                        self.reroll_dmg = True
-                                # dueling: +2 dmg if nothing in off-hand
-                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
-                                        self.str_dmg_mod = self.str_mod + self.prof_bonus + 2
-                                        self.dex_dmg_mod = self.dex_mod + self.prof_bonus + 2
-                                        if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
-                                                self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
-                                # two weapon fighting: add dmg mod to bonus attack
-                                elif self.fighting_style == 4 and self.bonus_attack:
-                                        self.offhand_dmg_mod = True
-                                # paladins are proficient in all weapons and armor
-                        
-
-
-
+                                pass
 
         def level_up(self, levels):
                 for lvl in levels:
@@ -873,6 +871,8 @@ class Monk(Character):
                 self.char_class = 2
                 self.eq_weapon_main_finesse = True
                 self.eq_weapon_offhand_finesse = True
+                self.bonus_attack = True
+                self.offhand_dmg_mod = True
                 self.main_hand_prof = True
                 self.off_hand_prof = True
                 if self.wis_mod > 0:
@@ -1570,31 +1570,46 @@ def target_selector(source, battle, targets):
         return battle.get_target_by_name(targets[target_choice])
 
 def attack(source, target, type, adv_disadv, battle, all_items):
+        str_att_mod = 0
+        dex_att_mod = 0
+        str_dmg_mod = 0
+        dex_dmg_mod = 0
         ench = 0
         # main hand attack
         if type == 1:
                 print(source.name + " attacks " + target.name + " with " + source.eq_weapon_main + ".")
+                str_att_mod = source.main_str_att_mod
+                dex_att_mod = source.main_dex_att_mod
+                str_dmg_mod = source.main_str_dmg_mod
+                dex_dmg_mod = source.main_dex_dmg_mod
                 ench = source.ench_main
         # off-hand attack
         elif type == 2:
                 print(source.name + " attacks " + target.name + " with " + source.eq_weapon_offhand + ".")
+                str_att_mod = source.off_str_att_mod
+                dex_att_mod = source.off_dex_att_mod
+                str_dmg_mod = source.off_str_dmg_mod
+                dex_dmg_mod = source.off_dex_dmg_mod
                 ench = source.ench_off
         # attack and damage modifier definition
         # ranged weapons use DEX
         if source.ranged:
-                att_mod = source.dex_att_mod + ench
-                dmg_mod = source.dex_dmg_mod + ench
+                att_mod = dex_att_mod + ench
+                dmg_mod = dex_dmg_mod + ench
         # monk weapons, monk unarmed strikes and finesse weapons use either STR or DEX (whichever is higher)
-        elif (type == 1 and source.eq_weapon_main_finesse) or (type == 2 and source.eq_weapon_offhand_finesse):
-                att_mod = max(source.dex_att_mod, source.str_att_mod) + ench
-                dmg_mod = max(source.dex_dmg_mod, source.str_dmg_mod) + ench
+        elif type == 1 and source.eq_weapon_main_finesse:
+                att_mod = max(dex_att_mod, str_att_mod) + ench
+                dmg_mod = max(dex_dmg_mod, str_dmg_mod) + ench
+        elif type == 2 and source.eq_weapon_offhand_finesse:
+                att_mod = max(dex_att_mod, str_att_mod) + ench
+                dmg_mod = max(dex_dmg_mod, str_dmg_mod) + ench
         # melee weapons and non-monk unarmed strikes use STR
         else:
-                att_mod = source.str_att_mod + ench
-                dmg_mod = source.str_dmg_mod + ench
+                att_mod = str_att_mod + ench
+                dmg_mod = str_dmg_mod + ench
         # monks and martial classes with two weapon fighting style add the damage modifier to their bonus attack, everyone else does not, unless it's negative
-        if type == 2 and source.fighting_style != 4 and source.char_class != 2:
-                dmg_mod = min(0, max(source.dex_dmg_mod, source.str_dmg_mod)) + ench
+        if type == 2 and source.offhand_dmg_mod:
+                dmg_mod = min(0, max(dex_dmg_mod, str_dmg_mod)) + ench
         # to hit calculation
         to_hit = roll_dice(20, att_mod, adv_disadv)
         crit = to_hit[1]
@@ -1657,7 +1672,7 @@ def shove(source, target):
                 print("Shove attempt failed.")
 
 def grapple(source, target, adv_disadv, all_items):
-        att_mod = max(source.dex_att_mod, source.str_att_mod)
+        att_mod = max(source.off_dex_att_mod, source.off_str_att_mod)
         to_hit = roll_dice(20, att_mod, adv_disadv)
         print("Hit: " + str(to_hit[0]) + " vs AC " + str(target.ac) + "\n")
         if to_hit[0] > target.ac:
@@ -1834,7 +1849,6 @@ def main():
 main()
 
 #TODO: debug and comment code
-#TODO: unequipper routines
 #TODO: get loot from opposing team
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
