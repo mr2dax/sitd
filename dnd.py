@@ -869,6 +869,14 @@ class Monk(Character):
         def __init__(self, name, str, dex, con, wis, int, cha, starting_lvl):
                 super().__init__(name, str, dex, con, wis, int, cha, starting_lvl)
                 self.char_class = 2
+                self.dmg_die_main = 4
+                self.dmg_die_cnt_main = 1
+                self.dmg_die_type_main = "b"
+                self.ench_main = 0
+                self.dmg_die_off = 4
+                self.dmg_die_cnt_off = 1
+                self.dmg_die_type_off = "b"
+                self.ench_off = 0
                 self.eq_weapon_main_finesse = True
                 self.eq_weapon_offhand_finesse = True
                 self.bonus_attack = True
@@ -1848,12 +1856,10 @@ def main():
 
 main()
 
-#TODO: debug and comment code
+#TODO: tkinter (action-bonus action-special-skip menu)
 #TODO: get loot from opposing team
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others)
 #TODO: proficiency up, asi choice for level up
-#TODO: tkinter (action-bonus action-special-skip menu)
-#TODO: 1 merchant before level 5
 #TODO: after every 2nd battle pcs level up
 #TODO: net restrain, whip pull
 #TODO: front-back positioning
