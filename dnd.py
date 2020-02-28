@@ -1,6 +1,25 @@
 import random
 import math
 import string
+from tkinter import *
+
+#GUI
+class GUI:
+    def __init__(self, master):
+        self.master = master
+        master.title("D&D")
+
+        self.label = Label(master, text="Welcome to D&D!")
+        self.label.pack()
+
+        self.greet_button = Button(master, text="Greet", command=self.greet)
+        self.greet_button.pack()
+
+        self.close_button = Button(master, text="Close", command=master.quit)
+        self.close_button.pack()
+
+    def greet(self):
+        print("Greetings!")
 
 class Character:
         "Character creation."
@@ -1821,6 +1840,8 @@ def init_chars(all_items):
         return allies, enemies
 
 def main():
+        main_window = Tk()
+        GUI(main_window)
         print("====================================")
         print("= Shining in the Dungeon (5e Duel) =")
         print("====================================\n")
@@ -1853,6 +1874,7 @@ def main():
                 else:
                         break
         dungeon.end_dungeon()
+        main_window.mainloop()
 
 main()
 
