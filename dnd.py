@@ -1,25 +1,7 @@
 import random
 import math
 import string
-from tkinter import *
-
-#GUI
-class GUI:
-    def __init__(self, master):
-        self.master = master
-        master.title("D&D")
-
-        self.label = Label(master, text="Welcome to D&D!")
-        self.label.pack()
-
-        self.greet_button = Button(master, text="Greet", command=self.greet)
-        self.greet_button.pack()
-
-        self.close_button = Button(master, text="Close", command=master.quit)
-        self.close_button.pack()
-
-    def greet(self):
-        print("Greetings!")
+import tkinter
 
 class Character:
         "Character creation."
@@ -1839,12 +1821,28 @@ def init_chars(all_items):
         #enemies = [p3_char, p4_char]
         return allies, enemies
 
+#GUI
+class GUI:
+    def __init__(self, main_window):
+        self.main_window = main_window
+        main_window.title("Shining in the Dungeon (5e Duel)")
+        main_window.minsize(1024, 768)
+        main_window.maxsize(1024, 768)
+        self.status_pane = tkinter.Frame(main_window, )
+        self.status_pane = tkinter.Text(main_window)
+        self.status_pane.grid(row = 1, column = 1)
+        self.status_pane.insert("1.0", "status pane")
+        self.test = tkinter.Label(main_window, text = "Test")
+        self.test.grid(row = 2, column = 1)
+        self.visualization_pane = tkinter.Canvas(main_window)
+        self.visualization_pane.grid(row = 3, column = 1)
+        self.message_pane = tkinter.Text(main_window)
+        self.message_pane.grid(row = 4, column = 1)
+        self.message_pane.insert("1.0", "message pane")
+
 def main():
-        main_window = Tk()
+        main_window = tkinter.Tk()
         GUI(main_window)
-        print("====================================")
-        print("= Shining in the Dungeon (5e Duel) =")
-        print("====================================\n")
         all_items = AllItems()
         chars = init_chars(all_items)
         allies = chars[0]
