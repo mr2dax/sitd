@@ -257,7 +257,8 @@ class Character:
                 if self.char_class == 5:
                         styles.pop(5)
                 ui.push_message(styles)
-                style_choice = int(input("Choose your fighting style: "))
+                ui.push_message("Choose your fighting style.")
+                style_choice = int(input())
                 if self.char_class != 5:
                         if style_choice == 1:
                                 self.fighting_style = 1
@@ -954,7 +955,8 @@ class Dungeon:
                 ui.push_message("- (0) => pass")
                 for key, value in respite_options.items():
                         ui.push_message("- (" + str(key) + ") => " + value)
-                rest = int(input("Out of initiative order. What would you like to do?\n"))
+                ui.push_message("Out of initiative order. What would you like to do?\n")
+                rest = int(input())
                 if rest == 1 and rest in respite_options:
                         self.short_rest(ui)
                 elif rest == 2 and rest in respite_options:
@@ -1286,7 +1288,8 @@ class Shop:
                         for i in range(4):
                                 i += 1
                                 self.shop_purchase(i, char, ui)
-                        finished = int(input("Take another look? (1 - Yes / 0 - No) "))
+                        ui.push_message("Take another look? (1 - Yes / 0 - No)")
+                        finished = int(input())
                         if finished == 0:
                                 done = True
         def shop_purchase(self, type, char, ui):
@@ -1303,7 +1306,8 @@ class Shop:
                         for i in shop_list:
                                 if i[0] != "sold":
                                         ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
-                        purchase_choice = int(input("What do you need?\n"))
+                        ui.push_message("What do you need?\n")
+                        purchase_choice = int(input())
                 # ranged weaponsmith
                 elif type == 2:
                         shop_list = self.shop_list_ranged_weapons
@@ -1312,7 +1316,8 @@ class Shop:
                         for i in shop_list:
                                 if i[0] != "sold":
                                         ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
-                        purchase_choice = int(input("What do you need?\n"))
+                        ui.push_message("What do you need?\n")
+                        purchase_choice = int(input())
                 # armorer
                 elif type == 3:
                         shop_list = self.shop_list_armors
@@ -1321,7 +1326,8 @@ class Shop:
                         for i in shop_list:
                                 if i[0] != "sold":
                                         ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
-                        purchase_choice = int(input("What do you need?\n"))
+                        ui.push_message("What do you need?\n")
+                        purchase_choice = int(input())
                 # alchemist
                 elif type == 4:
                         shop_list = self.shop_list_potions
@@ -1330,11 +1336,13 @@ class Shop:
                         for i in shop_list:
                                 if i[0] != "sold":
                                         ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
-                        purchase_choice = int(input("Name your poison!\n"))
+                        ui.push_message("Name your poison!\n")
+                        purchase_choice = int(input())
                 purchased_item = shop_list[purchase_choice - 1][0]
                 purchased_item_price = item_list[purchased_item][price_pos]
                 purchased_item_weight = item_list[purchased_item][weight_pos]
-                if int(input("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)? (1 - Yes / 0 - No) ")) == 1:
+                ui.push_message("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)? (1 - Yes / 0 - No)")
+                if int(input()) == 1:
                         if char.gold >= purchased_item_price:
                                 if char.carry - purchased_item_weight < 0:
                                         ui.push_message("You cannot purchase the " + purchased_item + ". Get rid of something first.")
@@ -1349,7 +1357,8 @@ class Shop:
                                         ui.push_message("Remaining funds: " + str(char.gold) + " GP.")
                                         ui.push_message("Remaining carry weight: " + str(char.carry) + " lbs.")
                                         if type != 4:
-                                                if int(input("Wanna equip the " + purchased_item + "? (1 - Yes / 0 - No) ")) == 1:
+                                                ui.push_message("Wanna equip the " + purchased_item + "? (1 - Yes / 0 - No)")
+                                                if int(input()) == 1:
                                                         char.equip(1, purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons, self.all_ranged_weapons)
                         else:
                                 ui.push_message(random.choice(["Not enough gold.", "You've not enough gold coins."]))
@@ -1572,7 +1581,7 @@ def turn(attacker, battle, all_items, ui):
                 ui.push_message(attacker.name + " is taking a rest.")
 
 def target_selector(source, battle, targets, ui):
-        ui.push_message("Choose target: ")
+        ui.push_message("Choose target:")
         for key, value in targets.items():
                 ui.push_message("- (" + str(key) + ") => " + value)
         target_choice = int(input())
@@ -1776,7 +1785,8 @@ def gen_char(name, starting_level, all_items, ui):
                 5: "paladin"
                 }
         ui.push_message(classes)
-        class_choice = int(input("choose your class: "))
+        ui.push_message("Choose your class:")
+        class_choice = int(input())
         if class_choice == 1:
                 char = Fighter(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
         if class_choice == 2:
@@ -1795,7 +1805,10 @@ def gen_char(name, starting_level, all_items, ui):
 
 def init_chars(all_items, ui):
         starting_level = 1
-        name = input("Name your hero: ")
+        ui.push_message("Name your hero:")
+        #tbc
+        name = ui.get_input()
+        #name = input()
         if name == "":
                 name = "Rick"
         ui.push_message(name)
