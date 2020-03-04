@@ -22,6 +22,8 @@ class GUI:
                 self.message_pane.insert(tk.END, "")
                 self.input_frame = tk.Frame(self.main_frame)
                 self.input_frame.grid(row = 2, column = 0)
+                self.menu_frame = tk.Frame(self.main_frame)
+                self.menu_frame.grid(row = 3, column = 0)
                 self.main_frame.tkraise()
         def push_message(self, message):
                 #self.message_pane.delete("1.0", "end")

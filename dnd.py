@@ -1842,41 +1842,40 @@ def init_chars(all_items, ui):
         #enemies = [p3_char, p4_char]
         return allies, enemies
 
-def main():
-        main_window = tk.Tk()
-        ui = gui.GUI(main_window)
-        all_items = AllItems()
-        chars = init_chars(all_items, ui)
-        allies = chars[0]
-        enemies = chars[1]
-        encounters = 10
-        dungeon = Dungeon(encounters, allies, ui)
-        for enc in range(dungeon.enc_cnt):
-                battle = dungeon.start_battle(enc, allies, enemies, ui)
-                for i in battle.initiative(ui):
-                        if i[0] != -100:
-                                ui.push_message(i[2] + ": " + str(i[0]))
-                ui.push_message("")
-                attacker = battle.get_first_init(ui)
-                battle_end = False
-                while not battle_end:
+main_window = tk.Tk()
+ui = gui.GUI(main_window)
+all_items = AllItems()
+chars = init_chars(all_items, ui)
+allies = chars[0]
+enemies = chars[1]
+encounters = 10
+dungeon = Dungeon(encounters, allies, ui)
+for enc in range(dungeon.enc_cnt):
+        battle = dungeon.start_battle(enc, allies, enemies, ui)
+        for i in battle.initiative(ui):
+                if i[0] != -100:
+                        ui.push_message(i[2] + ": " + str(i[0]))
+        ui.push_message("")
+        attacker = battle.get_first_init(ui)
+        battle_end = False
+        while not battle_end:
+                battle.get_hp_init_board(ui)
+                attacker = battle.get_current_init(ui)
+                turn(attacker, battle, all_items, ui)
+                if battle.check_end():
                         battle.get_hp_init_board(ui)
-                        attacker = battle.get_current_init(ui)
-                        turn(attacker, battle, all_items, ui)
-                        if battle.check_end():
-                                battle.get_hp_init_board(ui)
-                                battle_end = battle.end(ui)
-                        else:
-                                battle.set_next_init(ui)
-                                battle.check_turn_end()
-                if battle.pcs_won or battle.pcs_fled or battle.foes_fled:
-                        dungeon.get_respite_options(ui)
+                        battle_end = battle.end(ui)
                 else:
-                        break
-        dungeon.end_dungeon(ui)
-        main_window.mainloop()
+                        battle.set_next_init(ui)
+                        battle.check_turn_end()
+        if battle.pcs_won or battle.pcs_fled or battle.foes_fled:
+                dungeon.get_respite_options(ui)
+        else:
+                break
+dungeon.end_dungeon(ui)
+main_window.mainloop()
 
-main()
+
 
 #TODO: action-bonus action-special-skip menu
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others, help)
