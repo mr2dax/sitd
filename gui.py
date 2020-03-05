@@ -14,6 +14,8 @@ class GUI:
                 #self.status_pane.insert("1.0", "status pane")
                 self.visualization_pane = tk.Canvas(self.main_frame)
                 self.visualization_pane.grid(row = 0, column = 0)
+                self.quit_button = tk.Button(self.main_frame, text="Quit", width = 4, command = lambda: quit())
+                self.quit_button.grid(row = 0, column = 1)
                 self.message_pane = tk.Text(self.main_frame, height = 20, width = 80)
                 self.message_pane.grid(row = 1, column = 0, sticky = "nsew", padx = 2, pady = 2)
                 self.message_pane_scroll = tk.Scrollbar(self.main_frame, command = self.message_pane.yview)
@@ -48,7 +50,7 @@ class GUI:
                 self.input_choice_btns = []
                 for key, value in choices.items():
                         self.input_choice_btn = tk.Button(self.input_frame, text = value, width = len(value), command = lambda j = key: self.submit_var.set(j))
-                        self.input_choice_btn.grid(row = 0, column = (key - 1))
+                        self.input_choice_btn.grid(row = 0, column = (key))
                         self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
@@ -59,10 +61,14 @@ class GUI:
         def get_list_choice_input(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
+                self.input_choice_skip_btn = tk.Button(self.input_frame, text = "skip", width = 4, command = lambda j = -1: self.submit_var.set(j))
+                self.input_choice_skip_btn.grid(row = 0, column = 0)
+                self.input_choice_btns.append(self.input_choice_skip_btn)
                 for i in choices:
-                        self.input_choice_btn = tk.Button(self.input_frame, text = i[0], width = len(i[0]), command = lambda j = i[1]: self.submit_var.set(j))
-                        self.input_choice_btn.grid(row = 0, column = (i[1] - 1))
-                        self.input_choice_btns.append(self.input_choice_btn)
+                        if i[0] != "sold":
+                                self.input_choice_btn = tk.Button(self.input_frame, text = i[0], width = len(i[0]), command = lambda j = i[1]: self.submit_var.set(j))
+                                self.input_choice_btn.grid(row = 0, column = i[1])
+                                self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
                 self.submit_var = ""
