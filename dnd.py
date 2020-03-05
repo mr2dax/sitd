@@ -93,13 +93,15 @@ class Character:
                         self.name = "Rick"
                 else:
                     self.name = name
-                self.action = 1
-                self.bonus_action = 1
-                self.reaction = 1
-                self.free_action = 1
+                self.battle_menu_options = {
+                        1: "action",
+                        2: "bonus action",
+                        3: "special"
+                        }
                 self.actions = {}
                 self.bonus_actions = {}
                 self.specials = {}
+                self.specials[0] = "back"
                 self.conditions = {
                         "flee": False,
                         "down": False,
@@ -112,9 +114,19 @@ class Character:
                 self.grappling = ""
                 if self.starting_lvl > 2:
                         self.level_up(self.starting_lvl - 1, ui)
+        #tbc
+        def prep_battle_menu(self):
+                if len(self.bonus_actions) == 1:
+                        self.battle_menu_options.pop(2)
+                if len(self.specials) == 1:
+                        self.battle_menu_options.pop(3)
+        def battle_menu(self, ui):
+                self.prep_battle_menu()
+                act_choice = ui.get_dict_choice_input(self.battle_menu_options)
+                return act_choice
         def action_economy(self):
                 self.actions = {
-                        0: "pass",
+                        0: "back",
                         1: "attack",
                         2: "dodge",
                         3: "disengage"
@@ -126,7 +138,7 @@ class Character:
                 if self.char_class == 5:
                         self.actions[7] = "lay on hands"
                 ba = 0
-                self.bonus_actions [ba] = "pass"
+                self.bonus_actions [ba] = "back"
                 if self.bonus_attack:
                         ba += 1
                         self.bonus_actions[ba] = "attack"
@@ -158,6 +170,7 @@ class Character:
                         ui.push_message(self.name + " has stabilized.")
         def print_char_status(self, ui):
                 ui.push_message(vars(self))
+        # reset conditions that would have ended since last turn (until the start of its next turn effects)
         def reset_until_next_turn_conditions(self, ui):
                 if self.conditions["prone"] and not self.conditions["grappled"]:
                         self.conditions["prone"] = False
@@ -172,6 +185,11 @@ class Character:
                         ui.push_message(self.name + " couldn't run away.")
                 if self.bonus_attack and 1 not in self.bonus_actions:
                         self.bonus_actions[1] = "attack"
+                self.battle_menu_options = {
+                        1: "action",
+                        2: "bonus action",
+                        3: "special"
+                        }
         def print_conditions(self, ui):
                 ui.push_message(self.conditions)
         def print_actions(self, ui):
@@ -948,6 +966,7 @@ class Dungeon:
                 self.long_rest_cnt = 2
         def get_respite_options(self, ui):
                 respite_options = {
+                        0: "Pass",
                         1: "Short rest",
                         2: "Long rest"
                 }
@@ -955,10 +974,9 @@ class Dungeon:
                         respite_options.pop(1)
                 if self.long_rest_cnt < 1:
                         respite_options.pop(2)
-                ui.push_message("- (0) => pass")
-                for key, value in respite_options.items():
-                        ui.push_message("- (" + str(key) + ") => " + value)
-                ui.push_message("Out of initiative order. What would you like to do?\n")
+                #for key, value in respite_options.items():
+                #        ui.push_message("- (" + str(key) + ") => " + value)
+                ui.push_message("Out of initiative order. What would you like to do?")
                 rest = int(ui.get_dict_choice_input(respite_options))
                 if rest == 1 and rest in respite_options:
                         self.short_rest(ui)
@@ -1011,7 +1029,7 @@ class Battle:
                 self.current_init = 0
                 self.next_init = 1
                 self.round = 0
-                self.turn_end = False
+                self.round_end = False
                 self.pcs_won = False
                 self.pcs_fled = False
                 self.foes_fled = False
@@ -1092,11 +1110,11 @@ class Battle:
                 for j in range(len(hp_init_board)):
                         ui.push_message(hp_init_board[j][1] + "'s HP: " + str(hp_init_board[j][2]) + "/" + str(hp_init_board[j][3]))
                 ui.push_message("--------\n")
-        def check_turn_end(self):
+        def check_round_end(self):
                 if self.init_order[self.current_init + 1][0] == -100:
-                        self.turn_end = True
+                        self.round_end = True
                 if self.init_order[self.current_init - 1][0] == -100:
-                        self.turn_end = False
+                        self.round_end = False
         def end(self, ui):
                 ui.push_message("Duel has ended. *jingle*")
                 ui.push_message("---------------")
@@ -1149,10 +1167,10 @@ class Battle:
                         end = True
                 else:
                         end = False
-                if allies_cnt == allies_fled and allies_cnt != allies_down and self.turn_end:
+                if allies_cnt == allies_fled and allies_cnt != allies_down and self.round_end:
                         end = True
                         self.pcs_fled = True
-                if enemies_cnt == enemies_fled and enemies_cnt != enemies_down and self.turn_end:
+                if enemies_cnt == enemies_fled and enemies_cnt != enemies_down and self.round_end:
                         end = True
                         self.foes_fled = True
                 return end
@@ -1473,86 +1491,85 @@ def get_adv_disadv(source, target, ui):
                 ui.push_message("Straight roll.")
         return roll_mod
 
-def act(attacker, battle, all_items, ui):
+def act(attacker, act_choice, battle, all_items, ui):
         # character is not unconscious = can act on its turn
         if not attacker.conditions["down"]:
-                # reset conditions that would have ended since last turn (until the start of its next turn effects)
-                attacker.reset_until_next_turn_conditions(ui)
-                # action menu
-                ui.push_message("Action. Make your choice.")
-                #for key, value in attacker.actions.items():
-                #        ui.push_message("- (" + str(key) + ") => " + value)
-                action = int(ui.get_dict_choice_input(attacker.actions))
-                # attack action
-                roll_mod = 0
-                if action in attacker.actions and action == 1:
-                        targets = battle.get_targets(attacker)
-                        if len(targets) != 0:
-                                defender = target_selector(attacker, battle, targets, ui)
-                                roll_mod = get_adv_disadv(attacker, defender, ui)
-                                for i in range(attacker.attacks):
-                                        attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
-                        else:
-                                ui.push_message("Noone to attack.")
-                # dodge action
-                elif action in attacker.actions and action == 2:
-                        attacker.conditions["dodge"] = True
-                        ui.push_message(attacker.name + " is taking a defensive stance.")
-                        if attacker.bonus_attack:
-                                attacker.bonus_actions.pop(1)
-                # disengage action
-                elif action in attacker.actions and action == 3:
-                        attacker.conditions["flee"] = True
-                        ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
-                        if attacker.bonus_attack:
-                                attacker.bonus_actions.pop(1)
-                # shove action
-                elif action in attacker.actions and action == 4:
-                        targets = battle.get_targets(attacker)
-                        if len(targets) != 0:
-                                defender = target_selector(attacker, battle, targets, ui)
-                                for i in range(attacker.attacks):
-                                        shove(attacker, defender, ui)
+                # actions
+                if act_choice == 1:
+                        attacker.battle_menu_options.pop(1)
+                        #for key, value in attacker.actions.items():
+                        #        ui.push_message("- (" + str(key) + ") => " + value)
+                        action = int(ui.get_dict_choice_input(attacker.actions))
+                        # attack action
+                        roll_mod = 0
+                        if action in attacker.actions and action == 1:
+                                targets = battle.get_targets(attacker)
+                                if len(targets) != 0:
+                                        defender = target_selector(attacker, battle, targets, ui)
+                                        roll_mod = get_adv_disadv(attacker, defender, ui)
+                                        for i in range(attacker.attacks):
+                                                attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
+                                else:
+                                        ui.push_message("Noone to attack.")
+                        # dodge action
+                        elif action in attacker.actions and action == 2:
+                                attacker.conditions["dodge"] = True
+                                ui.push_message(attacker.name + " is taking a defensive stance.")
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
-                        else:
-                                ui.push_message("Noone to shove.")
-                # grapple action
-                elif action in attacker.actions and action == 5:
-                        targets = battle.get_targets(attacker)
-                        if len(targets) != 0:
-                                defender = target_selector(attacker, battle, targets, ui)
-                                roll_mod = get_adv_disadv(attacker, defender, ui)
-                                for i in range(attacker.attacks):
-                                        grapple(attacker, defender, roll_mod, all_items, ui)
+                        # disengage action
+                        elif action in attacker.actions and action == 3:
+                                attacker.conditions["flee"] = True
+                                ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
-                        else:
-                                ui.push_message("Noone to grapple.")
-                # use action to escape a grapple
-                elif action in attacker.actions and action == 6:
-                        escape_grapple(attacker, battle, all_items, ui)
-                        if attacker.bonus_attack:
-                                attacker.bonus_actions.pop(1)
-                # lay on hands (paladin only)
-                elif action in attacker.actions and action == 7:
-                        current_hp = attacker.hp
-                        lay_on_hands_heal = attacker.lay_on_hands_pool
-                        attacker.hp = min(attacker.hp + lay_on_hands_heal, attacker.max_hp)
-                        if current_hp + lay_on_hands_heal > attacker.max_hp:
-                                actual_heal = lay_on_hands_heal - ((current_hp + lay_on_hands_heal) - attacker.max_hp)
-                        else:
-                                actual_heal = lay_on_hands_heal
-                        ui.push_message(attacker.name + " healed " + str(actual_heal) + " HP.")
-                        attacker.lay_on_hand_pool = min(0, attacker.lay_on_hands_pool - actual_heal) 
-                        if attacker.lay_on_hand_pool == 0:
-                                attacker.actions.pop(action)
-                # pass
-                elif action in attacker.actions and action == 0:
-                        pass
-                # bonus action menu, if any
-                if len(attacker.bonus_actions) != 0:
-                        ui.push_message("Bonus action. Make your choice.")
+                        # shove action
+                        elif action in attacker.actions and action == 4:
+                                targets = battle.get_targets(attacker)
+                                if len(targets) != 0:
+                                        defender = target_selector(attacker, battle, targets, ui)
+                                        for i in range(attacker.attacks):
+                                                shove(attacker, defender, ui)
+                                        if attacker.bonus_attack:
+                                                attacker.bonus_actions.pop(1)
+                                else:
+                                        ui.push_message("Noone to shove.")
+                        # grapple action
+                        elif action in attacker.actions and action == 5:
+                                targets = battle.get_targets(attacker)
+                                if len(targets) != 0:
+                                        defender = target_selector(attacker, battle, targets, ui)
+                                        roll_mod = get_adv_disadv(attacker, defender, ui)
+                                        for i in range(attacker.attacks):
+                                                grapple(attacker, defender, roll_mod, all_items, ui)
+                                        if attacker.bonus_attack:
+                                                attacker.bonus_actions.pop(1)
+                                else:
+                                        ui.push_message("Noone to grapple.")
+                        # use action to escape a grapple
+                        elif action in attacker.actions and action == 6:
+                                escape_grapple(attacker, battle, all_items, ui)
+                                if attacker.bonus_attack:
+                                        attacker.bonus_actions.pop(1)
+                        # lay on hands (paladin only)
+                        elif action in attacker.actions and action == 7:
+                                current_hp = attacker.hp
+                                lay_on_hands_heal = attacker.lay_on_hands_pool
+                                attacker.hp = min(attacker.hp + lay_on_hands_heal, attacker.max_hp)
+                                if current_hp + lay_on_hands_heal > attacker.max_hp:
+                                        actual_heal = lay_on_hands_heal - ((current_hp + lay_on_hands_heal) - attacker.max_hp)
+                                else:
+                                        actual_heal = lay_on_hands_heal
+                                ui.push_message(attacker.name + " healed " + str(actual_heal) + " HP.")
+                                attacker.lay_on_hand_pool = min(0, attacker.lay_on_hands_pool - actual_heal) 
+                                if attacker.lay_on_hand_pool == 0:
+                                        attacker.actions.pop(action)
+                        # back to battle menu
+                        elif action in attacker.actions and action == 0:
+                                attacker.battle_menu_options[1] = "action"
+                # bonus actions
+                elif act_choice == 2:
+                        attacker.battle_menu_options.pop(2)
                         #for key, value in attacker.bonus_actions.items():
                         #        ui.push_message("- (" + str(key) + ") => " + value)
                         bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
@@ -1581,9 +1598,18 @@ def act(attacker, battle, all_items, ui):
                         elif bonus_action in attacker.bonus_actions and bonus_action == 3:
                                 attacker.conditions["flee"] = True
                                 ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
-                        # pass
+                        # back to battle menu
                         elif bonus_action in attacker.bonus_actions and bonus_action == 0:
-                                pass
+                                attacker.battle_menu_options[2] = "bonus action"
+                # specials
+                elif act_choice == 3:
+                        attacker.battle_menu_options.pop(3)
+                        #for key, value in attacker.specials.items():
+                        #        ui.push_message("- (" + str(key) + ") => " + value)
+                        special = int(ui.get_dict_choice_input(attacker.specials))
+                        # back to main menu
+                        if special in attacker.specials and special == 0:
+                                attacker.battle_menu_options[3] = "special"
         # character is unconscious = death saving throw or stabilized (incapacitated)
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success < 3:
                 attacker.deaths_door()
@@ -1788,30 +1814,37 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
         return dmg, dmg_type
 
 def gen_char(name, starting_level, all_items, ui):
-        stats = gen_stats(ui)
-        classes = {
+        need_stat_reroll = True
+        while need_stat_reroll:
+                classes = {
                 1: "fighter",
                 2: "monk",
                 3: "barbarian",
                 4: "rogue",
                 5: "paladin"
                 }
-        # stat restrictions
-        # fighter
-        if stats[0] < 13 and stats[1] < 13:
-                classes.pop(1)
-        # monk
-        if stats[2] < 13 or stats[4] < 13:
-                classes.pop(2)
-        # barbarian
-        if stats[0] < 13:
-                classes.pop(3)
-        # rogue
-        if stats[1] < 13:
-                classes.pop(4)
-        # paladin
-        if stats[0] < 13 or stats[5] < 13:
-                classes.pop(5)
+                stats = gen_stats(ui)
+                # stat restrictions
+                # fighter
+                if stats[0] < 13 and stats[1] < 13:
+                        classes.pop(1)
+                # monk
+                if stats[2] < 13 or stats[4] < 13:
+                        classes.pop(2)
+                # barbarian
+                if stats[0] < 13:
+                        classes.pop(3)
+                # rogue
+                if stats[1] < 13:
+                        classes.pop(4)
+                # paladin
+                if stats[0] < 13 or stats[5] < 13:
+                        classes.pop(5)
+                if classes:
+                        need_stat_reroll = False
+                elif not classes:
+                        need_stat_reroll = True
+                        ui.push_message("Rerolling stats.")
         #ui.push_message(classes)
         ui.push_message("Choose your class.")
         class_choice = int(ui.get_dict_choice_input(classes))
@@ -1889,14 +1922,19 @@ for enc in range(dungeon.enc_cnt):
         while not battle_end:
                 battle.get_hp_init_board(ui)
                 attacker = battle.get_current_init(ui)
-                #tbc battle_menu()
-                act(attacker, battle, all_items, ui)
+                attacker.reset_until_next_turn_conditions(ui)
+                turn_done = False
+                while not turn_done:
+                        act_choice = attacker.battle_menu(ui)
+                        act(attacker, act_choice, battle, all_items, ui)
+                        if not attacker.battle_menu_options:
+                                turn_done = True
                 if battle.check_end():
                         battle.get_hp_init_board(ui)
                         battle_end = battle.end(ui)
                 else:
                         battle.set_next_init(ui)
-                        battle.check_turn_end()
+                        battle.check_round_end()
         if battle.pcs_won or battle.pcs_fled or battle.foes_fled:
                 dungeon.get_respite_options(ui)
         else:
@@ -1904,7 +1942,6 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: action-bonus action-special-skip menu
 #TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others, help)
 #TODO: proficiency up, asi choice for level up
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
