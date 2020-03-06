@@ -94,14 +94,16 @@ class Character:
                 else:
                     self.name = name
                 self.battle_menu_options = {
-                        1: "action",
-                        2: "bonus action",
-                        3: "special"
+                        1: ["action", 1],
+                        2: ["bonus action", 1],
+                        3: ["special", 1],
+                        4: ["done", 1]
                         }
                 self.actions = {}
                 self.bonus_actions = {}
                 self.specials = {}
                 self.specials[0] = "back"
+                self.turn_done = False
                 self.conditions = {
                         "flee": False,
                         "down": False,
@@ -114,15 +116,8 @@ class Character:
                 self.grappling = ""
                 if self.starting_lvl > 2:
                         self.level_up(self.starting_lvl - 1, ui)
-        #tbc
-        def prep_battle_menu(self):
-                if len(self.bonus_actions) == 1:
-                        self.battle_menu_options.pop(2)
-                if len(self.specials) == 1:
-                        self.battle_menu_options.pop(3)
         def battle_menu(self, ui):
-                self.prep_battle_menu()
-                act_choice = ui.get_dict_choice_input(self.battle_menu_options)
+                act_choice = ui.get_battle_menu_choice_input(self.battle_menu_options)
                 return act_choice
         def action_economy(self):
                 self.actions = {
@@ -186,9 +181,10 @@ class Character:
                 if self.bonus_attack and 1 not in self.bonus_actions:
                         self.bonus_actions[1] = "attack"
                 self.battle_menu_options = {
-                        1: "action",
-                        2: "bonus action",
-                        3: "special"
+                        1: ["action", 1],
+                        2: ["bonus action", 1],
+                        3: ["special", 1],
+                        4: ["done", 1]
                         }
         def print_conditions(self, ui):
                 ui.push_message(self.conditions)
@@ -1496,7 +1492,7 @@ def act(attacker, act_choice, battle, all_items, ui):
         if not attacker.conditions["down"]:
                 # actions
                 if act_choice == 1:
-                        attacker.battle_menu_options.pop(1)
+                        attacker.battle_menu_options[1][1] -= 1
                         #for key, value in attacker.actions.items():
                         #        ui.push_message("- (" + str(key) + ") => " + value)
                         action = int(ui.get_dict_choice_input(attacker.actions))
@@ -1566,10 +1562,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         attacker.actions.pop(action)
                         # back to battle menu
                         elif action in attacker.actions and action == 0:
-                                attacker.battle_menu_options[1] = "action"
+                                attacker.battle_menu_options[1][1] += 1
                 # bonus actions
                 elif act_choice == 2:
-                        attacker.battle_menu_options.pop(2)
+                        attacker.battle_menu_options[2][1] -= 1
                         #for key, value in attacker.bonus_actions.items():
                         #        ui.push_message("- (" + str(key) + ") => " + value)
                         bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
@@ -1600,23 +1596,29 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
                         # back to battle menu
                         elif bonus_action in attacker.bonus_actions and bonus_action == 0:
-                                attacker.battle_menu_options[2] = "bonus action"
+                                attacker.battle_menu_options[2][1] += 1
                 # specials
                 elif act_choice == 3:
-                        attacker.battle_menu_options.pop(3)
+                        attacker.battle_menu_options[3][1] -= 1
                         #for key, value in attacker.specials.items():
                         #        ui.push_message("- (" + str(key) + ") => " + value)
                         special = int(ui.get_dict_choice_input(attacker.specials))
                         # back to main menu
                         if special in attacker.specials and special == 0:
-                                attacker.battle_menu_options[3] = "special"
+                                attacker.battle_menu_options[3][1] += 1
+                # end turn
+                elif act_choice == 4:
+                        attacker.turn_done = True
         # character is unconscious = death saving throw or stabilized (incapacitated)
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success < 3:
                 attacker.deaths_door()
+                attacker.turn_done = True
         elif attacker.conditions["down"] and attacker.conditions["dead"]:
                 ui.push_message(attacker.name + " is dead.")
+                attacker.turn_done = True
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success == 3:
                 ui.push_message(attacker.name + " is taking a rest.")
+                attacker.turn_done = True
 
 def target_selector(source, battle, targets, ui):
         ui.push_message("Choose a target.")
@@ -1860,7 +1862,7 @@ def gen_char(name, starting_level, all_items, ui):
                 char = Paladin(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
-        char.gen_starting_equipment(all_items, ui)
+        #char.gen_starting_equipment(all_items, ui)
         char.action_economy()
         return char
 
@@ -1923,12 +1925,10 @@ for enc in range(dungeon.enc_cnt):
                 battle.get_hp_init_board(ui)
                 attacker = battle.get_current_init(ui)
                 attacker.reset_until_next_turn_conditions(ui)
-                turn_done = False
-                while not turn_done:
+                attacker.turn_done = False
+                while not attacker.turn_done:
                         act_choice = attacker.battle_menu(ui)
                         act(attacker, act_choice, battle, all_items, ui)
-                        if not attacker.battle_menu_options:
-                                turn_done = True
                 if battle.check_end():
                         battle.get_hp_init_board(ui)
                         battle_end = battle.end(ui)
@@ -1942,7 +1942,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: implement specials (rage, action surge, sneak attack, deflect missiles, ki, stunning strike, divine smite, lay on hands on others, help)
-#TODO: proficiency up, asi choice for level up
+#TODO: implement abilities: BA rage, action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
+#TODO: proficiency up, asi choice for level up (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
 #TODO: front-back positioning, net restrain, whip pull, push/pull mechanic

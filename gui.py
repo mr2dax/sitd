@@ -87,3 +87,20 @@ class GUI:
                 self.input_yes_btn.destroy()
                 self.input_no_btn.destroy()
                 return input_val
+        def get_battle_menu_choice_input(self, choices):
+                self.submit_var = tk.IntVar()
+                self.input_choice_btns = []
+                for key, value in choices.items():
+                        self.input_choice_btn = tk.Button(self.input_frame, text = value[0], width = len(value[0]), command = lambda j = key: self.submit_var.set(j))
+                        self.input_choice_btn.grid(row = 0, column = (key))
+                        self.input_choice_btns.append(self.input_choice_btn)
+                        if value[1] < 1:
+                                self.disable_button(self.input_choice_btn)
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.submit_var.get()
+                self.submit_var = ""
+                for btn in self.input_choice_btns:
+                        btn.destroy()
+                return input_val
+        def disable_button(self, btn):
+                btn.configure(state = tk.DISABLED)
