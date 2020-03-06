@@ -103,6 +103,8 @@ class Character:
                 self.bonus_actions = {}
                 self.specials = {}
                 self.specials[0] = "back"
+                self.reaction_cnt = 1
+                self.reactions = {}
                 self.turn_done = False
                 self.conditions = {
                         "flee": False,
@@ -140,6 +142,9 @@ class Character:
                 if self.char_class == 1:
                         ba += 1
                         self.bonus_actions[ba] = "second wind"
+                if self.char_class == 3:
+                        ba += 1
+                        self.bonus_actions[ba] = "rage"
         def deaths_door(self, ui):
                 death_st = roll_dice(20, 0, 0, ui)
                 if death_st[1] == 1:
@@ -186,6 +191,7 @@ class Character:
                         3: ["special", 1],
                         4: ["done", 1]
                         }
+                self.reaction_cnt = 1
         def print_conditions(self, ui):
                 ui.push_message(self.conditions)
         def print_actions(self, ui):
@@ -242,7 +248,7 @@ class Character:
                         self.skills["acrobatics"][0] += self.prof_bonus
                         self.saving_throws["str"][0] += self.prof_bonus
                         self.saving_throws["con"][0] += self.prof_bonus
-                        self.specials["rage"] = 2
+                        self.bonus_actions["rage"] = 2
                 elif class_choice == 4:
                         self.char_class = 4
                         self.hd = 8
@@ -915,10 +921,30 @@ class Barbarian(Character):
                 self.char_class = 3
                 self.main_hand_prof = True
                 self.off_hand_prof = True
+                self.raging = False
+                self.rage_cnt = 2
+                self.rage_mod = 2
                 if self.con_mod > 0:
                         self.ac = 10 + self.dex_mod + self.con_mod
                 else:
                         self.ac = 10 + self.dex_mod
+        def rage_on(self, all_items, ui):
+                if not all_items.armors[self.eq_armor][4] == 2 and self.rage_cnt > 0:
+                        self.raging = True
+                        self.rage_cnt -= 1
+                        self.skills["athletics"][2] = True
+                        self.saving_throws["str"][2] = True
+                        self.str_dmg_mod += self.rage_mod
+                        self.bonus_actions.pop(1)
+                        self.bonus_actions[1] = "end rage"
+                else:
+                        ui.push_message("Cannot rage.")
+        def rage_off(self, all_items, ui):
+                self.raging = False
+                self.skills["athletics"][2] = False
+                self.saving_throws["str"][2] = False
+                self.str_dmg_mod -= self.rage_mod
+                ui.push_message("Rage ended.")
 
 class Rogue(Character):
         "Child for rogue class."
@@ -1590,6 +1616,9 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 ui.push_message(attacker.name + " healed " + str(actual_heal) + " HP.")
                                 attacker.second_wind = False
                                 attacker.bonus_actions.pop(bonus_action)
+                        # rage bonus action (barbarian only)
+                        elif bonus_action in attacker.bonus_actions and attacker.char_class == 3:
+                                attacker.rage_on(all_items, ui)
                         # disengage bonus action (rogue only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 3:
                                 attacker.conditions["flee"] = True
@@ -1942,6 +1971,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
+#TODO: fix action economy
 #TODO: implement abilities: BA rage, action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
 #TODO: proficiency up, asi choice for level up (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
