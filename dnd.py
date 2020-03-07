@@ -102,7 +102,7 @@ class Character:
                 self.actions = {}
                 self.bonus_actions = {}
                 self.specials = {}
-                self.specials[0] = "back"
+                self.specials = {}
                 self.reaction_cnt = 1
                 self.reactions = {}
                 self.turn_done = False
@@ -134,17 +134,22 @@ class Character:
                         self.actions[5] = "grapple"
                 if self.char_class == 5:
                         self.actions[7] = "lay on hands"
-                ba = 0
-                self.bonus_actions [ba] = "back"
+                self.bonus_actions = {
+                        0: "back"
+                        }
                 if self.bonus_attack:
-                        ba += 1
-                        self.bonus_actions[ba] = "attack"
+                        self.bonus_actions[1] = "attack"
                 if self.char_class == 1:
-                        ba += 1
-                        self.bonus_actions[ba] = "second wind"
+                        self.bonus_actions[2] = "second wind"
                 if self.char_class == 3:
-                        ba += 1
-                        self.bonus_actions[ba] = "rage"
+                        self.bonus_actions[3] = "rage"
+                if self.char_class == 4:
+                        self.bonus_actions[4] = "disengage"
+                self.specials = {
+                        0: "back"
+                        }
+                if self.char_class == 4:
+                        self.specials[1] = "sneak attack"
         def deaths_door(self, ui):
                 death_st = roll_dice(20, 0, 0, ui)
                 if death_st[1] == 1:
@@ -171,7 +176,7 @@ class Character:
         def print_char_status(self, ui):
                 ui.push_message(vars(self))
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
-        def reset_until_next_turn_conditions(self, ui):
+        def reset_until_start_of_next_turn(self, ui):
                 if self.conditions["prone"] and not self.conditions["grappled"]:
                         self.conditions["prone"] = False
                         ui.push_message(self.name + " stood up.")
@@ -192,6 +197,14 @@ class Character:
                         4: ["done", 1]
                         }
                 self.reaction_cnt = 1
+                if self.char_class == 3:
+                        self.got_attacked = False
+                        self.did_attack = False
+        def reset_until_end_of_current_turn(self, all_items, ui):
+                if self.char_class == 3:
+                        ui.push_message(str(self.raging) + str(self.got_attacked) + str(self.did_attack))
+                        if self.raging and (not self.got_attacked and not self.did_attack):
+                                self.rage_off(all_items, ui)
         def print_conditions(self, ui):
                 ui.push_message(self.conditions)
         def print_actions(self, ui):
@@ -922,6 +935,8 @@ class Barbarian(Character):
                 self.main_hand_prof = True
                 self.off_hand_prof = True
                 self.raging = False
+                self.got_attacked = False
+                self.did_attack = False
                 self.rage_cnt = 2
                 self.rage_mod = 2
                 if self.con_mod > 0:
@@ -929,21 +944,44 @@ class Barbarian(Character):
                 else:
                         self.ac = 10 + self.dex_mod
         def rage_on(self, all_items, ui):
-                if not all_items.armors[self.eq_armor][4] == 2 and self.rage_cnt > 0:
+                if self.eq_armor == "unarmored":
+                        armor_type = 0
+                else:
+                        armor_type = all_items.armors[self.eq_armor][4]
+                if armor_type != 2 and self.rage_cnt > 0:
                         self.raging = True
                         self.rage_cnt -= 1
                         self.skills["athletics"][2] = True
                         self.saving_throws["str"][2] = True
-                        self.str_dmg_mod += self.rage_mod
-                        self.bonus_actions.pop(1)
-                        self.bonus_actions[1] = "end rage"
+                        self.main_str_dmg_mod += self.rage_mod
+                        self.off_str_dmg_mod += self.rage_mod
+                        self.bonus_actions.pop(3)
+                        self.bonus_actions[3] = "end rage"
+                        ui.push_message( self.name + " would like to rage.")
+                elif armor_type == 2 and self.rage_cnt > 0:
+                        self.raging = True
+                        self.rage_cnt -= 1
+                        self.bonus_actions.pop(3)
+                        self.bonus_actions[3] = "end rage"
+                        ui.push_message("Warning: raging in heavy armor.")
                 else:
-                        ui.push_message("Cannot rage.")
+                        ui.push_message("No rages left.")
         def rage_off(self, all_items, ui):
+                if self.eq_armor == "unarmored":
+                        armor_type = 0
+                else:
+                        armor_type = all_items.armors[self.eq_armor][4]
+                if armor_type != 2:
+                        self.skills["athletics"][2] = False
+                        self.saving_throws["str"][2] = False
+                        self.main_str_dmg_mod -= self.rage_mod
+                        self.off_str_dmg_mod -= self.rage_mod
                 self.raging = False
-                self.skills["athletics"][2] = False
-                self.saving_throws["str"][2] = False
-                self.str_dmg_mod -= self.rage_mod
+                if self.rage_cnt > 0:
+                        self.bonus_actions.pop(3)
+                        self.bonus_actions[3] = "rage"
+                else:
+                        self.bonus_actions.pop(3)
                 ui.push_message("Rage ended.")
 
 class Rogue(Character):
@@ -1338,7 +1376,7 @@ class Shop:
                         if finished == 0:
                                 done = True
         def shop_purchase(self, type, char, ui):
-                ui.push_message(random.choice(["Tabaxi has wares if you have coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition."]))
+                ui.push_message(random.choice(["Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
                 ui.push_message("Welcome to my " + self.shop_types[type] + " stand. Take a look:")
                 # price and weight positions may need to be adjusted across different types of items (dictionary)
                 price_pos = 0
@@ -1533,6 +1571,8 @@ def act(attacker, act_choice, battle, all_items, ui):
                                                 attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
                                 else:
                                         ui.push_message("Noone to attack.")
+                                if attacker.char_class == 3:
+                                        attacker.did_attack = True
                         # dodge action
                         elif action in attacker.actions and action == 2:
                                 attacker.conditions["dodge"] = True
@@ -1556,6 +1596,8 @@ def act(attacker, act_choice, battle, all_items, ui):
                                                 attacker.bonus_actions.pop(1)
                                 else:
                                         ui.push_message("Noone to shove.")
+                                if attacker.char_class == 3:
+                                        attacker.did_attack = True
                         # grapple action
                         elif action in attacker.actions and action == 5:
                                 targets = battle.get_targets(attacker)
@@ -1568,11 +1610,15 @@ def act(attacker, act_choice, battle, all_items, ui):
                                                 attacker.bonus_actions.pop(1)
                                 else:
                                         ui.push_message("Noone to grapple.")
+                                if attacker.char_class == 3:
+                                        attacker.did_attack = True
                         # use action to escape a grapple
                         elif action in attacker.actions and action == 6:
                                 escape_grapple(attacker, battle, all_items, ui)
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
+                                if attacker.char_class == 3:
+                                        attacker.did_attack = True
                         # lay on hands (paladin only)
                         elif action in attacker.actions and action == 7:
                                 current_hp = attacker.hp
@@ -1596,7 +1642,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                         #        ui.push_message("- (" + str(key) + ") => " + value)
                         bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
                         # attack bonus action
-                        if bonus_action in attacker.bonus_actions and bonus_action == 1 and attacker.bonus_attack:
+                        if bonus_action in attacker.bonus_actions and bonus_action == 1:
                                 targets = battle.get_targets(attacker)
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets, ui)
@@ -1604,8 +1650,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         attack(attacker, defender, 2, roll_mod, battle, all_items, ui)
                                 else:
                                         ui.push_message("Noone to attack.")
+                                if attacker.char_class == 3:
+                                        attacker.did_attack = True
                         # second wind bonus action (fighter only)
-                        elif bonus_action in attacker.bonus_actions and (bonus_action == 1 or bonus_action == 2):
+                        elif bonus_action in attacker.bonus_actions and bonus_action == 2:
                                 current_hp = attacker.hp
                                 second_wind_heal = roll_dice(10, attacker.level, 0, ui)[0]
                                 attacker.hp = min(attacker.hp + second_wind_heal, attacker.max_hp)
@@ -1617,10 +1665,13 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 attacker.second_wind = False
                                 attacker.bonus_actions.pop(bonus_action)
                         # rage bonus action (barbarian only)
-                        elif bonus_action in attacker.bonus_actions and attacker.char_class == 3:
-                                attacker.rage_on(all_items, ui)
-                        # disengage bonus action (rogue only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 3:
+                                if attacker.raging == False:
+                                        attacker.rage_on(all_items, ui)
+                                else:
+                                        attacker.rage_off(all_items, ui)
+                        # disengage bonus action (rogue only)
+                        elif bonus_action in attacker.bonus_actions and bonus_action == 4:
                                 attacker.conditions["flee"] = True
                                 ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
                         # back to battle menu
@@ -1632,8 +1683,11 @@ def act(attacker, act_choice, battle, all_items, ui):
                         #for key, value in attacker.specials.items():
                         #        ui.push_message("- (" + str(key) + ") => " + value)
                         special = int(ui.get_dict_choice_input(attacker.specials))
+                        # sneak attack special (rogue only)
+                        if special in attacker.specials and special == 1:
+                                pass
                         # back to main menu
-                        if special in attacker.specials and special == 0:
+                        elif special in attacker.specials and special == 0:
                                 attacker.battle_menu_options[3][1] += 1
                 # end turn
                 elif act_choice == 4:
@@ -1731,6 +1785,8 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                         else:
                                 ui.push_message("2x dice damage: " + str(dmg) + " (" + dmg_type + ")\n")
                 target.hp -= dmg
+                if target.char_class == 3:
+                        target.got_attacked = True
         # miss
         elif to_hit[0] < target.ac or crit == -1:
                 if crit == 0:
@@ -1743,6 +1799,9 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                 ui.push_message(target.name + " is down.")
                 if target.grappling != "":
                         release_grapple(target, battle, all_items)
+                if target.char_class == 3:
+                        if target.raging == True:
+                                target.got_attacked = True
                 if target.max_hp * -1 >= target.hp:
                         ui.push_message("Death blow! " + target.name + " falls dead. RIP")
                         target.conditions["dead"] = True
@@ -1953,11 +2012,12 @@ for enc in range(dungeon.enc_cnt):
         while not battle_end:
                 battle.get_hp_init_board(ui)
                 attacker = battle.get_current_init(ui)
-                attacker.reset_until_next_turn_conditions(ui)
+                attacker.reset_until_start_of_next_turn(ui)
                 attacker.turn_done = False
                 while not attacker.turn_done:
                         act_choice = attacker.battle_menu(ui)
                         act(attacker, act_choice, battle, all_items, ui)
+                attacker.reset_until_end_of_current_turn(all_items, ui)
                 if battle.check_end():
                         battle.get_hp_init_board(ui)
                         battle_end = battle.end(ui)
@@ -1971,8 +2031,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: fix action economy
-#TODO: implement abilities: BA rage, action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
+#TODO: implement abilities: action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
 #TODO: proficiency up, asi choice for level up (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
 #TODO: front-back positioning, net restrain, whip pull, push/pull mechanic
