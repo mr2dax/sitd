@@ -292,7 +292,7 @@ class Character:
                         }
                 if self.char_class == 5:
                         styles.pop(5)
-                ui.push_message(styles)
+                #ui.push_message(styles)
                 ui.push_message("Choose your fighting style.")
                 style_choice = int(ui.get_dict_choice_input(styles))
                 if self.char_class != 5:
@@ -1049,7 +1049,7 @@ class Dungeon:
                                 if wake_up == 1:
                                         pc.conditions["down"] = False
                         if pc.hp < pc.max_hp and not pc.conditions["dead"] and not pc.conditions["down"]:
-                                while pc.hp < pc.hp_max and pc.hd_cnt != 0:
+                                while pc.hp < pc.max_hp and pc.hd_cnt != 0:
                                         pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0, ui), pc.max_hp)
                         if not pc.conditions["dead"] and not pc.conditions["down"] and pc.second_wind:
                                 pc.second_wind_cnt = 1
@@ -1071,9 +1071,7 @@ class Dungeon:
                 time.sleep(5)
                 quit()
         def start_battle(self, enc, allies, enemies, ui):
-                ui.push_message("\n|||||||||||")
-                ui.push_message("|Battle #" + str(enc + 1) + "|")
-                ui.push_message("|||||||||||\n")
+                ui.push_battle_info("Battle #" + str(enc + 1))
                 battle = Battle(allies, enemies, ui)
                 ui.push_message("Roll initiative.")
                 return battle
@@ -1120,26 +1118,21 @@ class Battle:
                         self.id_list[e.player_id] = e
         def get_first_init(self, ui):
                 self.round += 1
-                ui.push_message("========")
-                ui.push_message("Round " + str(self.round))
-                ui.push_message("========")
+                ui.update_round_info("Round " + str(self.round))
                 return self.init_order[0][3]
         def get_next_init(self):
                 return self.init_order[self.next_init][3]
         def get_current_init(self, ui):
-                ui.push_message( self.init_order[self.current_init][2] + "'s turn.")
+                ui.update_turn_info(self.init_order[self.current_init][2] + "'s turn")
                 return self.init_order[self.current_init][3]
         def set_next_init(self, ui):
                 if self.init_order[self.current_init + 1][0] == -100:
                         self.current_init = 0
                         self.next_init = 1
                         self.round += 1
-                        ui.push_message("========")
-                        ui.push_message("Round " + str(self.round))
-                        ui.push_message("========")
+                        ui.update_round_info("Round " + str(self.round))
                 else:
                         self.current_init += 1
-                ui.push_message("--------")
         def get_targets(self, attacker):
                 i = 1
                 if attacker in self.allies:
@@ -1785,6 +1778,7 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                         else:
                                 ui.push_message("2x dice damage: " + str(dmg) + " (" + dmg_type + ")\n")
                 target.hp -= dmg
+                ui.update_status()
                 if target.char_class == 3:
                         target.got_attacked = True
         # miss
@@ -1973,30 +1967,31 @@ def init_chars(all_items, ui):
         p1_char = gen_char(name, starting_level, all_items, ui)
         ui.push_message("")
         
-        #name = "Elisa"
-        #ui.push_message(name)
-        #p2_char = gen_char(name, starting_level, all_items, ui)
-        #ui.push_message("")
+        name = "Elisa"
+        ui.push_message(name)
+        p2_char = gen_char(name, starting_level, all_items, ui)
+        ui.push_message("")
         
         name = "Bandit"
         ui.push_message(name)
         p3_char = gen_char(name, starting_level, all_items, ui)
         ui.push_message("")
         
-        #name = "Rogue"
-        #ui.push_message(name)
-        #p4_char = gen_char(name, starting_level, all_items, ui)
+        name = "Rogue"
+        ui.push_message(name)
+        p4_char = gen_char(name, starting_level, all_items, ui)
         
         allies = [p1_char]
         enemies = [p3_char]
-        #allies = [p1_char, p2_char]
-        #enemies = [p3_char, p4_char]
+        allies = [p1_char, p2_char]
+        enemies = [p3_char, p4_char]
         return allies, enemies
 
 main_window = tk.Tk()
 ui = gui.GUI(main_window)
 all_items = AllItems()
 chars = init_chars(all_items, ui)
+ui.create_status(chars)
 allies = chars[0]
 enemies = chars[1]
 encounters = 10
