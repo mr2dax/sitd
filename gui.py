@@ -31,6 +31,9 @@ class GUI:
                 self.visuals_pane = tk.Canvas(self.visuals_frame, height = 50, width = 80)
                 self.visuals_pane.grid(row = 0, column = 0)
                 self.visuals_pane.create_rectangle(50, 25, 150, 75, fill = "blue")
+                # initiative board
+                self.init_board_pane = tk.Label(self.visuals_frame, text = "")
+                self.init_board_pane.grid(row = 0, column = 1)
                 # quit button
                 #self.quit_button = tk.Button(self.main_frame, text="Quit", width = 4, command = lambda: quit())
                 #self.quit_button.grid(row = 1, column = 1)
@@ -69,6 +72,15 @@ class GUI:
                 if self.turn_pane.winfo_exists == 1:
                         self.turn_pane.destroy()
                 self.turn_pane.config(text = message)
+        # update initiative board
+        def update_init_board(self, init_board):
+                board = ""
+                for i in range(len(init_board)):
+                        board += init_board[i][1] + ": " + str(init_board[i][0]) + "\n"
+                self.init_board_pane.config(text = board)
+        # mark current initiative
+        def mark_init(self, name):
+                pass
         # initialize status pane with PCs
         def create_status(self, char_groups):
                 i = 0

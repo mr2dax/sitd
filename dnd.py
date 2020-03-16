@@ -202,7 +202,7 @@ class Character:
                         self.did_attack = False
         def reset_until_end_of_current_turn(self, all_items, ui):
                 if self.char_class == 3:
-                        ui.push_message(str(self.raging) + str(self.got_attacked) + str(self.did_attack))
+                        #ui.push_message(str(self.raging) + str(self.got_attacked) + str(self.did_attack))
                         if self.raging and (not self.got_attacked and not self.did_attack):
                                 self.rage_off(all_items, ui)
         def print_conditions(self, ui):
@@ -1100,10 +1100,10 @@ class Battle:
                         init_roll = roll_dice(20, enemy.init_mod, 0, ui)
                         self.init_order.append([init_roll[0], enemy.init_mod, enemy.name, enemy])
                 self.init_order.append([-100, 0 ,"Round End", ""])
-                self.init_order.sort(reverse=True)
+                self.init_order.sort(reverse = True)
                 self.build_participants()
                 self.build_id_list()
-                return self.init_order
+                self.get_hp_init_board(ui)
         def build_participants(self):
                 for a in self.allies:
                         if not a.conditions["dead"] or not a.conditions["down"]:
@@ -1116,11 +1116,14 @@ class Battle:
                                 self.id_list[a.player_id] = a
                 for e in self.enemies:
                         self.id_list[e.player_id] = e
+        #tbc
         def get_first_init(self, ui):
                 self.round += 1
                 ui.update_round_info("Round " + str(self.round))
+                ui.mark_init(self.init_order[0][2])
                 return self.init_order[0][3]
         def get_next_init(self):
+                ui.mark_init(self.init_order[self.next_init][2])
                 return self.init_order[self.next_init][3]
         def get_current_init(self, ui):
                 ui.update_turn_info(self.init_order[self.current_init][2] + "'s turn")
@@ -1159,10 +1162,8 @@ class Battle:
         def get_hp_init_board(self, ui):
                 hp_init_board = []
                 for i in range(len(self.participants)):
-                        hp_init_board.append([self.init_order[i][0], self.init_order[i][2], self.get_char_hp_by_name(self.init_order[i][2])[0], self.get_char_hp_by_name(self.init_order[i][2])[1]])
-                for j in range(len(hp_init_board)):
-                        ui.push_message(hp_init_board[j][1] + "'s HP: " + str(hp_init_board[j][2]) + "/" + str(hp_init_board[j][3]))
-                ui.push_message("--------\n")
+                        hp_init_board.append([self.init_order[i][0], self.init_order[i][2]])
+                ui.update_init_board(hp_init_board)
         def check_round_end(self):
                 if self.init_order[self.current_init + 1][0] == -100:
                         self.round_end = True
@@ -1998,10 +1999,7 @@ encounters = 10
 dungeon = Dungeon(encounters, allies, ui)
 for enc in range(dungeon.enc_cnt):
         battle = dungeon.start_battle(enc, allies, enemies, ui)
-        for i in battle.initiative(ui):
-                if i[0] != -100:
-                        ui.push_message(i[2] + ": " + str(i[0]))
-        ui.push_message("")
+        battle.initiative(ui)
         attacker = battle.get_first_init(ui)
         battle_end = False
         while not battle_end:
