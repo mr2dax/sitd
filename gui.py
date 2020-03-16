@@ -78,9 +78,6 @@ class GUI:
                 for i in range(len(init_board)):
                         board += init_board[i][1] + ": " + str(init_board[i][0]) + "\n"
                 self.init_board_pane.config(text = board)
-        # mark current initiative
-        def mark_init(self, name):
-                pass
         # initialize status pane with PCs
         def create_status(self, char_groups):
                 i = 0

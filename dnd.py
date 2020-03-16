@@ -121,33 +121,46 @@ class Character:
         def battle_menu(self, ui):
                 act_choice = ui.get_battle_menu_choice_input(self.battle_menu_options)
                 return act_choice
+        # build the character's actions, bonus actions & specials
         def action_economy(self):
+                # actions (main)
+                # regardless of class, any character can perform the below actions
                 self.actions = {
-                        0: "back",
-                        1: "attack",
-                        2: "dodge",
-                        3: "disengage"
+                        0: "back", # back to main (battle) menu
+                        1: "attack", # weapon attack
+                        2: "dodge", # defend (adv on DEX STs, disadv on incoming attacks)
+                        3: "disengage" # spend action to flee from battle without opportunity attacks from enemies
                         }
+                # only characters with ample STR can attempt to shove (variant rule)
                 if self.str >= 13:
                         self.actions[4] = "shove"
+                # only characters with ample STR and a free hand can attempt to grapple
                 if self.str >= 13 and (self.eq_weapon_main == "unarmed strike" or self.eq_weapon_offhand in ["unarmed strike", "nothing"] or self.eq_weapon_main == self.eq_weapon_offhand):
                         self.actions[5] = "grapple"
+                # paladin only touch heal
                 if self.char_class == 5:
                         self.actions[7] = "lay on hands"
+                # bonus actions (swift actions)
                 self.bonus_actions = {
-                        0: "back"
+                        0: "back" # back to main (battle) menu 
                         }
+                # only characters with eligible weapon setup can perform a weapon attack as a bonus action (2 light weapons equipped or proper monks)
                 if self.bonus_attack:
                         self.bonus_actions[1] = "attack"
+                # fighter only self heal
                 if self.char_class == 1:
                         self.bonus_actions[2] = "second wind"
+                # barbarian only self buff
                 if self.char_class == 3:
                         self.bonus_actions[3] = "rage"
+                # rogue only (as part of cunning action ability from 2nd level)
                 if self.char_class == 4:
                         self.bonus_actions[4] = "disengage"
+                # specials (no action required)
                 self.specials = {
-                        0: "back"
+                        0: "back" # back to main (battle) menu 
                         }
+                # rogue only extra dmg once per round if certain conditions are met (adv on attack or ally nearby enemy target)
                 if self.char_class == 4:
                         self.specials[1] = "sneak attack"
         def deaths_door(self, ui):
@@ -1120,10 +1133,8 @@ class Battle:
         def get_first_init(self, ui):
                 self.round += 1
                 ui.update_round_info("Round " + str(self.round))
-                ui.mark_init(self.init_order[0][2])
                 return self.init_order[0][3]
         def get_next_init(self):
-                ui.mark_init(self.init_order[self.next_init][2])
                 return self.init_order[self.next_init][3]
         def get_current_init(self, ui):
                 ui.update_turn_info(self.init_order[self.current_init][2] + "'s turn")
@@ -1688,7 +1699,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                         attacker.turn_done = True
         # character is unconscious = death saving throw or stabilized (incapacitated)
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success < 3:
-                attacker.deaths_door()
+                attacker.deaths_door(ui)
                 attacker.turn_done = True
         elif attacker.conditions["down"] and attacker.conditions["dead"]:
                 ui.push_message(attacker.name + " is dead.")
@@ -1914,7 +1925,7 @@ def gen_char(name, starting_level, all_items, ui):
                 if stats[0] < 13 and stats[1] < 13:
                         classes.pop(1)
                 # monk
-                if stats[2] < 13 or stats[4] < 13:
+                if stats[1] < 13 or stats[4] < 13:
                         classes.pop(2)
                 # barbarian
                 if stats[0] < 13:
@@ -1945,7 +1956,7 @@ def gen_char(name, starting_level, all_items, ui):
                 char = Paladin(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
-        #char.gen_starting_equipment(all_items, ui)
+        char.gen_starting_equipment(all_items, ui)
         char.action_economy()
         return char
 
