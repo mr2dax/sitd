@@ -236,6 +236,7 @@ class Character:
                         self.gold += roll_dice(4, 0, 0, ui)[0]
                 if char_class != 2:
                         self.gold *= 10
+                ui.update_status()
         def gen_starting_equipment(self, all_items, ui):
                 starting_shop = Shop(all_items, ui)
                 starting_shop.shopping_flow(self, ui)
@@ -295,6 +296,7 @@ class Character:
                         self.skills["persuation"][0] += self.prof_bonus
                         self.saving_throws["wis"][0] += self.prof_bonus
                         self.saving_throws["cha"][0] += self.prof_bonus
+                ui.update_status()
         def gen_fighting_style(self, inv, ui):
                 styles = {
                         1: "defense",
@@ -1086,7 +1088,7 @@ class Dungeon:
         def start_battle(self, enc, allies, enemies, ui):
                 ui.push_battle_info("Battle #" + str(enc + 1))
                 battle = Battle(allies, enemies, ui)
-                ui.push_message("Roll initiative.")
+                #ui.push_message("Roll initiative.")
                 return battle
 
 class Battle:
@@ -1370,8 +1372,8 @@ class Shop:
                         self.shop_list_potions.append([random.choice(list(self.potions.keys())), index])
         def shopping_flow(self, char, ui):
                 done = False
-                ui.push_message("You have " + str(char.gold) + " GP to spend.")
-                ui.push_message("You have " + str(char.carry) + " lbs carry weight left.")
+                #ui.push_message("You have " + str(char.gold) + " GP to spend.")
+                #ui.push_message("You have " + str(char.carry) + " lbs carry weight left.")
                 while done == False:
                         for i in range(4):
                                 i += 1
@@ -1381,8 +1383,8 @@ class Shop:
                         if finished == 0:
                                 done = True
         def shop_purchase(self, type, char, ui):
-                ui.push_message(random.choice(["Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
-                ui.push_message("Welcome to my " + self.shop_types[type] + " stand. Take a look:")
+                ui.push_message(self.shop_types[type].capitalize())
+                ui.push_message(random.choice(["Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
                 # price and weight positions may need to be adjusted across different types of items (dictionary)
                 price_pos = 0
                 weight_pos = 0
@@ -1443,7 +1445,8 @@ class Shop:
                                                 char.carry = round(char.carry, 2)
                                                 shop_list[purchase_choice - 1][0] = "sold"
                                                 ui.push_message("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
-                                                ui.push_message("Remaining funds: " + str(char.gold) + " GP.")
+                                                #ui.push_message("Remaining funds: " + str(char.gold) + " GP.")
+                                                ui.update_status()
                                                 ui.push_message("Remaining carry weight: " + str(char.carry) + " lbs.")
                                                 if type != 4:
                                                         ui.push_message("Wanna equip the " + purchased_item + "?")
@@ -1697,6 +1700,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # end turn
                 elif act_choice == 4:
                         attacker.turn_done = True
+                        ui.clear_message()
         # character is unconscious = death saving throw or stabilized (incapacitated)
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success < 3:
                 attacker.deaths_door(ui)
@@ -1713,7 +1717,6 @@ def target_selector(source, battle, targets, ui):
         #for key, value in targets.items():
         #        ui.push_message("- (" + str(key) + ") => " + value)
         target_choice = int(ui.get_dict_choice_input(targets))
-        ui.push_message("")
         return battle.get_target_by_name(targets[target_choice])
 
 def attack(source, target, type, adv_disadv, battle, all_items, ui):
@@ -1954,6 +1957,7 @@ def gen_char(name, starting_level, all_items, ui):
                 char = Rogue(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
         if class_choice == 5:
                 char = Paladin(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
+        ui.create_status(char)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
         char.gen_starting_equipment(all_items, ui)
@@ -1977,19 +1981,16 @@ def init_chars(all_items, ui):
                 name = "Rick"
         ui.push_message(name)
         p1_char = gen_char(name, starting_level, all_items, ui)
-        ui.push_message("")
-        
+
         name = "Elisa"
         ui.push_message(name)
         p2_char = gen_char(name, starting_level, all_items, ui)
-        ui.push_message("")
         
-        name = "Bandit"
+        name = "Benny"
         ui.push_message(name)
         p3_char = gen_char(name, starting_level, all_items, ui)
-        ui.push_message("")
         
-        name = "Rogue"
+        name = "Alf"
         ui.push_message(name)
         p4_char = gen_char(name, starting_level, all_items, ui)
         
@@ -2003,7 +2004,6 @@ main_window = tk.Tk()
 ui = gui.GUI(main_window)
 all_items = AllItems()
 chars = init_chars(all_items, ui)
-ui.create_status(chars)
 allies = chars[0]
 enemies = chars[1]
 encounters = 10

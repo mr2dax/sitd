@@ -24,6 +24,8 @@ class GUI:
                 # status sub frame
                 self.status_frame = tk.Frame(self.main_frame, height = 5, width = 80)
                 self.status_frame.grid(row = 1, column = 0)
+                self.status_labels = []
+                self.char_num = 0
                 # visual sub frame
                 self.visuals_frame = tk.Frame(self.main_frame, height = 5, width = 80)
                 self.visuals_frame.grid(row = 2, column = 0)
@@ -41,22 +43,32 @@ class GUI:
                 self.message_frame = tk.Frame(self.main_frame)
                 self.message_frame.grid(row = 3, column = 0)
                 # message box
-                self.message_pane = tk.Text(self.message_frame, height = 20, width = 80)
+                self.message_pane = tk.Text(self.message_frame, height = 20, width = 80, state = "normal", fg = "black", bg = "white")
                 self.message_pane.grid(row = 0, column = 0, sticky = "nsew", padx = 2, pady = 2)
                 self.message_pane_scroll = tk.Scrollbar(self.message_frame, command = self.message_pane.yview)
                 self.message_pane_scroll.grid(row = 0, column = 1, sticky = "nsew")
                 self.message_pane["yscrollcommand"] = self.message_pane_scroll.set
                 self.message_pane.insert(tk.END, "")
+                self.message_pane.bind("<Control-x>", lambda e: "break") # disable cut
+                self.message_pane.bind("<Control-c>", lambda e: "break") # disable copy
+                self.message_pane.bind("<Control-v>", lambda e: "break") # disable paste
+                self.message_pane.bind("<Button-3>", lambda e: "break")  # disable right-click
                 # input sub frame
                 self.input_frame = tk.Frame(self.main_frame)
                 self.input_frame.grid(row = 4, column = 0)
                 self.main_frame.tkraise()
         # write text to message pane
         def push_message(self, message):
-                #self.message_pane.delete("1.0", "end")
+                self.message_pane.config(state = "normal")
                 self.message_pane.insert(tk.END, "\n")
                 self.message_pane.insert(tk.END, message)
                 self.message_pane.see(tk.END)
+                self.message_pane.config(state = "disabled")
+        # clear message pane
+        def clear_message(self):
+                self.message_pane.config(state = "normal")
+                self.message_pane.delete("1.0", tk.END)
+                self.message_pane.config(state = "disabled")
         # write battle info
         def push_battle_info(self, message):
                 if self.battle_pane.winfo_exists == 1:
@@ -79,25 +91,22 @@ class GUI:
                         board += init_board[i][1] + ": " + str(init_board[i][0]) + "\n"
                 self.init_board_pane.config(text = board)
         # initialize status pane with PCs
-        def create_status(self, char_groups):
-                i = 0
-                self.status_labels = []
-                for ch in char_groups[0]:
-                        i += 1
-                        status = ch.name + "\n" + str(ch.hp) + "/" + str(ch.max_hp)
-                        self.status_pane = tk.Label(self.status_frame, text = status)
-                        self.status_pane.grid(row = 0, column = i)
-                        self.status_labels.append([self.status_pane, ch])
+        def create_status(self, char):
+                self.char_num += 1
+                status = char.name + "\n" + str(char.hp) + "/" + str(char.max_hp) + "\n" + str(char.gold) + " GP"
+                self.status_pane = tk.Label(self.status_frame, text = status)
+                self.status_pane.grid(row = 0, column = self.char_num)
+                self.status_labels.append([self.status_pane, char])
         # update PC statuses on status pane
         def update_status(self):
                 for sl in self.status_labels:
-                        sl[0].config(text = sl[1].name + "\n" + str(sl[1].hp) + "/" + str(sl[1].max_hp))
+                        sl[0].config(text = sl[1].name + "\n" + str(sl[1].hp) + "/" + str(sl[1].max_hp) + "\n" + str(sl[1].gold) + " GP")
         # populate input frame with text input and button, then destroy them once content was fetched
         def get_text_input(self):
                 self.input_pane = tk.Entry(self.input_frame)
                 self.input_pane.grid(row = 0, column = 0, sticky = "nsew")
                 self.submit_var = tk.StringVar()
-                self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, command = lambda: self.submit_var.set(1))
+                self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
                 self.input_btn.grid(row = 0, column = 1, sticky = "nsew")
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.input_pane.get()
@@ -105,17 +114,20 @@ class GUI:
                 self.submit_var = ""
                 self.input_pane.destroy()
                 self.input_btn.destroy()
+                self.clear_message()
                 return input_val
         # populate input frame with buttons from hashtable input, then destroy them once choice was fetched
         def get_dict_choice_input(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
                 for key, value in choices.items():
-                        self.input_choice_btn = tk.Button(self.input_frame, text = value, width = len(value), command = lambda j = key: self.submit_var.set(j))
+                        self.input_choice_btn = tk.Button(self.input_frame, text = value, width = len(value), fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
                         self.input_choice_btn.grid(row = 0, column = (key))
                         self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
+                if input_val != 0:
+                        self.clear_message()
                 self.submit_var = ""
                 for btn in self.input_choice_btns:
                         btn.destroy()
@@ -124,12 +136,12 @@ class GUI:
         def get_list_choice_input(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
-                self.input_choice_skip_btn = tk.Button(self.input_frame, text = "skip", width = 4, command = lambda j = -1: self.submit_var.set(j))
+                self.input_choice_skip_btn = tk.Button(self.input_frame, text = "skip", width = 4, fg = "black", bg = "white", command = lambda j = -1: self.submit_var.set(j))
                 self.input_choice_skip_btn.grid(row = 0, column = 0)
                 self.input_choice_btns.append(self.input_choice_skip_btn)
                 for i in choices:
                         if i[0] != "sold":
-                                self.input_choice_btn = tk.Button(self.input_frame, text = i[0], width = len(i[0]), command = lambda j = i[1]: self.submit_var.set(j))
+                                self.input_choice_btn = tk.Button(self.input_frame, text = i[0], width = len(i[0]), fg = "black", bg = "white", command = lambda j = i[1]: self.submit_var.set(j))
                                 self.input_choice_btn.grid(row = 0, column = i[1])
                                 self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
@@ -137,26 +149,28 @@ class GUI:
                 self.submit_var = ""
                 for btn in self.input_choice_btns:
                         btn.destroy()
+                self.clear_message()
                 return input_val
         # populate input frame with yes/no buttons, then destroy them once choice was fetched
         def get_yesno_input(self):
                 self.submit_var = tk.IntVar()
-                self.input_yes_btn = tk.Button(self.input_frame, text = "Yes", width = 5, command = lambda: self.submit_var.set(1))
+                self.input_yes_btn = tk.Button(self.input_frame, text = "Yes", width = 5, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
                 self.input_yes_btn.grid(row = 0, column = 0)
-                self.input_no_btn = tk.Button(self.input_frame, text = "No", width = 5, command = lambda: self.submit_var.set(0))
+                self.input_no_btn = tk.Button(self.input_frame, text = "No", width = 5, fg = "black", bg = "white", command = lambda: self.submit_var.set(0))
                 self.input_no_btn.grid(row = 0, column = 1)
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
                 self.submit_var = ""
                 self.input_yes_btn.destroy()
                 self.input_no_btn.destroy()
+                self.clear_message()
                 return input_val
         # populate input frame with buttons from hashtable input for battle menu specifically, then destroy them once choice was fetched
         def get_battle_menu_choice_input(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
                 for key, value in choices.items():
-                        self.input_choice_btn = tk.Button(self.input_frame, text = value[0], width = len(value[0]), command = lambda j = key: self.submit_var.set(j))
+                        self.input_choice_btn = tk.Button(self.input_frame, text = value[0], width = len(value[0]), fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
                         self.input_choice_btn.grid(row = 0, column = (key))
                         self.input_choice_btns.append(self.input_choice_btn)
                         if value[1] < 1:
