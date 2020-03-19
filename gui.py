@@ -8,7 +8,7 @@ class GUI:
                 main_window.title("Shining in the Dungeon (5e Duel)")
                 main_window.minsize(1024, 768)
                 main_window.maxsize(1024, 768)
-                # top frame
+                # main game frame
                 self.main_frame = tk.Frame(main_window)
                 self.main_frame.pack(side = tk.LEFT)
                 # info sub frame
@@ -97,6 +97,8 @@ class GUI:
                 self.status_pane = tk.Label(self.status_frame, text = status)
                 self.status_pane.grid(row = 0, column = self.char_num)
                 self.status_labels.append([self.status_pane, char])
+                self.status_btn = tk.Button(self.status_frame, text = "Status", width = 6, fg = "black", bg = "white", command = lambda j = char: self.create_char_status(j))
+                self.status_btn.grid(row = 1, column = self.char_num)
         # update PC statuses on status pane
         def update_status(self):
                 for sl in self.status_labels:
@@ -181,6 +183,22 @@ class GUI:
                 for btn in self.input_choice_btns:
                         btn.destroy()
                 return input_val
+        # create character status overlay
+        def create_char_status(self, char):
+                self.char_stats_frame = tk.Frame(self.main_window, borderwidth = 2, relief = tk.RAISED)
+                self.char_stats_frame.place(x = 80, y = 60)
+                self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status")
+                self.title_label.grid(row = 0, column = 0)
+                self.abilities_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[0], justify = tk.LEFT)
+                self.abilities_label.grid(row = 1, column = 0)
+                self.scores_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[1])
+                self.scores_label.grid(row = 1, column = 1)
+                self.mods_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[2])
+                self.mods_label.grid(row = 1, column = 2)
+                self.saving_throws_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[3])
+                self.saving_throws_label.grid(row = 1, column = 3)
+                self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.char_stats_frame.destroy())
+                self.done_btn.grid(row = 0, column = 1)
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)

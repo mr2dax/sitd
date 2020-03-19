@@ -186,8 +186,14 @@ class Character:
                 if self.death_st_success > 2:
                         self.hp = 0
                         ui.push_message(self.name + " has stabilized.")
-        def print_char_status(self, ui):
-                ui.push_message(vars(self))
+        # return formatted character stats
+        def print_char_status(self):
+                abilities = "Abilities\nStrengh\nDexterity\nConstitution\nIntelligence\nWisdom\nCharisma"
+                scores = "Scores\n" + str(self.str) + "\n" + str(self.dex) + "\n" + str(self.con) + "\n" + str(self.int) + "\n" + str(self.wis) + "\n" + str(self.cha)
+                mods = "Modifiers\n" + "{0:+}".format(self.str_mod) + "\n" + "{0:+}".format(self.dex_mod) + "\n" + "{0:+}".format(self.con_mod) + "\n" + "{0:+}".format(self.int_mod) + "\n" + "{0:+}".format(self.wis_mod) + "\n" + "{0:+}".format(self.cha_mod)
+                sts = "Saving Throws\n" + "{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]) + "\n" + "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]) + "\n" + "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]) + "\n" + "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]) + "\n" + "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]) + "\n" + "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1])
+                return abilities, scores, mods, sts
+                #return vars(self)
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
         def reset_until_start_of_next_turn(self, ui):
                 if self.conditions["prone"] and not self.conditions["grappled"]:
@@ -1459,7 +1465,6 @@ class Shop:
                 elif purchase_choice == -1:
                         ui.push_message("Oh, not interested, huh?")
                 #char.inv.print_inv(ui)
-                #char.print_char_status(ui)
 
 def gen_stats(ui):
         stre = 0
@@ -2035,6 +2040,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
+#TODO: status overlay
 #TODO: implement abilities: action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
 #TODO: proficiency up, asi choice for level up (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
