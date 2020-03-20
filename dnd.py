@@ -192,7 +192,14 @@ class Character:
                 scores = "Scores\n" + str(self.str) + "\n" + str(self.dex) + "\n" + str(self.con) + "\n" + str(self.int) + "\n" + str(self.wis) + "\n" + str(self.cha)
                 mods = "Modifiers\n" + "{0:+}".format(self.str_mod) + "\n" + "{0:+}".format(self.dex_mod) + "\n" + "{0:+}".format(self.con_mod) + "\n" + "{0:+}".format(self.int_mod) + "\n" + "{0:+}".format(self.wis_mod) + "\n" + "{0:+}".format(self.cha_mod)
                 sts = "Saving Throws\n" + "{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]) + "\n" + "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]) + "\n" + "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]) + "\n" + "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]) + "\n" + "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]) + "\n" + "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1])
-                return abilities, scores, mods, sts
+                conditions = "Conditions: "
+                combat = "Armor Class " + str(self.ac) + " Initiative " + str(self.init_mod) + "\n"
+                combat += "Main Hand: " + self.eq_weapon_main + "(" + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + ")\n"
+                combat += "Off Hand: " + self.eq_weapon_offhand + "(" + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + ")"
+                for key, value in self.conditions.items():
+                        if value:
+                                conditions += key + " "
+                return abilities, scores, mods, sts, conditions, combat
                 #return vars(self)
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
         def reset_until_start_of_next_turn(self, ui):
@@ -224,8 +231,6 @@ class Character:
                         #ui.push_message(str(self.raging) + str(self.got_attacked) + str(self.did_attack))
                         if self.raging and (not self.got_attacked and not self.did_attack):
                                 self.rage_off(all_items, ui)
-        def print_conditions(self, ui):
-                ui.push_message(self.conditions)
         def print_actions(self, ui):
                 ui.push_message(self.actions)
         def print_bonus_actions(self, ui):
@@ -1352,10 +1357,10 @@ class Shop:
                         }
         def gen_shop_listing(self):
                 index = 0
-                for i in range(math.floor(len(self.simple_melee_weapons) / 2)):
+                for i in range(math.floor(len(self.simple_melee_weapons) / 3)):
                         index += 1
                         self.shop_list_melee_weapons.append([random.choice(list(self.simple_melee_weapons.keys())), index])
-                for i in range(math.floor(len(self.martial_melee_weapons) / 2)):
+                for i in range(math.floor(len(self.martial_melee_weapons) / 3)):
                         index += 1
                         self.shop_list_melee_weapons.append([random.choice(list(self.martial_melee_weapons.keys())), index])
                 index = 0
@@ -1373,7 +1378,7 @@ class Shop:
                         index += 1
                         self.shop_list_armors.append([random.choice(list(self.shields.keys())), index])
                 index = 0
-                for i in range(len(self.potions) * 2):
+                for i in range(len(self.potions)):
                         index += 1
                         self.shop_list_potions.append([random.choice(list(self.potions.keys())), index])
         def shopping_flow(self, char, ui):

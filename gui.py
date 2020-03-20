@@ -44,7 +44,7 @@ class GUI:
                 self.message_frame.grid(row = 3, column = 0)
                 # message box
                 self.message_pane = tk.Text(self.message_frame, height = 20, width = 80, state = "normal", fg = "black", bg = "white")
-                self.message_pane.grid(row = 0, column = 0, sticky = "nsew", padx = 2, pady = 2)
+                self.message_pane.grid(row = 0, column = 0, sticky = "w", padx = 2, pady = 2)
                 self.message_pane_scroll = tk.Scrollbar(self.message_frame, command = self.message_pane.yview)
                 self.message_pane_scroll.grid(row = 0, column = 1, sticky = "nsew")
                 self.message_pane["yscrollcommand"] = self.message_pane_scroll.set
@@ -55,7 +55,7 @@ class GUI:
                 self.message_pane.bind("<Button-3>", lambda e: "break")  # disable right-click
                 # input sub frame
                 self.input_frame = tk.Frame(self.main_frame)
-                self.input_frame.grid(row = 4, column = 0)
+                self.input_frame.grid(row = 4, column = 0, columnspan = 2)
                 self.main_frame.tkraise()
         # write text to message pane
         def push_message(self, message):
@@ -123,7 +123,7 @@ class GUI:
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
                 for key, value in choices.items():
-                        self.input_choice_btn = tk.Button(self.input_frame, text = value, width = len(value), fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
+                        self.input_choice_btn = tk.Button(self.input_frame, text = value, fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
                         self.input_choice_btn.grid(row = 0, column = (key))
                         self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
@@ -187,18 +187,32 @@ class GUI:
         def create_char_status(self, char):
                 self.char_stats_frame = tk.Frame(self.main_window, borderwidth = 2, relief = tk.RAISED)
                 self.char_stats_frame.place(x = 80, y = 60)
+                # title
                 self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status")
                 self.title_label.grid(row = 0, column = 0)
-                self.abilities_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[0], justify = tk.LEFT)
-                self.abilities_label.grid(row = 1, column = 0)
-                self.scores_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[1])
-                self.scores_label.grid(row = 1, column = 1)
-                self.mods_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[2])
-                self.mods_label.grid(row = 1, column = 2)
-                self.saving_throws_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[3])
-                self.saving_throws_label.grid(row = 1, column = 3)
                 self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.char_stats_frame.destroy())
                 self.done_btn.grid(row = 0, column = 1)
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 1, column = 0)
+                # combat
+                self.combat_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[5], justify = tk.LEFT)
+                self.combat_label.grid(row = 2, column = 0, columnspan = 4, sticky = "w")
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 3, column = 0)
+                # basic
+                self.abilities_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[0], justify = tk.LEFT)
+                self.abilities_label.grid(row = 4, column = 0)
+                self.scores_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[1])
+                self.scores_label.grid(row = 4, column = 1)
+                self.mods_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[2])
+                self.mods_label.grid(row = 4, column = 2)
+                self.saving_throws_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[3])
+                self.saving_throws_label.grid(row = 4, column = 3)
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 5, column = 0)
+                # conditions
+                self.conditions_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[4])
+                self.conditions_label.grid(row = 6, column = 0)
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)
