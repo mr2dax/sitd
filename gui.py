@@ -118,6 +118,20 @@ class GUI:
                 self.input_btn.destroy()
                 self.clear_message()
                 return input_val
+        # select amount of units from a pool
+        def get_amount(self, pool, max_avail):
+                self.scale_pane = tk.Scale(self.input_frame, from_ = 1, to = min(pool, max_avail), orient = tk.HORIZONTAL)
+                self.scale_pane.grid(row = 0, column = 0)
+                self.submit_var = tk.StringVar()
+                self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
+                self.input_btn.grid(row = 0, column = 1)
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.scale_pane.get()
+                self.submit_var = ""
+                self.scale_pane.destroy()
+                self.input_btn.destroy()
+                self.clear_message()
+                return input_val
         # populate input frame with buttons from hashtable input, then destroy them once choice was fetched
         def get_dict_choice_input(self, choices):
                 self.submit_var = tk.IntVar()
@@ -188,10 +202,12 @@ class GUI:
                 self.char_stats_frame = tk.Frame(self.main_window, borderwidth = 2, relief = tk.RAISED)
                 self.char_stats_frame.place(x = 80, y = 60)
                 # title
-                self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status")
+                self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status", justify = tk.LEFT)
                 self.title_label.grid(row = 0, column = 0)
+                self.class_label = tk.Label(self.char_stats_frame, text = char.get_char_class(), justify = tk.LEFT)
+                self.class_label.grid(row = 0, column = 1)
                 self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.char_stats_frame.destroy())
-                self.done_btn.grid(row = 0, column = 1)
+                self.done_btn.grid(row = 0, column = 2)
                 # separator
                 tk.Label(self.char_stats_frame, text=" ").grid(row = 1, column = 0)
                 # combat
@@ -202,17 +218,32 @@ class GUI:
                 # basic
                 self.abilities_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[0], justify = tk.LEFT)
                 self.abilities_label.grid(row = 4, column = 0)
-                self.scores_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[1])
+                self.scores_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[1], justify = tk.LEFT)
                 self.scores_label.grid(row = 4, column = 1)
-                self.mods_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[2])
+                self.mods_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[2], justify = tk.LEFT)
                 self.mods_label.grid(row = 4, column = 2)
-                self.saving_throws_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[3])
+                self.saving_throws_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[3], justify = tk.LEFT)
                 self.saving_throws_label.grid(row = 4, column = 3)
                 # separator
                 tk.Label(self.char_stats_frame, text=" ").grid(row = 5, column = 0)
                 # conditions
-                self.conditions_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[4])
+                self.conditions_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[4], justify = tk.LEFT)
                 self.conditions_label.grid(row = 6, column = 0)
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 7, column = 0)
+                # equipped
+                self.equipped_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[6], justify = tk.LEFT)
+                self.equipped_label.grid(row = 8, column = 0)
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 9, column = 0)
+                # equipped
+                self.inventory_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[7], justify = tk.LEFT)
+                self.inventory_label.grid(row = 10, column = 0)
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 11, column = 0)
+                # specials
+                self.specials_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[8], justify = tk.LEFT)
+                self.specials_label.grid(row = 12, column = 0)
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)

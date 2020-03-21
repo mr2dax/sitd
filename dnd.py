@@ -119,7 +119,10 @@ class Character:
                 if self.starting_lvl > 2:
                         self.level_up(self.starting_lvl - 1, ui)
         def battle_menu(self, ui):
-                act_choice = ui.get_battle_menu_choice_input(self.battle_menu_options)
+                if self.conditions["down"] or self.conditions["dead"]:
+                        act_choice = 4
+                else:
+                        act_choice = ui.get_battle_menu_choice_input(self.battle_menu_options)
                 return act_choice
         # build the character's actions, bonus actions & specials
         def action_economy(self):
@@ -168,6 +171,8 @@ class Character:
                 if death_st[1] == 1:
                         self.conditions["down"] = False
                         self.hp = 1
+                        self.death_st_success = 0
+                        self.death_st_fail = 0
                         ui.push_message(self.name + " is back up!")
                 elif death_st[1] == -1:
                         if self.death_st_fail == 2:
@@ -182,10 +187,30 @@ class Character:
                 ui.push_message("Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
                 if self.death_st_fail > 2:
                         self.conditions["dead"] = True
+                        self.death_st_success = 0
+                        self.death_st_fail = 0
                         ui.push_message(self.name + " just died. RIP")
                 if self.death_st_success > 2:
                         self.hp = 0
+                        self.death_st_success = 0
+                        self.death_st_fail = 0
                         ui.push_message(self.name + " has stabilized.")
+        def receive_healing(self, healer, heal_amount, ui):
+                current_hp = self.hp
+                if self.hp < 0:
+                        self.hp = 0
+                        self.conditions["down"] = False
+                        self.death_st_success = 0
+                        self.death_st_fail = 0
+                        ui.push_message(self.name + " is back up!")
+                self.hp = min(self.hp + heal_amount, self.max_hp)
+                if current_hp + heal_amount > self.max_hp:
+                        actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
+                else:
+                        actual_heal = heal_amount
+                ui.push_message(healer.name + " healed " + self.name + " for " + str(actual_heal) + " HP.")
+                ui.update_status()
+                return actual_heal
         # return formatted character stats
         def print_char_status(self):
                 abilities = "Abilities\nStrengh\nDexterity\nConstitution\nIntelligence\nWisdom\nCharisma"
@@ -193,13 +218,45 @@ class Character:
                 mods = "Modifiers\n" + "{0:+}".format(self.str_mod) + "\n" + "{0:+}".format(self.dex_mod) + "\n" + "{0:+}".format(self.con_mod) + "\n" + "{0:+}".format(self.int_mod) + "\n" + "{0:+}".format(self.wis_mod) + "\n" + "{0:+}".format(self.cha_mod)
                 sts = "Saving Throws\n" + "{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]) + "\n" + "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]) + "\n" + "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]) + "\n" + "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]) + "\n" + "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]) + "\n" + "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1])
                 conditions = "Conditions: "
-                combat = "Armor Class " + str(self.ac) + " Initiative " + str(self.init_mod) + "\n"
-                combat += "Main Hand: " + self.eq_weapon_main + "(" + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + ")\n"
-                combat += "Off Hand: " + self.eq_weapon_offhand + "(" + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + ")"
                 for key, value in self.conditions.items():
                         if value:
                                 conditions += key + " "
-                return abilities, scores, mods, sts, conditions, combat
+                combat = "Armor Class " + str(self.ac) + " Initiative " + str(self.init_mod) + "\n"
+                combat += "Main Hand: "
+                if self.ranged:
+                        combat += "{0:+}".format(self.main_dex_att_mod + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_dex_dmg_mod + self.ench_main)
+                elif self.eq_weapon_main_finesse:
+                        combat += "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_att_mod) + self.ench_main)
+                else:
+                        combat += "{0:+}".format(self.main_str_att_mod + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_str_dmg_mod + self.ench_main)
+                if self.dmg_die_type_main == "b":
+                        combat += " (bludgeoning)"
+                elif self.dmg_die_type_main == "s":
+                        combat += " (slashing)"
+                elif self.dmg_die_type_main == "p":
+                        combat += " (piercing)"
+                combat += "\nOff Hand: "
+                if self.eq_weapon_main == self.eq_weapon_offhand and not self.bonus_attack:
+                        combat += "-"
+                else:
+                        if self.eq_weapon_offhand_finesse:
+                                combat += "{0:+}".format(max(self.off_dex_att_mod, self.off_str_att_mod) + self.ench_off) + " " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(max(self.off_dex_dmg_mod, self.off_str_att_mod) + self.ench_off)
+                        else:
+                                combat += "{0:+}".format(self.off_str_att_mod + self.ench_off) + " " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(self.off_str_dmg_mod + self.ench_off)
+                        if self.dmg_die_type_off == "b":
+                                combat += " (bludgeoning)"
+                        elif self.dmg_die_type_off == "s":
+                                combat += " (slashing)"
+                        elif self.dmg_die_type_off == "p":
+                                combat += " (piercing)"
+                equipped = "Equipped\nMain Hand: " + self.eq_weapon_main + "\nOff Hand: " + self.eq_weapon_offhand + "\nArmor: " + self.eq_armor
+                inventory = "Inventory\n"
+                for key, value in self.inv.inv.items():
+                        inventory += key + " (" + str(value[1]) + ")\n"
+                specials = "Specials\n"
+                if self.char_class == 5:
+                        specials += "Lay on Hands: " + str(self.lay_on_hands_pool) + "/" + str(self.lay_on_hands_pool_max)
+                return abilities, scores, mods, sts, conditions, combat, equipped, inventory, specials
                 #return vars(self)
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
         def reset_until_start_of_next_turn(self, ui):
@@ -918,6 +975,15 @@ class Character:
                                         self.specials["divine smite"] = [4, 2, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
+        def get_char_class(self):
+                classes = {
+                1: "fighter",
+                2: "monk",
+                3: "barbarian",
+                4: "rogue",
+                5: "paladin"
+                }
+                return classes[self.char_class]
 
 class Fighter(Character):
         "Child for fighter class."
@@ -1040,8 +1106,6 @@ class Inventory:
                         self.inv[item][1] += 1
                 else:
                         self.inv[item] = [type, 1]
-        def print_inv(self, ui):
-                ui.push_message(vars(self))
 
 class Dungeon:
         "Dungeon creation."
@@ -1091,9 +1155,7 @@ class Dungeon:
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
         def end_dungeon(self, ui):
-                ui.push_message("\n======")
-                ui.push_message("= GG =")
-                ui.push_message("======")
+                ui.push_message("GG")
                 time.sleep(5)
                 quit()
         def start_battle(self, enc, allies, enemies, ui):
@@ -1173,6 +1235,22 @@ class Battle:
                         allies_list = {}
                         for a in self.allies:
                                 if not a.conditions["down"]:
+                                        allies_list[i] = a.name
+                                i += 1
+                        return allies_list
+        def get_allies(self, attacker):
+                i = 1
+                if attacker in self.enemies:
+                        enemies_list = {}
+                        for e in self.enemies:
+                                if not e.conditions["dead"]:
+                                        enemies_list[i] = e.name
+                                i += 1
+                        return enemies_list
+                elif attacker in self.allies:
+                        allies_list = {}
+                        for a in self.allies:
+                                if not a.conditions["dead"]:
                                         allies_list[i] = a.name
                                 i += 1
                         return allies_list
@@ -1469,7 +1547,6 @@ class Shop:
                                 ui.push_message("Ah, you've changed your mind, I see...")
                 elif purchase_choice == -1:
                         ui.push_message("Oh, not interested, huh?")
-                #char.inv.print_inv(ui)
 
 def gen_stats(ui):
         stre = 0
@@ -1639,17 +1716,15 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         attacker.did_attack = True
                         # lay on hands (paladin only)
                         elif action in attacker.actions and action == 7:
-                                current_hp = attacker.hp
-                                lay_on_hands_heal = attacker.lay_on_hands_pool
-                                attacker.hp = min(attacker.hp + lay_on_hands_heal, attacker.max_hp)
-                                if current_hp + lay_on_hands_heal > attacker.max_hp:
-                                        actual_heal = lay_on_hands_heal - ((current_hp + lay_on_hands_heal) - attacker.max_hp)
-                                else:
-                                        actual_heal = lay_on_hands_heal
-                                ui.push_message(attacker.name + " healed " + str(actual_heal) + " HP.")
-                                attacker.lay_on_hand_pool = min(0, attacker.lay_on_hands_pool - actual_heal) 
-                                if attacker.lay_on_hand_pool == 0:
+                                allies = battle.get_allies(attacker)
+                                receiver = target_selector(attacker, battle, allies, ui)
+                                receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
+                                lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable, ui)
+                                actual_heal = receiver.receive_healing(attacker, lay_on_hands_heal, ui)
+                                attacker.lay_on_hands_pool -= actual_heal
+                                if attacker.lay_on_hands_pool <= 0:
                                         attacker.actions.pop(action)
+                                        attacker.lay_on_hands_pool = 0
                         # back to battle menu
                         elif action in attacker.actions and action == 0:
                                 attacker.battle_menu_options[1][1] += 1
@@ -1680,6 +1755,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 else:
                                         actual_heal = second_wind_heal
                                 ui.push_message(attacker.name + " healed " + str(actual_heal) + " HP.")
+                                ui.update_status()
                                 attacker.second_wind = False
                                 attacker.bonus_actions.pop(bonus_action)
                         # rage bonus action (barbarian only)
@@ -1724,10 +1800,13 @@ def act(attacker, act_choice, battle, all_items, ui):
 
 def target_selector(source, battle, targets, ui):
         ui.push_message("Choose a target.")
-        #for key, value in targets.items():
-        #        ui.push_message("- (" + str(key) + ") => " + value)
         target_choice = int(ui.get_dict_choice_input(targets))
         return battle.get_target_by_name(targets[target_choice])
+
+def amount_selector(pool, max_avail, ui):
+        ui.push_message("For how much?")
+        amount = int(ui.get_amount(pool, max_avail))
+        return amount
 
 def attack(source, target, type, adv_disadv, battle, all_items, ui):
         str_att_mod = 0
@@ -1992,7 +2071,7 @@ def init_chars(all_items, ui):
         ui.push_message(name)
         p1_char = gen_char(name, starting_level, all_items, ui)
 
-        name = "Elisa"
+        name = "Rei"
         ui.push_message(name)
         p2_char = gen_char(name, starting_level, all_items, ui)
         
@@ -2045,7 +2124,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: status overlay
+#TODO: hover text for items
 #TODO: implement abilities: action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
 #TODO: proficiency up, asi choice for level up (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
