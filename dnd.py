@@ -1,3 +1,4 @@
+# Imports
 import random
 import math
 import string
@@ -5,9 +6,11 @@ import tkinter as tk
 import gui
 import time
 
+# Classes
+# General character
 class Character:
         "Character creation."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, ui):
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
                 self.str = str
                 self.dex = dex
                 self.con = con
@@ -18,7 +21,10 @@ class Character:
                 self.player_id = random_str(10)
                 self.inv = Inventory(self.player_id, ui)
                 self.level = 1
+                self.race = race
+                self.subrace = subrace
                 self.char_class = 0
+                self.hd_max = 1
                 self.hd_cnt = 1
                 self.hd = 0
                 self.xp = 0
@@ -227,7 +233,9 @@ class Character:
                 if self.char_class == 3:
                         if self.raging:
                                 conditions += "raging "
-                combat = "Armor Class " + str(self.ac) + " Initiative " + str(self.init_mod) + "\n"
+                combat = "Hit Points: " + str(self.hp) + "/" + str(self.max_hp) + " (Temp HP: " + str(self.temp_hp) + ")\n"
+                combat += "Hit Dice: " + str(self.hd_cnt) + "/" + str(self.hd_max) + " (d" + str(self.hd) + ")\n"
+                combat += "Armor Class: " + str(self.ac) + " Initiative: " + str(self.init_mod) + "\n"
                 combat += "Main Hand: "
                 if self.ranged:
                         combat += "{0:+}".format(self.main_dex_att_mod + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_dex_dmg_mod + self.ench_main)
@@ -242,7 +250,7 @@ class Character:
                 elif self.dmg_die_type_main == "p":
                         combat += " (piercing)"
                 combat += "\nOff Hand: "
-                if self.eq_weapon_main == self.eq_weapon_offhand and not self.bonus_attack:
+                if not self.bonus_attack:
                         combat += "-"
                 else:
                         if self.eq_weapon_offhand_finesse:
@@ -257,6 +265,7 @@ class Character:
                                 combat += " (piercing)"
                 equipped = "Equipped\nMain Hand: " + self.eq_weapon_main + "\nOff Hand: " + self.eq_weapon_offhand + "\nArmor: " + self.eq_armor
                 inventory = "Inventory\n"
+                inventory += "Gold: " + str(self.gold) + " GP\nCarry weight: " + str(self.carry) + "/" + str(self.max_carry) + " lbs.\n"
                 for key, value in self.inv.inv.items():
                         inventory += key + " (" + str(value[1]) + ")\n"
                 specials = "Specials\n"
@@ -927,6 +936,7 @@ class Character:
                 for lvl in levels:
                         self.level = 1 + lvl
                         self.hd_cnt += 1 + lvl
+                        self.hd_max += 1 + lvl
                         rolled_hp = roll_dice(self.hd, self.con_mod, 0, ui)[0]
                         self.max_hp += rolled_hp
                         self.hp += rolled_hp
@@ -992,37 +1002,67 @@ class Character:
                                         self.lay_on_hands_pool += 5
         def get_char_class(self):
                 classes = {
-                1: "fighter",
-                2: "monk",
-                3: "barbarian",
-                4: "rogue",
-                5: "paladin"
-                }
+                        1: "fighter",
+                        2: "monk",
+                        3: "barbarian",
+                        4: "rogue",
+                        5: "paladin"
+                        }
                 return classes[self.char_class]
+        def get_char_race(self):
+                races = {
+                        1: "human",
+                        2: "halfling",
+                        3: "dwarf",
+                        4: "gnome",
+                        5: "elf",
+                        6: "half-orc"
+                        }
+                return races[self.race]
+        def get_char_subrace(self):
+                subraces = {
+                        11: "human",
+                        21: "lightfoot",
+                        22: "stout",
+                        23: "ghostwise",
+                        31: "hill",
+                        32: "mountain",
+                        33: "duergar",
+                        41: "forest",
+                        42: "rock",
+                        43: "svirfneblin",
+                        51: "high elf",
+                        52: "wood elf",
+                        53: "drow",
+                        61: "half-orc"
+                        }
+                return subraces[self.subrace]
         def get_fighting_style(self):
                 styles = {
-                1: "defense",
-                2: "great weapon fighting",
-                3: "dueling",
-                4: "two-weapon fighting",
-                5: "archery"
-                }
+                        1: "defense",
+                        2: "great weapon fighting",
+                        3: "dueling",
+                        4: "two-weapon fighting",
+                        5: "archery"
+                        }
                 return styles[self.fighting_style]
 
+# Fighter
 class Fighter(Character):
         "Child for fighter class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
                 self.char_class = 1
                 self.second_wind = True
                 self.second_wind_cnt = 1
                 self.main_hand_prof = True
                 self.off_hand_prof = True
 
+# Monk
 class Monk(Character):
         "Child for monk class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
                 self.char_class = 2
                 self.dmg_die_main = 4
                 self.dmg_die_cnt_main = 1
@@ -1043,10 +1083,11 @@ class Monk(Character):
                 else:
                         self.ac = 10 + self.dex_mod
 
+# Barbarian
 class Barbarian(Character):
         "Child for barbarian class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
                 self.char_class = 3
                 self.main_hand_prof = True
                 self.off_hand_prof = True
@@ -1100,18 +1141,20 @@ class Barbarian(Character):
                         self.bonus_actions.pop(3)
                 ui.push_message("Rage ended.")
 
+# Rogue
 class Rogue(Character):
         "Child for rogue class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
                 self.char_class = 4
                 self.main_hand_prof = False
                 self.off_hand_prof = False
 
+# Paladin
 class Paladin(Character):
         "Child for paladin class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
                 self.char_class = 5
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
@@ -1119,6 +1162,7 @@ class Paladin(Character):
                 self.main_hand_prof = True
                 self.off_hand_prof = True
 
+# Inventory
 class Inventory:
         "Inventory creation."
         def __init__(self, owner, ui):
@@ -1131,6 +1175,7 @@ class Inventory:
                 else:
                         self.inv[item] = [type, 1]
 
+# Dungeon
 class Dungeon:
         "Dungeon creation."
         def __init__(self, enc_cnt, pc_list, ui):
@@ -1188,6 +1233,7 @@ class Dungeon:
                 #ui.push_message("Roll initiative.")
                 return battle
 
+# Battle
 class Battle:
         "Battle creation."
         def __init__(self, allies, enemies, ui):
@@ -1228,7 +1274,6 @@ class Battle:
                                 self.id_list[a.player_id] = a
                 for e in self.enemies:
                         self.id_list[e.player_id] = e
-        #tbc
         def get_first_init(self, ui):
                 self.round += 1
                 ui.update_round_info("Round " + str(self.round))
@@ -1359,6 +1404,7 @@ class Battle:
                         self.foes_fled = True
                 return end
 
+# Item list
 class AllItems:
         "Item listing."
         def __init__(self):
@@ -1436,6 +1482,7 @@ class AllItems:
                         "potion of greater healing": [225, 4, 4, 4, 0.5]
                         }
 
+# Shop
 class Shop:
         "Shop creation."
         def __init__(self, all_items, ui):
@@ -1677,60 +1724,7 @@ class Shop:
                 elif purchase_choice == -1:
                         ui.push_message("Oh, not interested, huh?")
 
-def gen_stats(ui):
-        stre = 0
-        dex = 0
-        con = 0
-        inte = 0
-        wis = 0
-        cha = 0
-        roll = 0
-        min = 6
-        for i in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
-                if roll < min:
-                        min = roll
-                stre += roll
-        stre -= min
-        min = 6
-        for i in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
-                if roll < min:
-                        min = roll
-                dex += roll
-        dex -= min
-        min = 6
-        for i in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
-                if roll < min:
-                        min = roll
-                con += roll
-        con -= min
-        min = 6
-        for i in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
-                if roll < min:
-                        min = roll
-                inte += roll
-        inte -= min
-        min = 6
-        for i in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
-                if roll < min:
-                        min = roll
-                wis += roll
-        wis -= min
-        min = 6
-        for i in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
-                if roll < min:
-                        min = roll
-                cha += roll
-        cha -= min
-        ui.push_message("============")
-        ui.push_message("Rolled stats\n" + "Strength: " + str(stre) + "\n" + "Dexterity: " + str(dex) + "\n" + "Constitution: " + str(con) + "\n" + "Intelligence: " + str(inte) + "\n" + "Wisdom: " + str(wis) + "\n" + "Charisma: " + str(cha) + "\n")
-        return stre, dex, con, inte, wis, cha
-
+# Utilities
 def roll_dice(dice, mod, type, ui):
         if type == -1:
                 roll = min(random.randint(1, dice), random.randint(1, dice))
@@ -1751,33 +1745,7 @@ def random_str(length):
         chars = string.ascii_lowercase
         return "".join(random.choice(chars) for i in range(length))
 
-def get_adv_disadv(source, target, ui):
-        roll_mod = 0
-        if target.conditions["prone"] and not source.ranged:
-                roll_mod += 1
-        if target.conditions["prone"] and source.ranged:
-                roll_mod -= 1
-        elif target.conditions["dodge"]:
-                roll_mod -= 1
-        if source.help_adv:
-                roll_mod += 1
-                stop_help(source.player_id)
-        if source.attack_adv:
-                roll_mod += 1
-        elif source.attack_disadv:
-                roll_mod -= 1
-        if roll_mod < -1:
-                roll_mod = -1
-        elif roll_mod > 1:
-                roll_mod = 1
-        if roll_mod == 1:
-                ui.push_message("Rolling with advantage.")
-        elif roll_mod == -1:
-                ui.push_message("Rolling with disadvantage.")
-        elif roll_mod == 0:
-                ui.push_message("Straight roll.")
-        return roll_mod
-
+# Combat related
 def act(attacker, act_choice, battle, all_items, ui):
         # character is not unconscious = can act on its turn
         if not attacker.conditions["down"]:
@@ -1938,6 +1906,33 @@ def act(attacker, act_choice, battle, all_items, ui):
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success == 3:
                 ui.push_message(attacker.name + " is taking a rest.")
                 attacker.turn_done = True
+
+def get_adv_disadv(source, target, ui):
+        roll_mod = 0
+        if target.conditions["prone"] and not source.ranged:
+                roll_mod += 1
+        if target.conditions["prone"] and source.ranged:
+                roll_mod -= 1
+        elif target.conditions["dodge"]:
+                roll_mod -= 1
+        if source.help_adv:
+                roll_mod += 1
+                stop_help(source.player_id)
+        if source.attack_adv:
+                roll_mod += 1
+        elif source.attack_disadv:
+                roll_mod -= 1
+        if roll_mod < -1:
+                roll_mod = -1
+        elif roll_mod > 1:
+                roll_mod = 1
+        if roll_mod == 1:
+                ui.push_message("Rolling with advantage.")
+        elif roll_mod == -1:
+                ui.push_message("Rolling with disadvantage.")
+        elif roll_mod == 0:
+                ui.push_message("Straight roll.")
+        return roll_mod
 
 def target_selector(source, battle, targets, ui):
         ui.push_message("Choose a target.")
@@ -2147,51 +2142,207 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
                 dmg = 0
         return dmg, dmg_type
 
+# Character initialization
+def gen_stats(ui):
+        stre = 0
+        dex = 0
+        con = 0
+        inte = 0
+        wis = 0
+        cha = 0
+        roll = 0
+        min = 6
+        for i in range(4):
+                roll = roll_dice(6, 0, 0, ui)[0]
+                if roll < min:
+                        min = roll
+                stre += roll
+        stre -= min
+        min = 6
+        for i in range(4):
+                roll = roll_dice(6, 0, 0, ui)[0]
+                if roll < min:
+                        min = roll
+                dex += roll
+        dex -= min
+        min = 6
+        for i in range(4):
+                roll = roll_dice(6, 0, 0, ui)[0]
+                if roll < min:
+                        min = roll
+                con += roll
+        con -= min
+        min = 6
+        for i in range(4):
+                roll = roll_dice(6, 0, 0, ui)[0]
+                if roll < min:
+                        min = roll
+                inte += roll
+        inte -= min
+        min = 6
+        for i in range(4):
+                roll = roll_dice(6, 0, 0, ui)[0]
+                if roll < min:
+                        min = roll
+                wis += roll
+        wis -= min
+        min = 6
+        for i in range(4):
+                roll = roll_dice(6, 0, 0, ui)[0]
+                if roll < min:
+                        min = roll
+                cha += roll
+        cha -= min
+        ui.push_message("============")
+        ui.push_message("Rolled stats\n" + "Strength: " + str(stre) + "\n" + "Dexterity: " + str(dex) + "\n" + "Constitution: " + str(con) + "\n" + "Intelligence: " + str(inte) + "\n" + "Wisdom: " + str(wis) + "\n" + "Charisma: " + str(cha) + "\n")
+        return stre, dex, con, inte, wis, cha
+
+def gen_race(stats, ui):
+        str_stat = stats[0]
+        dex_stat = stats[1]
+        con_stat = stats[2]
+        int_stat = stats[3]
+        wis_stat = stats[4]
+        cha_stat = stats[5]
+        races = {
+                1: "human",
+                2: "halfling",
+                3: "dwarf",
+                4: "gnome",
+                5: "elf",
+                6: "half-orc"
+                }
+        ui.push_message("Choose your race.")
+        race_choice = int(ui.get_dict_choice_input(races))
+        if race_choice == 1:
+                str_stat += 1
+                dex_stat += 1
+                con_stat += 1
+                int_stat += 1
+                wis_stat += 1
+                cha_stat += 1
+        elif race_choice == 2:
+                dex_stat += 2
+        elif race_choice == 3:
+                con_stat += 2
+        elif race_choice == 4:
+                int_stat += 2
+        elif race_choice == 5:
+                dex_stat += 2
+        elif race_choice == 6:
+                str_stat += 2
+                con_stat += 1
+        ui.push_message("============")
+        ui.push_message("Stats with racial traits\n" + "Strength: " + str(str_stat) + "\n" + "Dexterity: " + str(dex_stat) + "\n" + "Constitution: " + str(con_stat) + "\n" + "Intelligence: " + \
+                str(int_stat) + "\n" + "Wisdom: " + str(wis_stat) + "\n" + "Charisma: " + str(cha_stat) + "\n")
+        subraces = {
+                11: "human",
+                21: "lightfoot",
+                22: "stout",
+                23: "ghostwise",
+                31: "hill",
+                32: "mountain",
+                33: "duergar",
+                41: "forest",
+                42: "rock",
+                43: "svirfneblin",
+                51: "high",
+                52: "wood",
+                53: "drow",
+                61: "half-orc"
+                }
+        for sr in subraces.copy():
+                if race_choice != math.floor(sr / 10):
+                        subraces.pop(sr)
+        ui.push_message("Choose your subrace.")
+        subrace_choice = int(ui.get_dict_choice_input(subraces))
+        if subrace_choice == 11:
+                pass
+        elif subrace_choice == 21:
+                cha_stat += 1
+        elif subrace_choice == 22:
+                con_stat += 1
+        elif subrace_choice == 23:
+                wis_stat += 1
+        elif subrace_choice == 31:
+                wis_stat += 1
+        elif subrace_choice == 32:
+                str_stat += 2
+        elif subrace_choice == 33:
+                str_stat += 1
+        elif subrace_choice == 41:
+                dex_stat += 1
+        elif subrace_choice == 42:
+                con_stat += 1
+        elif subrace_choice == 43:
+                dex_stat += 1
+        elif subrace_choice == 51:
+                int_stat += 1
+        elif subrace_choice == 52:
+                wis_stat += 1
+        elif subrace_choice == 53:
+                cha_stat += 1
+        elif subrace_choice == 61:
+                pass
+        ui.push_message("============")
+        ui.push_message("Stats with subracial traits\n" + "Strength: " + str(str_stat) + "\n" + "Dexterity: " + str(dex_stat) + "\n" + "Constitution: " + str(con_stat) + "\n" + "Intelligence: " + \
+                str(int_stat) + "\n" + "Wisdom: " + str(wis_stat) + "\n" + "Charisma: " + str(cha_stat) + "\n")
+        return race_choice, subrace_choice, [str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat]
+
 def gen_char(name, starting_level, all_items, ui):
         need_stat_reroll = True
         while need_stat_reroll:
                 classes = {
-                1: "fighter",
-                2: "monk",
-                3: "barbarian",
-                4: "rogue",
-                5: "paladin"
-                }
+                        1: "fighter",
+                        2: "monk",
+                        3: "barbarian",
+                        4: "rogue",
+                        5: "paladin"
+                        }
                 stats = gen_stats(ui)
+                stats_post_race = gen_race(stats, ui)
+                str_stat = stats_post_race[2][0]
+                dex_stat = stats_post_race[2][1]
+                con_stat = stats_post_race[2][2]
+                int_stat = stats_post_race[2][3]
+                wis_stat = stats_post_race[2][4]
+                cha_stat = stats_post_race[2][5]
+                race = stats_post_race[0]
+                subrace = stats_post_race[1]
                 # stat restrictions
                 # fighter
-                if stats[0] < 13 and stats[1] < 13:
+                if str_stat < 13 and dex_stat < 13:
                         classes.pop(1)
                 # monk
-                if stats[1] < 13 or stats[4] < 13:
+                if dex_stat < 13 or wis_stat < 13:
                         classes.pop(2)
                 # barbarian
-                if stats[0] < 13:
+                if str_stat < 13:
                         classes.pop(3)
                 # rogue
-                if stats[1] < 13:
+                if dex_stat < 13:
                         classes.pop(4)
                 # paladin
-                if stats[0] < 13 or stats[5] < 13:
+                if str_stat < 13 or cha_stat < 13:
                         classes.pop(5)
                 if classes:
                         need_stat_reroll = False
                 elif not classes:
                         need_stat_reroll = True
+                        ui.clear_message()
                         ui.push_message("Rerolling stats.")
-        #ui.push_message(classes)
         ui.push_message("Choose your class.")
         class_choice = int(ui.get_dict_choice_input(classes))
         if class_choice == 1:
-                char = Fighter(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
+                char = Fighter(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
         if class_choice == 2:
-                char = Monk(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
+                char = Monk(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
         if class_choice == 3:
-                char = Barbarian(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
+                char = Barbarian(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
         if class_choice == 4:
-                char = Rogue(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
+                char = Rogue(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
         if class_choice == 5:
-                char = Paladin(name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5], starting_level, ui)
+                char = Paladin(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
         ui.create_status(char)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)

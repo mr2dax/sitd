@@ -250,8 +250,10 @@ class GUI:
                 self.title_label.grid(row = 0, column = 0)
                 self.class_label = tk.Label(self.char_stats_frame, text = char.get_char_class(), justify = tk.LEFT)
                 self.class_label.grid(row = 0, column = 1)
+                self.race_label = tk.Label(self.char_stats_frame, text = char.get_char_race() + " / " + char.get_char_subrace(), justify = tk.LEFT)
+                self.race_label.grid(row = 0, column = 2)
                 self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.char_stats_frame.destroy())
-                self.done_btn.grid(row = 0, column = 2)
+                self.done_btn.grid(row = 0, column = 3)
                 # separator
                 tk.Label(self.char_stats_frame, text=" ").grid(row = 1, column = 0)
                 # combat
