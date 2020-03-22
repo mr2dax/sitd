@@ -26,6 +26,7 @@ class Character:
                 self.prof_bonus = 2
                 self.attacks = 1
                 self.attack_adv = False
+                self.help_adv = False
                 self.attack_disadv = False
                 self.bonus_attack = False
                 self.str_mod = math.floor((self.str - 10) / 2)
@@ -78,7 +79,7 @@ class Character:
                         "perception": [self.wis_mod, 0, False, False],
                         "investigation": [self.int_mod, 0, False, False],
                         "stealth": [self.dex_mod, 0, False, False],
-                        "persuation": [self.cha_mod, 0, False, False]
+                        "persuasion": [self.cha_mod, 0, False, False]
                 }
                 self.reroll_dmg = False
                 self.offhand_dmg_mod = False
@@ -112,10 +113,12 @@ class Character:
                         "dead": False,
                         "dodge": False,
                         "prone": False,
-                        "grappled": False
+                        "grappled": False,
+                        "helped": False
                         }
                 self.grappled_by = ""
                 self.grappling = ""
+                self.helpee = ""
                 if self.starting_lvl > 2:
                         self.level_up(self.starting_lvl - 1, ui)
         def battle_menu(self, ui):
@@ -132,7 +135,8 @@ class Character:
                         0: "back", # back to main (battle) menu
                         1: "attack", # weapon attack
                         2: "dodge", # defend (adv on DEX STs, disadv on incoming attacks)
-                        3: "disengage" # spend action to flee from battle without opportunity attacks from enemies
+                        3: "disengage", # spend action to flee from battle without opportunity attacks from enemies
+                        8: "help" # assist a teammate in his/her next action (ability check or attack)
                         }
                 # only characters with ample STR can attempt to shove (variant rule)
                 if self.str >= 13:
@@ -221,6 +225,9 @@ class Character:
                 for key, value in self.conditions.items():
                         if value:
                                 conditions += key + " "
+                if self.char_class == 3:
+                        if self.raging:
+                                conditions += "raging "
                 combat = "Armor Class " + str(self.ac) + " Initiative " + str(self.init_mod) + "\n"
                 combat += "Main Hand: "
                 if self.ranged:
@@ -271,6 +278,9 @@ class Character:
                 if self.conditions["flee"]:
                         self.conditions["flee"] = False
                         ui.push_message(self.name + " couldn't run away.")
+                if self.helpee != "":
+                        stop_help(self.helpee)
+                        self.helpee = ""
                 if self.bonus_attack and 1 not in self.bonus_actions:
                         self.bonus_actions[1] = "attack"
                 self.battle_menu_options = {
@@ -361,7 +371,7 @@ class Character:
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
                         self.skills["athletics"][0] += self.prof_bonus
-                        self.skills["persuation"][0] += self.prof_bonus
+                        self.skills["persuasion"][0] += self.prof_bonus
                         self.saving_throws["wis"][0] += self.prof_bonus
                         self.saving_throws["cha"][0] += self.prof_bonus
                 ui.update_status()
@@ -1238,13 +1248,15 @@ class Battle:
                                         allies_list[i] = a.name
                                 i += 1
                         return allies_list
-        def get_allies(self, attacker):
+        def get_allies(self, attacker, self_target):
                 i = 1
                 if attacker in self.enemies:
                         enemies_list = {}
                         for e in self.enemies:
                                 if not e.conditions["dead"]:
                                         enemies_list[i] = e.name
+                                if attacker.name == e.name and self_target == 0:
+                                        enemies_list.pop(i)
                                 i += 1
                         return enemies_list
                 elif attacker in self.allies:
@@ -1252,6 +1264,8 @@ class Battle:
                         for a in self.allies:
                                 if not a.conditions["dead"]:
                                         allies_list[i] = a.name
+                                if attacker.name == a.name and self_target == 0:
+                                        allies_list.pop(i)
                                 i += 1
                         return allies_list
         def get_target_by_name(self, name):
@@ -1630,6 +1644,9 @@ def get_adv_disadv(source, target, ui):
                 roll_mod -= 1
         elif target.conditions["dodge"]:
                 roll_mod -= 1
+        if source.help_adv:
+                roll_mod += 1
+                stop_help(source.player_id)
         if source.attack_adv:
                 roll_mod += 1
         elif source.attack_disadv:
@@ -1716,7 +1733,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         attacker.did_attack = True
                         # lay on hands (paladin only)
                         elif action in attacker.actions and action == 7:
-                                allies = battle.get_allies(attacker)
+                                allies = battle.get_allies(attacker, 1)
                                 receiver = target_selector(attacker, battle, allies, ui)
                                 receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
                                 lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable, ui)
@@ -1725,6 +1742,15 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 if attacker.lay_on_hands_pool <= 0:
                                         attacker.actions.pop(action)
                                         attacker.lay_on_hands_pool = 0
+                        # help action
+                        elif action in attacker.actions and action == 8:
+                                allies = battle.get_allies(attacker, 0)
+                                receiver = target_selector(attacker, battle, allies, ui)
+                                receiver.conditions["helped"] = True
+                                receiver.help_adv = True
+                                attacker.helpee = receiver.player_id
+                                if attacker.bonus_attack:
+                                        attacker.bonus_actions.pop(1)
                         # back to battle menu
                         elif action in attacker.actions and action == 0:
                                 attacker.battle_menu_options[1][1] += 1
@@ -1903,6 +1929,11 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                 if target.max_hp * -1 >= target.hp:
                         ui.push_message("Death blow! " + target.name + " falls dead. RIP")
                         target.conditions["dead"] = True
+
+def stop_help(target_id):
+        helpee = battle.get_char_by_id(target_id)
+        helpee.conditions["helped"] = False
+        helpee.help_adv = False
 
 def shove(source, target, ui):
         att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], 0, ui)[0]
@@ -2125,7 +2156,7 @@ dungeon.end_dungeon(ui)
 main_window.mainloop()
 
 #TODO: hover text for items
-#TODO: implement abilities: action surge, sneak attack, RE deflect missiles, ki, stunning strike, divine smite, AC lay on hands on others, AC help)
-#TODO: proficiency up, asi choice for level up (unequip-equip flow to recalc stats)
+#TODO: implement abilities: sneak attack
+#TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
 #TODO: front-back positioning, net restrain, whip pull, push/pull mechanic
