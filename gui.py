@@ -1,6 +1,49 @@
 import tkinter as tk
 
-#GUI
+# Tooltip
+class CreateToolTip(object):
+        def __init__(self, widget, text = "widget info"):
+                self.wait_time = 250     # in ms
+                self.wrap_length = 360   # in px
+                self.widget = widget
+                self.text = text
+                self.widget.bind("<Enter>", self.enter)
+                self.widget.bind("<Leave>", self.leave)
+                self.widget.bind("<ButtonPress>", self.leave)
+                self.id = None
+                self.top_window = None
+        def enter(self, event = None):
+                self.schedule()
+        def leave(self, event = None):
+                self.unschedule()
+                self.hide_tip()
+        def schedule(self):
+                self.unschedule()
+                self.id = self.widget.after(self.wait_time, self.show_tip)
+        def unschedule(self):
+                id = self.id
+                self.id = None
+                if id:
+                        self.widget.after_cancel(id)
+        def show_tip(self, event = None):
+                x = y = 0
+                x, y, cx, cy = self.widget.bbox("insert")
+                x += self.widget.winfo_rootx() + 25
+                y += self.widget.winfo_rooty() + 20
+                # creates a top-level window
+                self.top_window = tk.Toplevel(self.widget)
+                # leaves only the label and removes the app window
+                self.top_window.wm_overrideredirect(True)
+                self.top_window.wm_geometry("+%d+%d" % (x, y))
+                label = tk.Label(self.top_window, text = self.text, justify = tk.LEFT, background = "#ffffff", relief = tk.SOLID, borderwidth = 1, wraplength = self.wrap_length)
+                label.pack(ipadx = 1)
+        def hide_tip(self):
+                top_window = self.top_window
+                self.top_window = None
+                if top_window:
+                        top_window.destroy()
+
+# general GUI
 class GUI:
         def __init__(self, main_window):
                 # window
@@ -159,6 +202,7 @@ class GUI:
                         if i[0] != "sold":
                                 self.input_choice_btn = tk.Button(self.input_frame, text = i[0], width = len(i[0]), fg = "black", bg = "white", command = lambda j = i[1]: self.submit_var.set(j))
                                 self.input_choice_btn.grid(row = 0, column = i[1])
+                                self.input_choice_btn_ttp = CreateToolTip(self.input_choice_btn, str(i[2]))
                                 self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
@@ -244,6 +288,11 @@ class GUI:
                 # specials
                 self.specials_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[8], justify = tk.LEFT)
                 self.specials_label.grid(row = 12, column = 0)
+                # separator
+                tk.Label(self.char_stats_frame, text=" ").grid(row = 13, column = 0)
+                # death saves
+                self.death_saves_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[9], justify = tk.LEFT)
+                self.death_saves_label.grid(row = 14, column = 0)
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)

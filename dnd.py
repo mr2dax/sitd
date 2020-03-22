@@ -103,7 +103,6 @@ class Character:
                 self.actions = {}
                 self.bonus_actions = {}
                 self.specials = {}
-                self.specials = {}
                 self.reaction_cnt = 1
                 self.reactions = {}
                 self.turn_done = False
@@ -261,10 +260,16 @@ class Character:
                 for key, value in self.inv.inv.items():
                         inventory += key + " (" + str(value[1]) + ")\n"
                 specials = "Specials\n"
-                if self.char_class == 5:
-                        specials += "Lay on Hands: " + str(self.lay_on_hands_pool) + "/" + str(self.lay_on_hands_pool_max)
-                return abilities, scores, mods, sts, conditions, combat, equipped, inventory, specials
-                #return vars(self)
+                if self.char_class == 1 or (self.char_class == 5 and self.level > 1):
+                        specials += "Fighting Style: " + self.get_fighting_style() + "\n"
+                if self.char_class == 1:
+                        specials += "Second Wind: " + str(self.second_wind_cnt) + " (1d10+" + str(self.level) + ")\n"
+                elif self.char_class == 3:
+                        specials += "Rages: " + str(self.rage_cnt) + " (" + "{0:+}".format(self.rage_mod) + " STR damage)\n"
+                elif self.char_class == 5:
+                        specials += "Lay on Hands: " + str(self.lay_on_hands_pool) + "/" + str(self.lay_on_hands_pool_max) + "\n"
+                death_saves = "Death Saves\nFails: " + str(self.death_st_fail) + "\nSuccesses: " + str(self.death_st_success)
+                return abilities, scores, mods, sts, conditions, combat, equipped, inventory, specials, death_saves
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
         def reset_until_start_of_next_turn(self, ui):
                 if self.conditions["prone"] and not self.conditions["grappled"]:
@@ -994,6 +999,15 @@ class Character:
                 5: "paladin"
                 }
                 return classes[self.char_class]
+        def get_fighting_style(self):
+                styles = {
+                1: "defense",
+                2: "great weapon fighting",
+                3: "dueling",
+                4: "two-weapon fighting",
+                5: "archery"
+                }
+                return styles[self.fighting_style]
 
 class Fighter(Character):
         "Child for fighter class."
@@ -1447,36 +1461,149 @@ class Shop:
                         3: "armorer",
                         4: "alchemist"
                         }
+        def convert_attributes(self, attr, type):
+                attributes_string = ""
+                #[cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown, monk weapon]
+                if type == 1:
+                        dmg_type = ""
+                        if attr[4] == "b":
+                                dmg_type = " (bludgeoning)"
+                        elif attr[4] == "s":
+                                dmg_type = " (slashing)"
+                        elif attr[4] == "p":
+                                dmg_type = " (piercing)"
+                        light_heavy = ""
+                        if attr[6] == 1:
+                                light_heavy = "light"
+                        elif attr[6] == 2:
+                                light_heavy = "heavy"
+                        finesse = ""
+                        if attr[7]:
+                                finesse = "finesse"
+                        hands = ""
+                        if attr[8] == 1:
+                                hands = "one-handed"
+                        elif attr[8] == 1.5:
+                                hands = "versatile"
+                        elif attr[8] == 2:
+                                hands = "two-handed"
+                        monk_weapon = ""
+                        if attr[10]:
+                                monk_weapon = "monk weapon"
+                        properties = hands
+                        if light_heavy != "":
+                                properties += ", " + light_heavy
+                        if finesse != "":
+                                properties += ", " + finesse
+                        if monk_weapon != "":
+                                properties += ", " + monk_weapon
+                        attributes_string = "Cost: " + str(attr[0]) + " GP\nWeight: " + str(attr[5]) + " lbs.\n" + \
+                                "Damage: " + str(attr[2]) + "d" + str(attr[1]) + "{0:+}".format(attr[3]) + dmg_type + "\n" + \
+                                "Properties: " + properties
+                #[cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, load]
+                elif type == 2:
+                        dmg_type = ""
+                        if attr[4] == "b":
+                                dmg_type = " (bludgeoning)"
+                        elif attr[4] == "s":
+                                dmg_type = " (slashing)"
+                        elif attr[4] == "p":
+                                dmg_type = " (piercing)"
+                        light_heavy = ""
+                        if attr[6] == 1:
+                                light_heavy = "light"
+                        elif attr[6] == 2:
+                                light_heavy = "heavy"
+                        finesse = ""
+                        if attr[7]:
+                                finesse = "finesse"
+                        hands = ""
+                        if attr[8] == 1:
+                                hands = "one-handed"
+                        elif attr[8] == 1.5:
+                                hands = "versatile"
+                        elif attr[8] == 2:
+                                hands = "two-handed"
+                        properties = hands
+                        if light_heavy != "":
+                                properties += ", " + light_heavy
+                        if finesse != "":
+                                properties += ", " + finesse
+                        attributes_string = "Cost: " + str(attr[0]) + " GP\nWeight: " + str(attr[5]) + " lbs.\n" + \
+                                "Damage: " + str(attr[2]) + "d" + str(attr[1]) + "{0:+}".format(attr[3]) + dmg_type + "\n" + \
+                                "Properties: " + properties
+                # name: [cost, ac, ench, str, type, stealth disadv, weight]
+                elif type == 3:
+                        armor_type = ""
+                        if attr[4] == 0:
+                                armor_type = "light"
+                        elif attr[4] == 1:
+                                armor_type = "medium"
+                        elif attr[4] == 2:
+                                armor_type = "heavy"
+                        properties = armor_type
+                        restrictions = ""
+                        if attr[3] != 0:
+                                restrictions = str(attr[3]) + " Strength required" + "\n"
+                        if attr[5]:
+                                restrictions += "Disadvantage on Stealth checks"
+                        if restrictions == "":
+                                restrictions = "None"
+                        attributes_string = "Cost: " + str(attr[0]) + " GP\nWeight: " + str(attr[6]) + " lbs.\n" + \
+                                "Armor: " + str(attr[1]) + "{0:+}".format(attr[2]) + "\n" + \
+                                "Properties: " + properties + "\n" + \
+                                "Restrictions: \n" + restrictions
+                #name: [cost, die, die cnt, mod, weight]
+                elif type == 4:
+                        attributes_string = "Cost: " + str(attr[0]) + " GP\nWeight: " + str(attr[4]) + " lbs.\n" + \
+                                "Heal: " + str(attr[2]) + "d" + str(attr[1]) + "{0:+}".format(attr[3])
+                return attributes_string
         def gen_shop_listing(self):
+                type = 1
                 index = 0
                 for i in range(math.floor(len(self.simple_melee_weapons) / 3)):
                         index += 1
-                        self.shop_list_melee_weapons.append([random.choice(list(self.simple_melee_weapons.keys())), index])
+                        random_choice = random.choice(list(self.simple_melee_weapons.keys()))
+                        attributes = self.convert_attributes(self.simple_melee_weapons[random_choice], type)
+                        self.shop_list_melee_weapons.append([random_choice, index, attributes])
                 for i in range(math.floor(len(self.martial_melee_weapons) / 3)):
                         index += 1
-                        self.shop_list_melee_weapons.append([random.choice(list(self.martial_melee_weapons.keys())), index])
+                        random_choice = random.choice(list(self.martial_melee_weapons.keys()))
+                        attributes = self.convert_attributes(self.martial_melee_weapons[random_choice], type)
+                        self.shop_list_melee_weapons.append([random_choice, index, attributes])
+                type = 2
                 index = 0
                 for i in range(math.floor(len(self.simple_ranged_weapons) / 2)):
                         index += 1
-                        self.shop_list_ranged_weapons.append([random.choice(list(self.simple_ranged_weapons.keys())), index])
+                        random_choice = random.choice(list(self.simple_ranged_weapons.keys()))
+                        attributes = self.convert_attributes(self.simple_ranged_weapons[random_choice], type)
+                        self.shop_list_ranged_weapons.append([random_choice, index, attributes])
                 for i in range(math.floor(len(self.martial_ranged_weapons) / 2)):
                         index += 1
-                        self.shop_list_ranged_weapons.append([random.choice(list(self.martial_ranged_weapons.keys())), index])
+                        random_choice = random.choice(list(self.martial_ranged_weapons.keys()))
+                        attributes = self.convert_attributes(self.martial_ranged_weapons[random_choice], type)
+                        self.shop_list_ranged_weapons.append([random_choice, index, attributes])
+                type = 3
                 index = 0
                 for i in range(math.floor(len(self.armors) / 2)):
                         index += 1
-                        self.shop_list_armors.append([random.choice(list(self.armors.keys())), index])
+                        random_choice = random.choice(list(self.armors.keys()))
+                        attributes = self.convert_attributes(self.armors[random_choice], type)
+                        self.shop_list_armors.append([random_choice, index, attributes])
                 for i in range(math.ceil(len(self.shields) / 2)):
                         index += 1
-                        self.shop_list_armors.append([random.choice(list(self.shields.keys())), index])
+                        random_choice = random.choice(list(self.shields.keys()))
+                        attributes = self.convert_attributes(self.shields[random_choice], type)
+                        self.shop_list_armors.append([random_choice, index, attributes])
+                type = 4
                 index = 0
                 for i in range(len(self.potions)):
                         index += 1
-                        self.shop_list_potions.append([random.choice(list(self.potions.keys())), index])
+                        random_choice = random.choice(list(self.potions.keys()))
+                        attributes = self.convert_attributes(self.potions[random_choice], type)
+                        self.shop_list_potions.append([random_choice, index, attributes])
         def shopping_flow(self, char, ui):
                 done = False
-                #ui.push_message("You have " + str(char.gold) + " GP to spend.")
-                #ui.push_message("You have " + str(char.carry) + " lbs carry weight left.")
                 while done == False:
                         for i in range(4):
                                 i += 1
@@ -1487,7 +1614,7 @@ class Shop:
                                 done = True
         def shop_purchase(self, type, char, ui):
                 ui.push_message(self.shop_types[type].capitalize())
-                ui.push_message(random.choice(["Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
+                ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?", "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
                 # price and weight positions may need to be adjusted across different types of items (dictionary)
                 price_pos = 0
                 weight_pos = 0
@@ -1496,9 +1623,6 @@ class Shop:
                         shop_list = self.shop_list_melee_weapons
                         item_list = {**self.simple_melee_weapons, **self.martial_melee_weapons}
                         weight_pos = 5
-                        #for i in shop_list:
-                        #        if i[0] != "sold":
-                        #                ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         ui.push_message("What do you need?")
                         purchase_choice = int(ui.get_list_choice_input(shop_list))
                 # ranged weaponsmith
@@ -1506,9 +1630,6 @@ class Shop:
                         shop_list = self.shop_list_ranged_weapons
                         item_list = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
                         weight_pos = 5
-                        #for i in shop_list:
-                        #        if i[0] != "sold":
-                        #                ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         ui.push_message("What do you need?")
                         purchase_choice = int(ui.get_list_choice_input(shop_list))
                 # armorer
@@ -1516,9 +1637,6 @@ class Shop:
                         shop_list = self.shop_list_armors
                         item_list = {**self.armors, **self.shields}
                         weight_pos = 6
-                        #for i in shop_list:
-                        #        if i[0] != "sold":
-                        #                ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         ui.push_message("What do you need?")
                         purchase_choice = int(ui.get_list_choice_input(shop_list))
                 # alchemist
@@ -1526,9 +1644,6 @@ class Shop:
                         shop_list = self.shop_list_potions
                         item_list = self.potions
                         weight_pos = 4
-                        #for i in shop_list:
-                        #        if i[0] != "sold":
-                        #                ui.push_message("(" + str(i[1]) + ") => " + i[0] + " [" + str(item_list[i[0]][price_pos]) + " GP - " + str(item_list[i[0]][weight_pos]) + " lbs]")
                         ui.push_message("Name your poison!")
                         purchase_choice = int(ui.get_list_choice_input(shop_list))
                 if purchase_choice != -1:
@@ -2155,7 +2270,6 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: hover text for items
 #TODO: implement abilities: sneak attack
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
