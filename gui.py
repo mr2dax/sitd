@@ -191,6 +191,23 @@ class GUI:
                 for btn in self.input_choice_btns:
                         btn.destroy()
                 return input_val
+        # populate input frame with buttons from hashtable input (specially for racial menu), then destroy them once choice was fetched
+        def get_dict_choice_input_racial(self, choices):
+                self.submit_var = tk.IntVar()
+                self.input_choice_btns = []
+                for key, value in choices.items():
+                        self.input_choice_btn = tk.Button(self.input_frame, text = value, fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
+                        self.input_choice_btn.grid(row = 0, column = (key))
+                        self.input_choice_btn_ttp = CreateToolTip(self.input_choice_btn, self.race_stats_lookup(key))
+                        self.input_choice_btns.append(self.input_choice_btn)
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.submit_var.get()
+                if input_val != 0:
+                        self.clear_message()
+                self.submit_var = ""
+                for btn in self.input_choice_btns:
+                        btn.destroy()
+                return input_val
         # populate input frame with buttons from array input, then destroy them once choice was fetched
         def get_list_choice_input(self, choices):
                 self.submit_var = tk.IntVar()
@@ -250,7 +267,7 @@ class GUI:
                 self.title_label.grid(row = 0, column = 0)
                 self.class_label = tk.Label(self.char_stats_frame, text = char.get_char_class(), justify = tk.LEFT)
                 self.class_label.grid(row = 0, column = 1)
-                self.race_label = tk.Label(self.char_stats_frame, text = char.get_char_race() + " / " + char.get_char_subrace(), justify = tk.LEFT)
+                self.race_label = tk.Label(self.char_stats_frame, text = char.get_char_race() + " (" + char.get_char_subrace() + ")", justify = tk.LEFT)
                 self.race_label.grid(row = 0, column = 2)
                 self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.char_stats_frame.destroy())
                 self.done_btn.grid(row = 0, column = 3)
@@ -298,3 +315,29 @@ class GUI:
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)
+        # lookup for racial float text
+        def race_stats_lookup(self, race):
+                races = {
+                        1: "+1 STR +1 DEX +1 CON +1 INT +1 WIS +1 CHA",
+                        2: "+2 DEX",
+                        3: "+2 CON",
+                        4: "+2 INT",
+                        5: "+2 DEX",
+                        6: "+2 STR +1 CON",
+                        11: "N/A",
+                        21: "+1 CHA",
+                        22: "+1 CON",
+                        23: "+1 WIS",
+                        31: "+1 WIS",
+                        32: "+2 STR",
+                        33: "+1 STR",
+                        41: "+1 DEX",
+                        42: "+1 CON",
+                        43: "+1 DEX",
+                        51: "+1 INT",
+                        52: "+1 WIS",
+                        53: "+1 CHA",
+                        61: "N/A"
+                        }
+                stats = races[race]
+                return stats

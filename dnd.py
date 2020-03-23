@@ -64,7 +64,7 @@ class Character:
                 self.max_hp = 0
                 self.hp = 0
                 self.temp_hp = 0
-                # type: mod, bonus, adv, disadv
+                # type: [mod, bonus, adv, disadv]
                 self.saving_throws = {
                         "str": [self.str_mod, 0, False, False],
                         "dex": [self.dex_mod, 0, False, False],
@@ -78,7 +78,7 @@ class Character:
                 self.death_st_fail = 0
                 self.max_carry = self.str * 15
                 self.carry = 0
-                # name: mod, bonus, adv, disadv
+                # name: [mod, bonus, adv, disadv]
                 self.skills = {
                         "athletics": [self.str_mod, 0, False, False],
                         "acrobatics": [self.dex_mod, 0, False, False],
@@ -233,6 +233,12 @@ class Character:
                 if self.char_class == 3:
                         if self.raging:
                                 conditions += "raging "
+                if self.grappled_by != "":
+                        conditions += "\nGrappled by: " + battle.get_char_by_id(self.grappled_by).name
+                if self.grappling != "":
+                        conditions += "\nGrappling: " + battle.get_char_by_id(self.grappling).name
+                if self.helpee != "":
+                        conditions += "\nHelping: " + battle.get_char_by_id(self.helpee).name
                 combat = "Hit Points: " + str(self.hp) + "/" + str(self.max_hp) + " (Temp HP: " + str(self.temp_hp) + ")\n"
                 combat += "Hit Dice: " + str(self.hd_cnt) + "/" + str(self.hd_max) + " (d" + str(self.hd) + ")\n"
                 combat += "Armor Class: " + str(self.ac) + ", Initiative: " + str(self.init_mod) + "\n"
@@ -255,7 +261,7 @@ class Character:
                 if self.ranged:
                         combat += "To hit: " + "{0:+}".format(self.main_dex_att_mod + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_dex_dmg_mod + self.ench_main)
                 elif self.eq_weapon_main_finesse:
-                        combat += "To hit: " + "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_att_mod) + self.ench_main)
+                        combat += "To hit: " + "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_dmg_mod) + self.ench_main)
                 else:
                         combat += "To hit: " + "{0:+}".format(self.main_str_att_mod + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_str_dmg_mod + self.ench_main)
                 if self.dmg_die_type_main == "b":
@@ -269,7 +275,7 @@ class Character:
                         combat += "-"
                 else:
                         if self.eq_weapon_offhand_finesse:
-                                combat += "To hit: " + "{0:+}".format(max(self.off_dex_att_mod, self.off_str_att_mod) + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(max(self.off_dex_dmg_mod, self.off_str_att_mod) + self.ench_off)
+                                combat += "To hit: " + "{0:+}".format(max(self.off_dex_att_mod, self.off_str_att_mod) + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(max(self.off_dex_dmg_mod, self.off_str_dmg_mod) + self.ench_off)
                         else:
                                 combat += "To hit: " + "{0:+}".format(self.off_str_att_mod + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(self.off_str_dmg_mod + self.ench_off)
                         if self.dmg_die_type_off == "b":
@@ -414,7 +420,6 @@ class Character:
                         }
                 if self.char_class == 5:
                         styles.pop(5)
-                #ui.push_message(styles)
                 ui.push_message("Choose your fighting style.")
                 style_choice = int(ui.get_dict_choice_input(styles))
                 if self.char_class != 5:
@@ -438,7 +443,6 @@ class Character:
                         elif style_choice == 4:
                                 self.fighting_style = 4
         def equip(self, eq_uneq, item, type, item_list, all_items, everything, all_melee_weapons, all_ranged_weapons, ui):
-                #ui.push_message(everything[item])
                 # stats for currently equipped armor, shield and/or weapon
                 curr_armor_ac = 0
                 curr_armor_ench = 0
@@ -662,8 +666,8 @@ class Character:
                                 # great weapon fighting: reroll 1s and 2s on dmg
                                 elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                         self.reroll_dmg = True
-                                # dueling: +2 dmg if nothing in off-hand
-                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
+                                # dueling: +2 dmg if no other weapon in off-hand
+                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5 or self.eq_weapon_offhand in all_items.shields) and type == 1:
                                         self.main_str_dmg_mod = self.str_mod + 2
                                         self.main_dex_dmg_mod = self.dex_mod + 2
                                         if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
@@ -1036,7 +1040,7 @@ class Character:
                 return races[self.race]
         def get_char_subrace(self):
                 subraces = {
-                        11: "human",
+                        11: "vanilla",
                         21: "lightfoot",
                         22: "stout",
                         23: "ghostwise",
@@ -1049,7 +1053,7 @@ class Character:
                         51: "high elf",
                         52: "wood elf",
                         53: "drow",
-                        61: "half-orc"
+                        61: "vanilla"
                         }
                 return subraces[self.subrace]
         def get_fighting_style(self):
@@ -1246,7 +1250,6 @@ class Dungeon:
         def start_battle(self, enc, allies, enemies, ui):
                 ui.push_battle_info("Battle #" + str(enc + 1))
                 battle = Battle(allies, enemies, ui)
-                #ui.push_message("Roll initiative.")
                 return battle
 
 # Battle
@@ -1666,15 +1669,26 @@ class Shop:
                         attributes = self.convert_attributes(self.potions[random_choice], type)
                         self.shop_list_potions.append([random_choice, index, attributes])
         def shopping_flow(self, char, ui):
-                done = False
-                while done == False:
+                done_shopping = False
+                while done_shopping == False:
                         for i in range(4):
                                 i += 1
-                                self.shop_purchase(i, char, ui)
-                        ui.push_message("Take another look?")
+                                exit_shop = False
+                                while not exit_shop:
+                                        choice = self.shop_purchase(i, char, ui)
+                                        if choice != -1:
+                                                ui.push_message("Take another look?")
+                                                if int(ui.get_yesno_input()) == 0:
+                                                        exit_shop = True
+                                                        ui.push_message("Ola Kala, bye.\n")
+                                        else:
+                                                exit_shop = True
+                                                ui.push_message("Ola Kala, bye.\n")
+                        ui.push_message("Another round?")
                         finished = int(ui.get_yesno_input())
                         if finished == 0:
-                                done = True
+                                done_shopping = True
+                                ui.push_message(char.name + " has left the marketplace.\n")
         def shop_purchase(self, type, char, ui):
                 ui.push_message(self.shop_types[type].capitalize())
                 ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?", "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
@@ -1737,6 +1751,7 @@ class Shop:
                                 ui.push_message("Ah, you've changed your mind, I see...")
                 elif purchase_choice == -1:
                         ui.push_message("Oh, not interested, huh?")
+                return purchase_choice
 
 # Utilities
 def roll_dice(dice, mod, type, ui):
@@ -2240,7 +2255,7 @@ def gen_race(stats, ui):
                 6: "half-orc"
                 }
         ui.push_message("Choose your race.")
-        race_choice = int(ui.get_dict_choice_input(races))
+        race_choice = int(ui.get_dict_choice_input_racial(races))
         if race_choice == 1:
                 str_stat += 1
                 dex_stat += 1
@@ -2263,7 +2278,7 @@ def gen_race(stats, ui):
         ui.push_message("Stats with racial traits\n" + "Strength: " + str(str_stat) + "\n" + "Dexterity: " + str(dex_stat) + "\n" + "Constitution: " + str(con_stat) + "\n" + "Intelligence: " + \
                 str(int_stat) + "\n" + "Wisdom: " + str(wis_stat) + "\n" + "Charisma: " + str(cha_stat) + "\n")
         subraces = {
-                11: "human",
+                11: "vanilla",
                 21: "lightfoot",
                 22: "stout",
                 23: "ghostwise",
@@ -2276,13 +2291,13 @@ def gen_race(stats, ui):
                 51: "high",
                 52: "wood",
                 53: "drow",
-                61: "half-orc"
+                61: "vanilla"
                 }
         for sr in subraces.copy():
                 if race_choice != math.floor(sr / 10):
                         subraces.pop(sr)
         ui.push_message("Choose your subrace.")
-        subrace_choice = int(ui.get_dict_choice_input(subraces))
+        subrace_choice = int(ui.get_dict_choice_input_racial(subraces))
         if subrace_choice == 11:
                 pass
         elif subrace_choice == 21:
@@ -2448,6 +2463,8 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
+#TODO: fix grappling
+#TODO: test stats
 #TODO: implement abilities: sneak attack
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
