@@ -1213,8 +1213,6 @@ class Dungeon:
                         respite_options.pop(1)
                 if self.long_rest_cnt < 1:
                         respite_options.pop(2)
-                #for key, value in respite_options.items():
-                #        ui.push_message("- (" + str(key) + ") => " + value)
                 ui.push_message("Out of initiative order. What would you like to do?")
                 rest = int(ui.get_dict_choice_input(respite_options))
                 if rest == 1 and rest in respite_options:
@@ -1781,8 +1779,6 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # actions
                 if act_choice == 1:
                         attacker.battle_menu_options[1][1] -= 1
-                        #for key, value in attacker.actions.items():
-                        #        ui.push_message("- (" + str(key) + ") => " + value)
                         action = int(ui.get_dict_choice_input(attacker.actions))
                         # attack action
                         roll_mod = 0
@@ -1869,8 +1865,6 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # bonus actions
                 elif act_choice == 2:
                         attacker.battle_menu_options[2][1] -= 1
-                        #for key, value in attacker.bonus_actions.items():
-                        #        ui.push_message("- (" + str(key) + ") => " + value)
                         bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
                         # attack bonus action
                         if bonus_action in attacker.bonus_actions and bonus_action == 1:
@@ -1916,8 +1910,6 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # specials
                 elif act_choice == 3:
                         attacker.battle_menu_options[3][1] -= 1
-                        #for key, value in attacker.specials.items():
-                        #        ui.push_message("- (" + str(key) + ") => " + value)
                         special = int(ui.get_dict_choice_input(attacker.specials))
                         # sneak attack special (rogue only)
                         if special in attacker.specials and special == 1:
