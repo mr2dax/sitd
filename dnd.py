@@ -64,7 +64,7 @@ class Character:
                 self.max_hp = 0
                 self.hp = 0
                 self.temp_hp = 0
-                # type: [mod, bonus, adv, disadv]
+                # save: [mod, bonus, adv, disadv]
                 self.saving_throws = {
                         "str": [self.str_mod, 0, False, False],
                         "dex": [self.dex_mod, 0, False, False],
@@ -78,7 +78,7 @@ class Character:
                 self.death_st_fail = 0
                 self.max_carry = self.str * 15
                 self.carry = 0
-                # name: [mod, bonus, adv, disadv]
+                # skill: [mod, bonus, adv, disadv]
                 self.skills = {
                         "athletics": [self.str_mod, 0, False, False],
                         "acrobatics": [self.dex_mod, 0, False, False],
