@@ -244,7 +244,7 @@ class GUI:
         # create character status overlay
         def create_char_status(self, char):
                 self.char_stats_frame = tk.Frame(self.main_window, borderwidth = 2, relief = tk.RAISED)
-                self.char_stats_frame.place(x = 80, y = 60)
+                self.char_stats_frame.place(x = 50, y = 30)
                 # title
                 self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status", justify = tk.LEFT)
                 self.title_label.grid(row = 0, column = 0)

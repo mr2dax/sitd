@@ -64,7 +64,7 @@ class Character:
                 self.max_hp = 0
                 self.hp = 0
                 self.temp_hp = 0
-                # name: mod, bonus, adv, disadv
+                # type: mod, bonus, adv, disadv
                 self.saving_throws = {
                         "str": [self.str_mod, 0, False, False],
                         "dex": [self.dex_mod, 0, False, False],
@@ -77,7 +77,7 @@ class Character:
                 self.death_st_success = 0
                 self.death_st_fail = 0
                 self.max_carry = self.str * 15
-                self.carry = self.str * 15
+                self.carry = 0
                 # name: mod, bonus, adv, disadv
                 self.skills = {
                         "athletics": [self.str_mod, 0, False, False],
@@ -156,7 +156,7 @@ class Character:
                 self.bonus_actions = {
                         0: "back" # back to main (battle) menu 
                         }
-                # only characters with eligible weapon setup can perform a weapon attack as a bonus action (2 light weapons equipped or proper monks)
+                # only characters with eligible weapon setup can perform a weapon attack as a bonus action (2 light weapons equipped) or properly outfitted monks
                 if self.bonus_attack:
                         self.bonus_actions[1] = "attack"
                 # fighter only self heal
@@ -235,14 +235,29 @@ class Character:
                                 conditions += "raging "
                 combat = "Hit Points: " + str(self.hp) + "/" + str(self.max_hp) + " (Temp HP: " + str(self.temp_hp) + ")\n"
                 combat += "Hit Dice: " + str(self.hd_cnt) + "/" + str(self.hd_max) + " (d" + str(self.hd) + ")\n"
-                combat += "Armor Class: " + str(self.ac) + " Initiative: " + str(self.init_mod) + "\n"
-                combat += "Main Hand: "
-                if self.ranged:
-                        combat += "{0:+}".format(self.main_dex_att_mod + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_dex_dmg_mod + self.ench_main)
-                elif self.eq_weapon_main_finesse:
-                        combat += "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_att_mod) + self.ench_main)
+                combat += "Armor Class: " + str(self.ac) + ", Initiative: " + str(self.init_mod) + "\n"
+                combat += "Attacks: x" + str(self.attacks) + ", Bonus attack: "
+                if self.bonus_attack:
+                        combat += "Yes"
                 else:
-                        combat += "{0:+}".format(self.main_str_att_mod + self.ench_main) + " " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_str_dmg_mod + self.ench_main)
+                        combat += "No"
+                combat += "\nAdvantage: "
+                if self.attack_adv:
+                        combat += "Yes"
+                else:
+                        combat += "No"
+                combat += ", Disadvantage: "
+                if self.attack_disadv:
+                        combat += "Yes"
+                else:
+                        combat += "No"
+                combat += "\nMain Hand:\n"
+                if self.ranged:
+                        combat += "To hit: " + "{0:+}".format(self.main_dex_att_mod + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_dex_dmg_mod + self.ench_main)
+                elif self.eq_weapon_main_finesse:
+                        combat += "To hit: " + "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_att_mod) + self.ench_main)
+                else:
+                        combat += "To hit: " + "{0:+}".format(self.main_str_att_mod + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_str_dmg_mod + self.ench_main)
                 if self.dmg_die_type_main == "b":
                         combat += " (bludgeoning)"
                 elif self.dmg_die_type_main == "s":
@@ -254,9 +269,9 @@ class Character:
                         combat += "-"
                 else:
                         if self.eq_weapon_offhand_finesse:
-                                combat += "{0:+}".format(max(self.off_dex_att_mod, self.off_str_att_mod) + self.ench_off) + " " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(max(self.off_dex_dmg_mod, self.off_str_att_mod) + self.ench_off)
+                                combat += "To hit: " + "{0:+}".format(max(self.off_dex_att_mod, self.off_str_att_mod) + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(max(self.off_dex_dmg_mod, self.off_str_att_mod) + self.ench_off)
                         else:
-                                combat += "{0:+}".format(self.off_str_att_mod + self.ench_off) + " " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(self.off_str_dmg_mod + self.ench_off)
+                                combat += "To hit: " + "{0:+}".format(self.off_str_att_mod + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(self.off_str_dmg_mod + self.ench_off)
                         if self.dmg_die_type_off == "b":
                                 combat += " (bludgeoning)"
                         elif self.dmg_die_type_off == "s":
@@ -1039,6 +1054,7 @@ class Character:
                 return subraces[self.subrace]
         def get_fighting_style(self):
                 styles = {
+                        0: "none",
                         1: "defense",
                         2: "great weapon fighting",
                         3: "dueling",
@@ -1700,19 +1716,17 @@ class Shop:
                         ui.push_message("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)?")
                         if int(ui.get_yesno_input()) == 1:
                                 if char.gold >= purchased_item_price:
-                                        if char.carry - purchased_item_weight < 0:
+                                        if char.carry + purchased_item_weight > char.max_carry:
                                                 ui.push_message("You cannot purchase the " + purchased_item + ". Get rid of something first.")
                                         else:
                                                 char.inv.add_item(purchased_item, type)
                                                 char.gold -= purchased_item_price
                                                 char.gold = round(char.gold, 2)
-                                                char.carry -= purchased_item_weight
+                                                char.carry += purchased_item_weight
                                                 char.carry = round(char.carry, 2)
                                                 shop_list[purchase_choice - 1][0] = "sold"
                                                 ui.push_message("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
-                                                #ui.push_message("Remaining funds: " + str(char.gold) + " GP.")
                                                 ui.update_status()
-                                                ui.push_message("Remaining carry weight: " + str(char.carry) + " lbs.")
                                                 if type != 4:
                                                         ui.push_message("Wanna equip the " + purchased_item + "?")
                                                         if int(ui.get_yesno_input()) == 1:
@@ -1845,15 +1859,19 @@ def act(attacker, act_choice, battle, all_items, ui):
                         bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
                         # attack bonus action
                         if bonus_action in attacker.bonus_actions and bonus_action == 1:
-                                targets = battle.get_targets(attacker)
-                                if len(targets) != 0:
-                                        defender = target_selector(attacker, battle, targets, ui)
-                                        roll_mod = get_adv_disadv(attacker, defender, ui)
-                                        attack(attacker, defender, 2, roll_mod, battle, all_items, ui)
+                                if attacker.battle_menu_options[1][1] < 1:
+                                        targets = battle.get_targets(attacker)
+                                        if len(targets) != 0:
+                                                defender = target_selector(attacker, battle, targets, ui)
+                                                roll_mod = get_adv_disadv(attacker, defender, ui)
+                                                attack(attacker, defender, 2, roll_mod, battle, all_items, ui)
+                                        else:
+                                                ui.push_message("Noone to attack.")
+                                        if attacker.char_class == 3:
+                                                attacker.did_attack = True
                                 else:
-                                        ui.push_message("Noone to attack.")
-                                if attacker.char_class == 3:
-                                        attacker.did_attack = True
+                                        ui.push_message("Must use an attack action first.")
+                                        attacker.battle_menu_options[2][1] += 1
                         # second wind bonus action (fighter only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 2:
                                 current_hp = attacker.hp
@@ -2007,6 +2025,12 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                         dmg_type = "piercing"
                 elif dmg_type == "s":
                         dmg_type = "slashing"
+                elif dmg_type == "mb":
+                        dmg_type = "magical bludgeoning"
+                elif dmg_type == "mp":
+                        dmg_type = "magical piercing"
+                elif dmg_type == "ms":
+                        dmg_type = "magical slashing"
                 # critical threat and confirmation for critical damage (double damage dice) (D&D 3.5 style)
                 if crit == 0:
                         ui.push_message("Hit: " + str(to_hit[0]) + " vs AC " + str(target.ac) + " \nDamage: " + str(dmg) + " (" + dmg_type + ")\n")
@@ -2017,17 +2041,20 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                                 ui.push_message("Damage: " + str(dmg) + " (" + dmg_type + ")\n")
                         else:
                                 ui.push_message("2x dice damage: " + str(dmg) + " (" + dmg_type + ")\n")
-                target.hp -= dmg
-                ui.update_status()
                 if target.char_class == 3:
                         target.got_attacked = True
+                        if target.raging and dmg_type in ["piercing", "bludgeoning", "slashing", "magical piercing", "magical bludgeoning", "magical slashing"]:
+                                dmg = math.floor(dmg / 2)
+                                ui.push_message(target.name + " didn't take as much damage as expected.")
+                target.hp -= dmg
+                ui.update_status()
         # miss
         elif to_hit[0] < target.ac or crit == -1:
                 if crit == 0:
                         ui.push_message("Miss: " + str(to_hit[0]) + " vs AC " + str(target.ac) + "\n")
                 elif crit == -1:
                         ui.push_message("Critical miss\n")
-        # check is target got downed
+        # check if target got downed
         if target.hp <= 0:
                 target.conditions["down"] = True
                 ui.push_message(target.name + " is down.")
