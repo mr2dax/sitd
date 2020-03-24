@@ -193,7 +193,7 @@ class Character:
                                 self.death_st_fail += 1
                         elif death_st[0] >= 10:
                                 self.death_st_success += 1
-                ui.push_message("Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
+                ui.push_message(self.name + " - Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
                 if self.death_st_fail > 2:
                         self.conditions["dead"] = True
                         self.death_st_success = 0
@@ -270,7 +270,7 @@ class Character:
                         combat += " (slashing)"
                 elif self.dmg_die_type_main == "p":
                         combat += " (piercing)"
-                combat += "\nOff Hand: "
+                combat += "\nOff Hand:\n"
                 if not self.bonus_attack:
                         combat += "-"
                 else:
@@ -330,7 +330,6 @@ class Character:
                         self.did_attack = False
         def reset_until_end_of_current_turn(self, all_items, ui):
                 if self.char_class == 3:
-                        #ui.push_message(str(self.raging) + str(self.got_attacked) + str(self.did_attack))
                         if self.raging and (not self.got_attacked and not self.did_attack):
                                 self.rage_off(all_items, ui)
         def print_actions(self, ui):
@@ -1493,11 +1492,13 @@ class AllItems:
                 self.shields = {
                         "shield": [10, 2, 0, 0, 3, False, 6]
                         }
-                #name: [cost, die, die cnt, mod, weight]
+                # name: [cost, die, die cnt, mod, weight]
                 self.potions = {
                         "potion of healing": [50, 4, 2, 2, 0.5],
                         "potion of greater healing": [225, 4, 4, 4, 0.5]
                         }
+                # all melee weapons
+                self.all_melee_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons}
 
 # Shop
 class Shop:
@@ -2102,10 +2103,11 @@ def grapple(source, target, adv_disadv, all_items, ui):
                 target.actions.pop(3)
                 target.actions[6] = "escape grapple"
                 ui.push_message(target.name + " is grappled by " + source.name + ".")
-                if all_items[source.eq_weapon_main][8] == 2:
-                        source.actions.pop(1)
-                elif all_items[source.eq_weapon_main][8] == 1.5:
-                        source.dmg_die_main -= 2
+                if source.eq_weapon_main != "unarmed strike":
+                        if all_items.all_melee_weapons[source.eq_weapon_main][8] == 2:
+                                source.actions.pop(1)
+                        elif all_items.all_melee_weapons[source.eq_weapon_main][8] == 1.5:
+                                source.dmg_die_main -= 2
         else:
                 ui.push_message(source.name + " failed to grapple " + target.name + ".")
 
@@ -2380,7 +2382,7 @@ def gen_char(name, starting_level, all_items, ui):
         ui.create_status(char)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
-        char.gen_starting_equipment(all_items, ui)
+        #char.gen_starting_equipment(all_items, ui)
         char.action_economy()
         return char
 
@@ -2455,7 +2457,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: fix grappling
+#TODO: fix rests
 #TODO: test stats
 #TODO: implement abilities: sneak attack
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
