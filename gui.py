@@ -287,6 +287,8 @@ class GUI:
                 self.mods_label.grid(row = 4, column = 2)
                 self.saving_throws_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[3], justify = tk.LEFT)
                 self.saving_throws_label.grid(row = 4, column = 3)
+                self.skills_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[10], justify = tk.LEFT)
+                self.skills_label.grid(row = 4, column = 4)
                 # separator
                 tk.Label(self.char_stats_frame, text=" ").grid(row = 5, column = 0)
                 # conditions

@@ -141,12 +141,13 @@ class Character:
                         1: "attack", # weapon attack
                         2: "dodge", # defend (adv on DEX STs, disadv on incoming attacks)
                         3: "disengage", # spend action to flee from battle without opportunity attacks from enemies
-                        8: "help" # assist a teammate in his/her next action (ability check or attack)
+                        8: "help", # assist a teammate in his/her next action (ability check or attack)
+                        9: "use potion" # chug a potion or force-feed it to a downed ally, if character has a potion
                         }
                 # only characters with ample STR can attempt to shove (variant rule)
                 if self.str >= 13:
                         self.actions[4] = "shove"
-                # only characters with ample STR and a free hand can attempt to grapple
+                # only characters with ample STR and a free hand can attempt to grapple (variant rule)
                 if self.str >= 13 and (self.eq_weapon_main == "unarmed strike" or self.eq_weapon_offhand in ["unarmed strike", "nothing"] or self.eq_weapon_main == self.eq_weapon_offhand):
                         self.actions[5] = "grapple"
                 # paladin only touch heal
@@ -223,16 +224,30 @@ class Character:
         # return formatted character stats
         def print_char_status(self):
                 abilities = "Abilities\nStrengh\nDexterity\nConstitution\nIntelligence\nWisdom\nCharisma"
-                scores = "Scores\n" + str(self.str) + "\n" + str(self.dex) + "\n" + str(self.con) + "\n" + str(self.int) + "\n" + str(self.wis) + "\n" + str(self.cha)
-                mods = "Modifiers\n" + "{0:+}".format(self.str_mod) + "\n" + "{0:+}".format(self.dex_mod) + "\n" + "{0:+}".format(self.con_mod) + "\n" + "{0:+}".format(self.int_mod) + "\n" + "{0:+}".format(self.wis_mod) + "\n" + "{0:+}".format(self.cha_mod)
-                sts = "Saving Throws\n" + "{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]) + "\n" + "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]) + "\n" + "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]) + "\n" + "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]) + "\n" + "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]) + "\n" + "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1])
-                conditions = "Conditions: "
-                for key, value in self.conditions.items():
-                        if value:
-                                conditions += key + " "
+                score_tup = (self.str, self.dex, self.con, self.int, self.wis, self.cha)
+                scores = "Scores\n%s\n%s\n%s\n%s\n%s\n%s" % score_tup
+                mod_tup = ("{0:+}".format(self.str_mod), "{0:+}".format(self.dex_mod), "{0:+}".format(self.con_mod),
+                        "{0:+}".format(self.int_mod), "{0:+}".format(self.wis_mod), "{0:+}".format(self.cha_mod))
+                mods = "Modifiers\n%s\n%s\n%s\n%s\n%s\n%s" % mod_tup
+                sts_tup = ("{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]), "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]),
+                        "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]), "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]),
+                        "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]), "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1]))
+                sts = "Saving Throws\n%s\n%s\n%s\n%s\n%s\n%s" % sts_tup
+                skill_names = [key for key, value in self.skills.items()]
+                skills_tup = (skill_names[0].capitalize() + ": {0:+}".format(self.skills["athletics"][0] + self.skills["athletics"][1]),
+                        skill_names[1].capitalize() + ": {0:+}".format(self.skills["acrobatics"][0] + self.skills["acrobatics"][1]),
+                        skill_names[2].capitalize() + ": {0:+}".format(self.skills["perception"][0] + self.skills["perception"][1]),
+                        skill_names[3].capitalize() + ": {0:+}".format(self.skills["investigation"][0] + self.skills["investigation"][1]),
+                        skill_names[4].capitalize() + ": {0:+}".format(self.skills["stealth"][0] + self.skills["stealth"][1]), 
+                        skill_names[5].capitalize() + ": {0:+}".format(self.skills["persuasion"][0] + self.skills["persuasion"][1]))
+                skills = "Skills\n%s\n%s\n%s\n%s\n%s\n%s" % skills_tup
+                cond_list = [" " +  key for key, value in self.conditions.items() if value]
+                conditions = "Conditions:"
+                for cond in cond_list:
+                        conditions += cond
                 if self.char_class == 3:
                         if self.raging:
-                                conditions += "raging "
+                                conditions += " raging"
                 if self.grappled_by != "":
                         conditions += "\nGrappled by: " + battle.get_char_by_id(self.grappled_by).name
                 if self.grappling != "":
@@ -295,11 +310,11 @@ class Character:
                 if self.char_class == 1:
                         specials += "Second Wind: " + str(self.second_wind_cnt) + " (1d10+" + str(self.level) + ")\n"
                 elif self.char_class == 3:
-                        specials += "Rages: " + str(self.rage_cnt) + " (" + "{0:+}".format(self.rage_mod) + " STR damage)\n"
+                        specials += "Rages: " + str(self.rage_cnt) + "\n"
                 elif self.char_class == 5:
                         specials += "Lay on Hands: " + str(self.lay_on_hands_pool) + "/" + str(self.lay_on_hands_pool_max) + "\n"
                 death_saves = "Death Saves\nFails: " + str(self.death_st_fail) + "\nSuccesses: " + str(self.death_st_success)
-                return abilities, scores, mods, sts, conditions, combat, equipped, inventory, specials, death_saves
+                return abilities, scores, mods, sts, conditions, combat, equipped, inventory, specials, death_saves, skills
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
         def reset_until_start_of_next_turn(self, ui):
                 if self.conditions["prone"] and not self.conditions["grappled"]:
@@ -666,7 +681,7 @@ class Character:
                                 elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                         self.reroll_dmg = True
                                 # dueling: +2 dmg if no other weapon in off-hand
-                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5 or self.eq_weapon_offhand in all_items.shields) and type == 1:
+                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5 or self.eq_weapon_offhand in all_items.shields):
                                         self.main_str_dmg_mod = self.str_mod + 2
                                         self.main_dex_dmg_mod = self.dex_mod + 2
                                         if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
@@ -817,10 +832,10 @@ class Character:
                                 # great weapon fighting: reroll 1s and 2s on dmg
                                 elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                         self.reroll_dmg = True
-                                # dueling: +2 dmg if nothing in off-hand
+                                # dueling: +2 dmg if no other weapon in off-hand
                                 elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
-                                        self.str_dmg_mod = self.str_mod + 2
-                                        self.dex_dmg_mod = self.dex_mod + 2
+                                        self.main_str_dmg_mod = self.str_mod + 2
+                                        self.main_dex_dmg_mod = self.dex_mod + 2
                                         if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
                                                 self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
                                 # two weapon fighting: add dmg mod to bonus attack
@@ -1193,6 +1208,12 @@ class Inventory:
                         self.inv[item][1] += 1
                 else:
                         self.inv[item] = [type, 1]
+        def get_potions(self):
+                potions = {}
+                for key, value in self.inv.items():
+                        if value[0] == 4:
+                                potions[key] = value[1]
+                return potions
 
 # Dungeon
 class Dungeon:
@@ -1860,6 +1881,27 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 attacker.helpee = receiver.player_id
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
+                        # use potion action
+                        elif action in attacker.actions and action == 9:
+                                avail_potions = attacker.inv.get_potions()
+                                potions = []
+                                i = 0
+                                for key, value in avail_potions.items():
+                                        for j in range(value):
+                                                i += 1
+                                                potions.append([key, i, all_items.potions[key]])
+                                potion_choice = int(ui.get_list_choice_input(potions))
+                                if potion_choice != -1:
+                                        allies = battle.get_allies(attacker, 1)
+                                        receiver = target_selector(attacker, battle, allies, ui)
+                                        receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
+                                        potion_heal = 0
+                                        for k in range(4):
+                                                potion_heal += roll_dice(4,4,0,ui)[0]
+                                        actual_heal = receiver.receive_healing(attacker, potion_heal, ui)
+                                        #attacker.inv.remove_item()
+                                else:
+                                        attacker.battle_menu_options[1][1] += 1
                         # back to battle menu
                         elif action in attacker.actions and action == 0:
                                 attacker.battle_menu_options[1][1] += 1
@@ -2382,7 +2424,7 @@ def gen_char(name, starting_level, all_items, ui):
         ui.create_status(char)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
-        #char.gen_starting_equipment(all_items, ui)
+        char.gen_starting_equipment(all_items, ui)
         char.action_economy()
         return char
 
@@ -2457,8 +2499,9 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
+#TODO: finish implementing use potion
+#TODO: back option for menues
 #TODO: fix rests
-#TODO: test stats
 #TODO: implement abilities: sneak attack
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
