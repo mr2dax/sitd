@@ -218,7 +218,10 @@ class Character:
                         actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
                 else:
                         actual_heal = heal_amount
-                ui.push_message(healer.name + " healed " + self.name + " for " + str(actual_heal) + " HP.")
+                if healer.name == self.name:
+                        ui.push_message("%s healed self for %s HP." % (healer.name, actual_heal))
+                else:
+                        ui.push_message("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
                 ui.update_status()
                 return actual_heal
         # return formatted character stats
@@ -1210,10 +1213,17 @@ class Inventory:
                         self.inv[item] = [type, 1]
         def get_potions(self):
                 potions = {}
+                i = 0
                 for key, value in self.inv.items():
                         if value[0] == 4:
-                                potions[key] = value[1]
+                                potions[i] = key
+                                i += 1
                 return potions
+        def remove_item(self, item):
+                if self.inv[item][1] > 1:
+                        self.inv[item][1] -= 1
+                else:
+                        self.inv.pop(item)
 
 # Dungeon
 class Dungeon:
@@ -1885,21 +1895,20 @@ def act(attacker, act_choice, battle, all_items, ui):
                         elif action in attacker.actions and action == 9:
                                 avail_potions = attacker.inv.get_potions()
                                 potions = []
-                                i = 0
                                 for key, value in avail_potions.items():
-                                        for j in range(value):
-                                                i += 1
-                                                potions.append([key, i, all_items.potions[key]])
+                                        potions.append([value, key, all_items.potions[value]])
                                 potion_choice = int(ui.get_list_choice_input(potions))
                                 if potion_choice != -1:
                                         allies = battle.get_allies(attacker, 1)
                                         receiver = target_selector(attacker, battle, allies, ui)
                                         receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
                                         potion_heal = 0
-                                        for k in range(4):
-                                                potion_heal += roll_dice(4,4,0,ui)[0]
+                                        potion_stats = all_items.potions[avail_potions[potion_choice]]
+                                        for i in range(potion_stats[2]):
+                                                potion_heal += roll_dice(potion_stats[1], 0, 0, ui)[0]
+                                        potion_heal += potion_stats[3]
                                         actual_heal = receiver.receive_healing(attacker, potion_heal, ui)
-                                        #attacker.inv.remove_item()
+                                        attacker.inv.remove_item(avail_potions[potion_choice])
                                 else:
                                         attacker.battle_menu_options[1][1] += 1
                         # back to battle menu
@@ -2499,7 +2508,6 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: finish implementing use potion
 #TODO: back option for menues
 #TODO: fix rests
 #TODO: implement abilities: sneak attack
