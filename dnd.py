@@ -1895,9 +1895,11 @@ def act(attacker, act_choice, battle, all_items, ui):
                         elif action in attacker.actions and action == 9:
                                 avail_potions = attacker.inv.get_potions()
                                 potions = []
+                                potions_for_choice = []
                                 for key, value in avail_potions.items():
+                                        potions_for_choice.append([value, key, "%sd%s+%s" % (all_items.potions[value][2], all_items.potions[value][1], all_items.potions[value][3])])
                                         potions.append([value, key, all_items.potions[value]])
-                                potion_choice = int(ui.get_list_choice_input(potions))
+                                potion_choice = int(ui.get_list_choice_input(potions_for_choice))
                                 if potion_choice != -1:
                                         allies = battle.get_allies(attacker, 1)
                                         receiver = target_selector(attacker, battle, allies, ui)
@@ -1909,6 +1911,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         potion_heal += potion_stats[3]
                                         actual_heal = receiver.receive_healing(attacker, potion_heal, ui)
                                         attacker.inv.remove_item(avail_potions[potion_choice])
+                                        attacker.carry -= all_items.potions[value][4]
                                 else:
                                         attacker.battle_menu_options[1][1] += 1
                         # back to battle menu
@@ -2014,7 +2017,10 @@ def get_adv_disadv(source, target, ui):
 def target_selector(source, battle, targets, ui):
         ui.push_message("Choose a target.")
         target_choice = int(ui.get_dict_choice_input(targets))
-        return battle.get_target_by_name(targets[target_choice])
+        if target_choice != -1:
+                return battle.get_target_by_name(targets[target_choice])
+        else:
+                return None
 
 def amount_selector(pool, max_avail, ui):
         ui.push_message("For how much?")
@@ -2508,7 +2514,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: back option for menues
+#TODO: back option for menus
 #TODO: fix rests
 #TODO: implement abilities: sneak attack
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
