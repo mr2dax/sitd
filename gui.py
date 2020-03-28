@@ -107,6 +107,23 @@ class GUI:
                 self.message_pane.insert(tk.END, message)
                 self.message_pane.see(tk.END)
                 self.message_pane.config(state = "disabled")
+        # write text to message pane and wait for continue
+        def push_prompt(self, message):
+                self.message_pane.config(state = "normal")
+                self.message_pane.insert(tk.END, "\n")
+                self.message_pane.insert(tk.END, message)
+                self.message_pane.see(tk.END)
+                self.message_pane.config(state = "disabled")
+                self.submit_var = tk.IntVar()
+                self.continue_btn = tk.Button(self.input_frame, text = "Continue", fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
+                self.continue_btn.grid(row = 0, column = 0)
+                self.input_frame.bind("<Key>", lambda event: self.submit_var.set(1))
+                self.input_frame.focus_set()
+                self.input_frame.wait_variable(self.submit_var)
+                self.clear_message()
+                self.submit_var = ""
+                self.input_frame.unbind("<Key>")
+                self.continue_btn.destroy()
         # clear message pane
         def clear_message(self):
                 self.message_pane.config(state = "normal")
@@ -153,10 +170,13 @@ class GUI:
                 self.submit_var = tk.StringVar()
                 self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
                 self.input_btn.grid(row = 0, column = 1, sticky = "nsew")
+                self.input_frame.bind("<Return>", lambda event: self.submit_var.set(1))
+                self.input_frame.focus_set()
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.input_pane.get()
                 self.input_pane.delete(0, tk.END)
                 self.submit_var = ""
+                self.input_frame.unbind("<Return>")
                 self.input_pane.destroy()
                 self.input_btn.destroy()
                 self.clear_message()
@@ -168,9 +188,12 @@ class GUI:
                 self.submit_var = tk.StringVar()
                 self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
                 self.input_btn.grid(row = 0, column = 1)
+                self.input_frame.bind("<Return>", lambda event: self.submit_var.set(1))
+                self.input_frame.focus_set()
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.scale_pane.get()
                 self.submit_var = ""
+                self.input_frame.unbind("<Return>")
                 self.scale_pane.destroy()
                 self.input_btn.destroy()
                 self.clear_message()
@@ -214,6 +237,8 @@ class GUI:
                 self.input_choice_btns = []
                 self.input_choice_skip_btn = tk.Button(self.input_frame, text = "skip", width = 4, fg = "black", bg = "white", command = lambda j = -1: self.submit_var.set(j))
                 self.input_choice_skip_btn.grid(row = 0, column = 0)
+                self.input_frame.bind("<space>", lambda event: self.submit_var.set(-1))
+                self.input_frame.focus_set()
                 self.input_choice_btns.append(self.input_choice_skip_btn)
                 for i in choices:
                         if i[0] != "sold":
@@ -224,20 +249,26 @@ class GUI:
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
                 self.submit_var = ""
+                self.input_frame.unbind("<space>")
                 for btn in self.input_choice_btns:
                         btn.destroy()
                 self.clear_message()
                 return input_val
         # populate input frame with yes/no buttons, then destroy them once choice was fetched
-        def get_yesno_input(self):
+        def get_binary_input(self):
                 self.submit_var = tk.IntVar()
                 self.input_yes_btn = tk.Button(self.input_frame, text = "Yes", width = 5, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
                 self.input_yes_btn.grid(row = 0, column = 0)
                 self.input_no_btn = tk.Button(self.input_frame, text = "No", width = 5, fg = "black", bg = "white", command = lambda: self.submit_var.set(0))
                 self.input_no_btn.grid(row = 0, column = 1)
+                self.input_frame.bind("<Key-1>", lambda event: self.submit_var.set(1))
+                self.input_frame.bind("<Key-0>", lambda event: self.submit_var.set(0))
+                self.input_frame.focus_set()
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
                 self.submit_var = ""
+                self.input_frame.unbind("<Key-1>")
+                self.input_frame.unbind("<Key-0>")
                 self.input_yes_btn.destroy()
                 self.input_no_btn.destroy()
                 self.clear_message()
@@ -262,6 +293,8 @@ class GUI:
         def create_char_status(self, char):
                 self.char_stats_frame = tk.Frame(self.main_window, borderwidth = 2, relief = tk.RAISED)
                 self.char_stats_frame.place(x = 50, y = 30)
+                self.char_stats_frame.bind("<Key>", lambda event: self.destroy_char_status())
+                self.char_stats_frame.focus_set()
                 # title
                 self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status", justify = tk.LEFT)
                 self.title_label.grid(row = 0, column = 0)
@@ -269,7 +302,7 @@ class GUI:
                 self.class_label.grid(row = 0, column = 1)
                 self.race_label = tk.Label(self.char_stats_frame, text = char.get_char_race() + " (" + char.get_char_subrace() + ")", justify = tk.LEFT)
                 self.race_label.grid(row = 0, column = 2)
-                self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.char_stats_frame.destroy())
+                self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.destroy_char_status())
                 self.done_btn.grid(row = 0, column = 3)
                 # separator
                 tk.Label(self.char_stats_frame, text=" ").grid(row = 1, column = 0)
@@ -314,6 +347,10 @@ class GUI:
                 # death saves
                 self.death_saves_label = tk.Label(self.char_stats_frame, text = char.print_char_status()[9], justify = tk.LEFT)
                 self.death_saves_label.grid(row = 14, column = 0)
+        # remove character status overlay
+        def destroy_char_status(self):
+                self.char_stats_frame.unbind("<Key>")
+                self.char_stats_frame.destroy()
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)

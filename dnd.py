@@ -10,7 +10,7 @@ import time
 # General character
 class Character:
         "Character creation."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
                 self.str = str
                 self.dex = dex
                 self.con = con
@@ -21,6 +21,7 @@ class Character:
                 self.player_id = random_str(10)
                 self.inv = Inventory(self.player_id, ui)
                 self.level = 1
+                self.npc = npc
                 self.race = race
                 self.subrace = subrace
                 self.char_class = 0
@@ -130,7 +131,10 @@ class Character:
                 if self.conditions["down"] or self.conditions["dead"]:
                         act_choice = 4
                 else:
-                        act_choice = ui.get_battle_menu_choice_input(self.battle_menu_options)
+                        if not self.npc:
+                                act_choice = ui.get_battle_menu_choice_input(self.battle_menu_options)
+                        else:
+                                act_choice = ai.choose(self, self.battle_menu_options.keys(), 1)
                 return act_choice
         # build the character's actions, bonus actions & specials
         def action_economy(self):
@@ -232,18 +236,21 @@ class Character:
                 mod_tup = ("{0:+}".format(self.str_mod), "{0:+}".format(self.dex_mod), "{0:+}".format(self.con_mod),
                         "{0:+}".format(self.int_mod), "{0:+}".format(self.wis_mod), "{0:+}".format(self.cha_mod))
                 mods = "Modifiers\n%s\n%s\n%s\n%s\n%s\n%s" % mod_tup
-                sts_tup = ("{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]), "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]),
-                        "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]), "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]),
-                        "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]), "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1]))
-                sts = "Saving Throws\n%s\n%s\n%s\n%s\n%s\n%s" % sts_tup
+                sts_tup = ("{0:+}".format(self.saving_throws["str"][0] + self.saving_throws["str"][1]) + " (%s,%s)" % (self.saving_throws["str"][2], self.saving_throws["str"][3]),
+                        "{0:+}".format(self.saving_throws["dex"][0] + self.saving_throws["dex"][1]) + " (%s,%s)" % (self.saving_throws["dex"][2], self.saving_throws["dex"][3]),
+                        "{0:+}".format(self.saving_throws["con"][0] + self.saving_throws["con"][1]) + " (%s,%s)" % (self.saving_throws["con"][2], self.saving_throws["con"][3]),
+                        "{0:+}".format(self.saving_throws["int"][0] + self.saving_throws["int"][1]) + " (%s,%s)" % (self.saving_throws["int"][2], self.saving_throws["int"][3]),
+                        "{0:+}".format(self.saving_throws["wis"][0] + self.saving_throws["wis"][1]) + " (%s,%s)" % (self.saving_throws["wis"][2], self.saving_throws["wis"][3]),
+                        "{0:+}".format(self.saving_throws["cha"][0] + self.saving_throws["cha"][1]) + " (%s,%s)" % (self.saving_throws["cha"][2], self.saving_throws["cha"][3]))
+                sts = "Saving Throws (adv,disadv)\n%s\n%s\n%s\n%s\n%s\n%s" % sts_tup
                 skill_names = [key for key, value in self.skills.items()]
-                skills_tup = (skill_names[0].capitalize() + ": {0:+}".format(self.skills["athletics"][0] + self.skills["athletics"][1]),
-                        skill_names[1].capitalize() + ": {0:+}".format(self.skills["acrobatics"][0] + self.skills["acrobatics"][1]),
-                        skill_names[2].capitalize() + ": {0:+}".format(self.skills["perception"][0] + self.skills["perception"][1]),
-                        skill_names[3].capitalize() + ": {0:+}".format(self.skills["investigation"][0] + self.skills["investigation"][1]),
-                        skill_names[4].capitalize() + ": {0:+}".format(self.skills["stealth"][0] + self.skills["stealth"][1]), 
-                        skill_names[5].capitalize() + ": {0:+}".format(self.skills["persuasion"][0] + self.skills["persuasion"][1]))
-                skills = "Skills\n%s\n%s\n%s\n%s\n%s\n%s" % skills_tup
+                skills_tup = (skill_names[0].capitalize() + ": {0:+}".format(self.skills["athletics"][0] + self.skills["athletics"][1]) + " (%s,%s)" % (self.skills["athletics"][2], self.skills["athletics"][3]),
+                        skill_names[1].capitalize() + ": {0:+}".format(self.skills["acrobatics"][0] + self.skills["acrobatics"][1]) + " (%s,%s)" % (self.skills["acrobatics"][2], self.skills["acrobatics"][3]),
+                        skill_names[4].capitalize() + ": {0:+}".format(self.skills["stealth"][0] + self.skills["stealth"][1]) + " (%s,%s)" % (self.skills["stealth"][2], self.skills["stealth"][3]), 
+                        skill_names[3].capitalize() + ": {0:+}".format(self.skills["investigation"][0] + self.skills["investigation"][1]) + " (%s,%s)" % (self.skills["investigation"][2], self.skills["investigation"][3]),
+                        skill_names[2].capitalize() + ": {0:+}".format(self.skills["perception"][0] + self.skills["perception"][1]) + " (%s,%s)" % (self.skills["perception"][2], self.skills["perception"][3]),
+                        skill_names[5].capitalize() + ": {0:+}".format(self.skills["persuasion"][0] + self.skills["persuasion"][1]) + " (%s,%s)" % (self.skills["persuasion"][2], self.skills["persuasion"][3]))
+                skills = "Skills (adv,disadv)\n%s\n%s\n%s\n%s\n%s\n%s" % skills_tup
                 cond_list = [" " +  key for key, value in self.conditions.items() if value]
                 conditions = "Conditions:"
                 for cond in cond_list:
@@ -362,7 +369,7 @@ class Character:
                         4: 4,
                         5: 5
                         }
-                for i in range(gold_die[char_class]):
+                for _ in range(gold_die[char_class]):
                         self.gold += roll_dice(4, 0, 0, ui)[0]
                 if char_class != 2:
                         self.gold *= 10
@@ -1087,8 +1094,8 @@ class Character:
 # Fighter
 class Fighter(Character):
         "Child for fighter class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 1
                 self.second_wind = True
                 self.second_wind_cnt = 1
@@ -1098,8 +1105,8 @@ class Fighter(Character):
 # Monk
 class Monk(Character):
         "Child for monk class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 2
                 self.dmg_die_main = 4
                 self.dmg_die_cnt_main = 1
@@ -1123,8 +1130,8 @@ class Monk(Character):
 # Barbarian
 class Barbarian(Character):
         "Child for barbarian class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 3
                 self.main_hand_prof = True
                 self.off_hand_prof = True
@@ -1181,8 +1188,8 @@ class Barbarian(Character):
 # Rogue
 class Rogue(Character):
         "Child for rogue class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 4
                 self.main_hand_prof = False
                 self.off_hand_prof = False
@@ -1190,8 +1197,8 @@ class Rogue(Character):
 # Paladin
 class Paladin(Character):
         "Child for paladin class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 5
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
@@ -1272,8 +1279,7 @@ class Dungeon:
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
         def end_dungeon(self, ui):
-                ui.push_message("GG")
-                time.sleep(5)
+                ui.push_prompt("GG")
                 quit()
         def start_battle(self, enc, allies, enemies, ui):
                 ui.push_battle_info("Battle #" + str(enc + 1))
@@ -1657,43 +1663,43 @@ class Shop:
         def gen_shop_listing(self):
                 type = 1
                 index = 0
-                for i in range(math.floor(len(self.simple_melee_weapons) / 3)):
+                for _ in range(math.floor(len(self.simple_melee_weapons) / 3)):
                         index += 1
                         random_choice = random.choice(list(self.simple_melee_weapons.keys()))
                         attributes = self.convert_attributes(self.simple_melee_weapons[random_choice], type)
                         self.shop_list_melee_weapons.append([random_choice, index, attributes])
-                for i in range(math.floor(len(self.martial_melee_weapons) / 3)):
+                for _ in range(math.floor(len(self.martial_melee_weapons) / 3)):
                         index += 1
                         random_choice = random.choice(list(self.martial_melee_weapons.keys()))
                         attributes = self.convert_attributes(self.martial_melee_weapons[random_choice], type)
                         self.shop_list_melee_weapons.append([random_choice, index, attributes])
                 type = 2
                 index = 0
-                for i in range(math.floor(len(self.simple_ranged_weapons) / 2)):
+                for _ in range(math.floor(len(self.simple_ranged_weapons) / 2)):
                         index += 1
                         random_choice = random.choice(list(self.simple_ranged_weapons.keys()))
                         attributes = self.convert_attributes(self.simple_ranged_weapons[random_choice], type)
                         self.shop_list_ranged_weapons.append([random_choice, index, attributes])
-                for i in range(math.floor(len(self.martial_ranged_weapons) / 2)):
+                for _ in range(math.floor(len(self.martial_ranged_weapons) / 2)):
                         index += 1
                         random_choice = random.choice(list(self.martial_ranged_weapons.keys()))
                         attributes = self.convert_attributes(self.martial_ranged_weapons[random_choice], type)
                         self.shop_list_ranged_weapons.append([random_choice, index, attributes])
                 type = 3
                 index = 0
-                for i in range(math.floor(len(self.armors) / 2)):
+                for _ in range(math.floor(len(self.armors) / 2)):
                         index += 1
                         random_choice = random.choice(list(self.armors.keys()))
                         attributes = self.convert_attributes(self.armors[random_choice], type)
                         self.shop_list_armors.append([random_choice, index, attributes])
-                for i in range(math.ceil(len(self.shields) / 2)):
+                for _ in range(math.ceil(len(self.shields) / 2)):
                         index += 1
                         random_choice = random.choice(list(self.shields.keys()))
                         attributes = self.convert_attributes(self.shields[random_choice], type)
                         self.shop_list_armors.append([random_choice, index, attributes])
                 type = 4
                 index = 0
-                for i in range(len(self.potions)):
+                for _ in range(len(self.potions)):
                         index += 1
                         random_choice = random.choice(list(self.potions.keys()))
                         attributes = self.convert_attributes(self.potions[random_choice], type)
@@ -1708,17 +1714,17 @@ class Shop:
                                         choice = self.shop_purchase(i, char, ui)
                                         if choice != -1:
                                                 ui.push_message("Take another look?")
-                                                if int(ui.get_yesno_input()) == 0:
+                                                if int(ui.get_binary_input()) == 0:
                                                         exit_shop = True
-                                                        ui.push_message("Ola Kala, bye.\n")
+                                                        ui.push_prompt("Ola Kala, bye.\n")
                                         else:
                                                 exit_shop = True
-                                                ui.push_message("Ola Kala, bye.\n")
+                                                ui.push_prompt("Ola Kala, bye.\n")
                         ui.push_message("Another round?")
-                        finished = int(ui.get_yesno_input())
+                        finished = int(ui.get_binary_input())
                         if finished == 0:
                                 done_shopping = True
-                                ui.push_message(char.name + " has left the marketplace.\n")
+                                ui.push_prompt(char.name + " has left the marketplace.\n")
         def shop_purchase(self, type, char, ui):
                 ui.push_message(self.shop_types[type].capitalize())
                 ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?", "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
@@ -1758,7 +1764,7 @@ class Shop:
                         purchased_item_price = item_list[purchased_item][price_pos]
                         purchased_item_weight = item_list[purchased_item][weight_pos]
                         ui.push_message("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)?")
-                        if int(ui.get_yesno_input()) == 1:
+                        if int(ui.get_binary_input()) == 1:
                                 if char.gold >= purchased_item_price:
                                         if char.carry + purchased_item_weight > char.max_carry:
                                                 ui.push_message("You cannot purchase the " + purchased_item + ". Get rid of something first.")
@@ -1773,7 +1779,7 @@ class Shop:
                                                 ui.update_status()
                                                 if type != 4:
                                                         ui.push_message("Wanna equip the " + purchased_item + "?")
-                                                        if int(ui.get_yesno_input()) == 1:
+                                                        if int(ui.get_binary_input()) == 1:
                                                                 char.equip(1, purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons, self.all_ranged_weapons, ui)
                                 else:
                                         ui.push_message(random.choice(["Not enough gold.", "You've not enough gold coins."]))
@@ -1782,6 +1788,38 @@ class Shop:
                 elif purchase_choice == -1:
                         ui.push_message("Oh, not interested, huh?")
                 return purchase_choice
+
+class AI:
+        "Artificial intelligence for enemy activities."
+        def __init__(self):
+                self.diff = -1
+                self.diff_lvls = {
+                        0: "retargeted",
+                        1: "noob",
+                        2: "minmaxer"
+                        }
+        def get_diff_lvls(self):
+                return self.diff_lvls
+        def set_diff_lvl(self, diff):
+                self.diff = diff
+        def choose(self, char, choices, type):
+                choice = 0
+                list_of_choices = list(choices)
+                if self.diff == 0:
+                        choice = random.choice(list_of_choices)
+                elif self.diff == 1:
+                        if type == 1:
+                                if char.battle_menu_options[1][1] < 1:
+                                        choice = 4
+                                else:
+                                        choice = 1
+                        elif type == 2:
+                                choice = 1
+                        elif type == 0:
+                                choice = random.choice(list_of_choices)
+                elif self.diff == 2:
+                        pass
+                return choice
 
 # Utilities
 def roll_dice(dice, mod, type, ui):
@@ -1802,7 +1840,7 @@ def roll_dice(dice, mod, type, ui):
 
 def random_str(length):
         chars = string.ascii_lowercase
-        return "".join(random.choice(chars) for i in range(length))
+        return "".join(random.choice(chars) for _ in range(length))
 
 # Combat related
 def act(attacker, act_choice, battle, all_items, ui):
@@ -1811,7 +1849,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # actions
                 if act_choice == 1:
                         attacker.battle_menu_options[1][1] -= 1
-                        action = int(ui.get_dict_choice_input(attacker.actions))
+                        if not attacker.npc:
+                                action = int(ui.get_dict_choice_input(attacker.actions))
+                        else:
+                                action = ai.choose(attacker, attacker.actions.keys(), 2)
                         # attack action
                         roll_mod = 0
                         if action in attacker.actions and action == 1:
@@ -1819,7 +1860,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets, ui)
                                         roll_mod = get_adv_disadv(attacker, defender, ui)
-                                        for i in range(attacker.attacks):
+                                        for _ in range(attacker.attacks):
                                                 attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
                                 else:
                                         ui.push_message("Noone to attack.")
@@ -1842,7 +1883,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 targets = battle.get_targets(attacker)
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets, ui)
-                                        for i in range(attacker.attacks):
+                                        for _ in range(attacker.attacks):
                                                 shove(attacker, defender, ui)
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
@@ -1856,7 +1897,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets, ui)
                                         roll_mod = get_adv_disadv(attacker, defender, ui)
-                                        for i in range(attacker.attacks):
+                                        for _ in range(attacker.attacks):
                                                 grapple(attacker, defender, roll_mod, all_items, ui)
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
@@ -1906,7 +1947,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
                                         potion_heal = 0
                                         potion_stats = all_items.potions[avail_potions[potion_choice]]
-                                        for i in range(potion_stats[2]):
+                                        for _ in range(potion_stats[2]):
                                                 potion_heal += roll_dice(potion_stats[1], 0, 0, ui)[0]
                                         potion_heal += potion_stats[3]
                                         actual_heal = receiver.receive_healing(attacker, potion_heal, ui)
@@ -1920,7 +1961,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # bonus actions
                 elif act_choice == 2:
                         attacker.battle_menu_options[2][1] -= 1
-                        bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
+                        if not attacker.npc:
+                                bonus_action = int(ui.get_dict_choice_input(attacker.bonus_actions))
+                        else:
+                                bonus_action = ai.choose(attacker, attacker.bonus_actions.keys(), 3)
                         # attack bonus action
                         if bonus_action in attacker.bonus_actions and bonus_action == 1:
                                 if attacker.battle_menu_options[1][1] < 1:
@@ -1965,7 +2009,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                 # specials
                 elif act_choice == 3:
                         attacker.battle_menu_options[3][1] -= 1
-                        special = int(ui.get_dict_choice_input(attacker.specials))
+                        if not attacker.npc:
+                                special = int(ui.get_dict_choice_input(attacker.specials))
+                        else:
+                                special = ai.choose(attacker, attacker.specials.keys(), 4)
                         # sneak attack special (rogue only)
                         if special in attacker.specials and special == 1:
                                 pass
@@ -2016,7 +2063,10 @@ def get_adv_disadv(source, target, ui):
 
 def target_selector(source, battle, targets, ui):
         ui.push_message("Choose a target.")
-        target_choice = int(ui.get_dict_choice_input(targets))
+        if not source.npc:
+                target_choice = int(ui.get_dict_choice_input(targets))
+        else:
+                target_choice = ai.choose(source, targets.keys(), 0)
         if target_choice != -1:
                 return battle.get_target_by_name(targets[target_choice])
         else:
@@ -2223,7 +2273,7 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
                 die_cnt *= 2
         else:
                 die_cnt *= 1
-        for i in range(die_cnt):
+        for _ in range(die_cnt):
                 dmg_roll = roll_dice(dmg_die, 0, 0, ui)[0]
                 dmg_reroll = 0
                 if (dmg_roll == 1 or dmg_roll == 2) and source.reroll_dmg:
@@ -2245,42 +2295,42 @@ def gen_stats(ui):
         cha = 0
         roll = 0
         min = 6
-        for i in range(4):
+        for _ in range(4):
                 roll = roll_dice(6, 0, 0, ui)[0]
                 if roll < min:
                         min = roll
                 stre += roll
         stre -= min
         min = 6
-        for i in range(4):
+        for _ in range(4):
                 roll = roll_dice(6, 0, 0, ui)[0]
                 if roll < min:
                         min = roll
                 dex += roll
         dex -= min
         min = 6
-        for i in range(4):
+        for _ in range(4):
                 roll = roll_dice(6, 0, 0, ui)[0]
                 if roll < min:
                         min = roll
                 con += roll
         con -= min
         min = 6
-        for i in range(4):
+        for _ in range(4):
                 roll = roll_dice(6, 0, 0, ui)[0]
                 if roll < min:
                         min = roll
                 inte += roll
         inte -= min
         min = 6
-        for i in range(4):
+        for _ in range(4):
                 roll = roll_dice(6, 0, 0, ui)[0]
                 if roll < min:
                         min = roll
                 wis += roll
         wis -= min
         min = 6
-        for i in range(4):
+        for _ in range(4):
                 roll = roll_dice(6, 0, 0, ui)[0]
                 if roll < min:
                         min = roll
@@ -2382,7 +2432,7 @@ def gen_race(stats, ui):
                 str(int_stat) + "\n" + "Wisdom: " + str(wis_stat) + "\n" + "Charisma: " + str(cha_stat) + "\n")
         return race_choice, subrace_choice, [str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat]
 
-def gen_char(name, starting_level, all_items, ui):
+def gen_char(name, starting_level, all_items, npc, ui):
         need_stat_reroll = True
         while need_stat_reroll:
                 classes = {
@@ -2427,15 +2477,15 @@ def gen_char(name, starting_level, all_items, ui):
         ui.push_message("Choose your class.")
         class_choice = int(ui.get_dict_choice_input(classes))
         if class_choice == 1:
-                char = Fighter(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
+                char = Fighter(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         if class_choice == 2:
-                char = Monk(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
+                char = Monk(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         if class_choice == 3:
-                char = Barbarian(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
+                char = Barbarian(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         if class_choice == 4:
-                char = Rogue(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
+                char = Rogue(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         if class_choice == 5:
-                char = Paladin(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, ui)
+                char = Paladin(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         ui.create_status(char)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
@@ -2456,22 +2506,26 @@ def init_chars(all_items, ui):
         starting_level = 1
         ui.push_message("Name your hero:")
         name = ui.get_text_input()
+        npc = False
         if name == "":
                 name = "Rick"
         ui.push_message(name)
-        p1_char = gen_char(name, starting_level, all_items, ui)
+        p1_char = gen_char(name, starting_level, all_items, npc, ui)
 
         name = "Rei"
+        npc = False
         ui.push_message(name)
-        p2_char = gen_char(name, starting_level, all_items, ui)
+        p2_char = gen_char(name, starting_level, all_items, npc, ui)
         
         name = "Benny"
+        npc = True
         ui.push_message(name)
-        p3_char = gen_char(name, starting_level, all_items, ui)
+        p3_char = gen_char(name, starting_level, all_items, npc, ui)
         
         name = "Alf"
+        npc = True
         ui.push_message(name)
-        p4_char = gen_char(name, starting_level, all_items, ui)
+        p4_char = gen_char(name, starting_level, all_items, npc, ui)
         
         allies = [p1_char]
         enemies = [p3_char]
@@ -2482,6 +2536,10 @@ def init_chars(all_items, ui):
 main_window = tk.Tk()
 ui = gui.GUI(main_window)
 all_items = AllItems()
+ai = AI()
+ui.push_prompt("Welcome to Shining in the Dungeon (5e Duel)")
+ui.push_message("Choose the difficulty.")
+ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
 chars = init_chars(all_items, ui)
 allies = chars[0]
 enemies = chars[1]
