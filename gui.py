@@ -115,7 +115,7 @@ class GUI:
                 self.message_pane.see(tk.END)
                 self.message_pane.config(state = "disabled")
                 self.submit_var = tk.IntVar()
-                self.continue_btn = tk.Button(self.input_frame, text = "Continue", fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
+                self.continue_btn = tk.Button(self.input_frame, text = "Next", fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
                 self.continue_btn.grid(row = 0, column = 0)
                 self.input_frame.bind("<Key>", lambda event: self.submit_var.set(1))
                 self.input_frame.focus_set()

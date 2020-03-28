@@ -187,7 +187,7 @@ class Character:
                         self.hp = 1
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_message(self.name + " is back up!")
+                        ui.push_prompt(self.name + " is back up!")
                 elif death_st[1] == -1:
                         if self.death_st_fail == 2:
                                 self.death_st_fail += 1
@@ -198,17 +198,17 @@ class Character:
                                 self.death_st_fail += 1
                         elif death_st[0] >= 10:
                                 self.death_st_success += 1
-                ui.push_message(self.name + " - Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
+                ui.push_prompt(self.name + " - Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
                 if self.death_st_fail > 2:
                         self.conditions["dead"] = True
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_message(self.name + " just died. RIP")
+                        ui.push_prompt(self.name + " just died. RIP")
                 if self.death_st_success > 2:
                         self.hp = 0
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_message(self.name + " has stabilized.")
+                        ui.push_prompt(self.name + " has stabilized.")
         def receive_healing(self, healer, heal_amount, ui):
                 current_hp = self.hp
                 if self.hp < 0:
@@ -216,16 +216,16 @@ class Character:
                         self.conditions["down"] = False
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_message(self.name + " is back up!")
+                        ui.push_prompt(self.name + " is back up!")
                 self.hp = min(self.hp + heal_amount, self.max_hp)
                 if current_hp + heal_amount > self.max_hp:
                         actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
                 else:
                         actual_heal = heal_amount
                 if healer.name == self.name:
-                        ui.push_message("%s healed self for %s HP." % (healer.name, actual_heal))
+                        ui.push_prompt("%s healed self for %s HP." % (healer.name, actual_heal))
                 else:
-                        ui.push_message("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
+                        ui.push_prompt("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
                 ui.update_status()
                 return actual_heal
         # return formatted character stats
@@ -315,7 +315,7 @@ class Character:
                 for key, value in self.inv.inv.items():
                         inventory += key + " (" + str(value[1]) + ")\n"
                 specials = "Specials\n"
-                if self.char_class == 1 or (self.char_class == 5 and self.level > 1):
+                if self.char_class == 1 or (self.char_class in [5, 6] and self.level > 1):
                         specials += "Fighting Style: " + self.get_fighting_style() + "\n"
                 if self.char_class == 1:
                         specials += "Second Wind: " + str(self.second_wind_cnt) + " (1d10+" + str(self.level) + ")\n"
@@ -329,15 +329,15 @@ class Character:
         def reset_until_start_of_next_turn(self, ui):
                 if self.conditions["prone"] and not self.conditions["grappled"]:
                         self.conditions["prone"] = False
-                        ui.push_message(self.name + " stood up.")
+                        ui.push_prompt(self.name + " stood up.")
                         if 3 not in self.actions:
                                 self.actions[3] = "disengage"
                 if self.conditions["dodge"]:
                         self.conditions["dodge"] = False
-                        ui.push_message("Dodge ended.")
+                        ui.push_prompt("Dodge ended.")
                 if self.conditions["flee"]:
                         self.conditions["flee"] = False
-                        ui.push_message(self.name + " couldn't run away.")
+                        ui.push_prompt(self.name + " couldn't run away.")
                 if self.helpee != "":
                         stop_help(self.helpee)
                         self.helpee = ""
@@ -357,17 +357,14 @@ class Character:
                 if self.char_class == 3:
                         if self.raging and (not self.got_attacked and not self.did_attack):
                                 self.rage_off(all_items, ui)
-        def print_actions(self, ui):
-                ui.push_message(self.actions)
-        def print_bonus_actions(self, ui):
-                ui.push_message(self.bonus_actions)
         def gen_starting_gold(self, char_class, ui):
                 gold_die = {
                         1: 5,
                         2: 5,
                         3: 2,
                         4: 4,
-                        5: 5
+                        5: 5,
+                        6: 5
                         }
                 for _ in range(gold_die[char_class]):
                         self.gold += roll_dice(4, 0, 0, ui)[0]
@@ -433,6 +430,15 @@ class Character:
                         self.skills["persuasion"][0] += self.prof_bonus
                         self.saving_throws["wis"][0] += self.prof_bonus
                         self.saving_throws["cha"][0] += self.prof_bonus
+                elif class_choice == 6:
+                        self.char_class = 6
+                        self.hd = 10
+                        self.hp = self.con_mod + self.hd
+                        self.max_hp = self.hp
+                        self.skills["acrobatics"][0] += self.prof_bonus
+                        self.skills["perception"][0] += self.prof_bonus
+                        self.saving_throws["str"][0] += self.prof_bonus
+                        self.saving_throws["dex"][0] += self.prof_bonus
                 ui.update_status()
         def gen_fighting_style(self, inv, ui):
                 styles = {
@@ -444,9 +450,11 @@ class Character:
                         }
                 if self.char_class == 5:
                         styles.pop(5)
+                if self.char_class == 6:
+                        styles.pop(2)
                 ui.push_message("Choose your fighting style.")
                 style_choice = int(ui.get_dict_choice_input(styles))
-                if self.char_class != 5:
+                if self.char_class == 1:
                         if style_choice == 1:
                                 self.fighting_style = 1
                         elif style_choice == 2:
@@ -457,7 +465,7 @@ class Character:
                                 self.fighting_style = 4
                         elif style_choice == 5:
                                 self.fighting_style = 5
-                else:
+                elif self.char_class == 5:
                         if style_choice == 1:
                                 self.fighting_style = 1
                         elif style_choice == 2:
@@ -466,6 +474,15 @@ class Character:
                                 self.fighting_style = 3
                         elif style_choice == 4:
                                 self.fighting_style = 4
+                elif self.char_class == 6:
+                        if style_choice == 1:
+                                self.fighting_style = 1
+                        elif style_choice == 3:
+                                self.fighting_style = 3
+                        elif style_choice == 4:
+                                self.fighting_style = 4
+                        elif style_choice == 5:
+                                self.fighting_style = 5
         def equip(self, eq_uneq, item, type, item_list, all_items, everything, all_melee_weapons, all_ranged_weapons, ui):
                 # stats for currently equipped armor, shield and/or weapon
                 curr_armor_ac = 0
@@ -600,7 +617,7 @@ class Character:
                                         self.eq_weapon_main_finesse = finesse
                                         self.eq_weapon_offhand_finesse = finesse
                                 else:
-                                        ui.push_message("Impossible to equip.")
+                                        ui.push_prompt("Impossible to equip.")
                                 # set ranged
                                 if type == 2:
                                         self.ranged = True
@@ -633,7 +650,7 @@ class Character:
                                                 self.eq_armor = item
                                                 self.ac = armor_class + armor_ench + curr_shield_ac + curr_shield_ench
                                         else:
-                                                ui.push_message("Not strong enough to don a " + item + ".")
+                                                ui.push_prompt("Not strong enough to don a " + item + ".")
                                 # shield: + cumulative AC
                                 elif armor_type == 3:
                                         # nothing in off-hand, equip to off-hand
@@ -668,7 +685,7 @@ class Character:
                                                 self.ac += armor_class + armor_ench
                                         self.eq_weapon_offhand = item
                                 else:
-                                        ui.push_message("Equip failed.")
+                                        ui.push_prompt("Equip failed.")
                         # class specific adjustments
                         # fighter
                         if self.char_class == 1:
@@ -839,6 +856,35 @@ class Character:
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
                                                 self.ac += 1
+                                # dueling: +2 dmg if no other weapon in off-hand
+                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
+                                        self.main_str_dmg_mod = self.str_mod + 2
+                                        self.main_dex_dmg_mod = self.dex_mod + 2
+                                        if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
+                                                self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
+                                # two weapon fighting: add dmg mod to bonus attack
+                                elif self.fighting_style == 4 and self.bonus_attack:
+                                        self.offhand_dmg_mod = True
+                                # archery: +2 to attack mod with ranged weapons
+                                elif self.fighting_style == 5 and self.ranged:
+                                        self.dex_att_mod = self.dex_mod + self.prof_bonus + 2
+                        # ranger
+                        elif self.char_class == 6:
+                                # rangers are proficient in all weapons
+                                self.main_hand_prof = True
+                                self.main_str_att_mod = self.str_mod + self.prof_bonus
+                                self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.main_str_dmg_mod = self.str_mod
+                                self.main_dex_dmg_mod = self.dex_mod
+                                self.off_hand_prof = True
+                                self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                self.off_str_dmg_mod = self.str_mod
+                                self.off_dex_dmg_mod = self.dex_mod
+                                # defense: +1 AC if wearing armor
+                                if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
+                                        if armor_type != 3:
+                                                self.ac += 1
                                 # great weapon fighting: reroll 1s and 2s on dmg
                                 elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                         self.reroll_dmg = True
@@ -851,6 +897,13 @@ class Character:
                                 # two weapon fighting: add dmg mod to bonus attack
                                 elif self.fighting_style == 4 and self.bonus_attack:
                                         self.offhand_dmg_mod = True
+                                # rangers are not proficient in heavy armor
+                                elif all_items.armors[self.eq_armor][4] == 2:
+                                        for s in self.skills.keys():
+                                                self.skills[s][3] = True
+                                        for st in self.saving_throws.keys():
+                                                self.saving_throws[st][3] = True
+                                        self.attack_disadv = True
                 # unequip
                 elif eq_uneq == 0:
                         # melee or ranged weapon
@@ -921,7 +974,7 @@ class Character:
                                         self.saving_throws[st][3] = False
                                 self.attack_disadv = False
                         else:
-                                ui.push_message("Unequip failed.")
+                                ui.push_prompt("Unequip failed.")
                         # class specific adjustments
                         # fighter
                         if self.char_class == 1:
@@ -974,7 +1027,9 @@ class Character:
                         # paladin
                         elif self.char_class == 5:
                                 pass
-
+                        # ranger
+                        elif self.char_class == 6:
+                                pass
         def level_up(self, levels, ui):
                 for lvl in levels:
                         self.level = 1 + lvl
@@ -998,6 +1053,8 @@ class Character:
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
                                         self.gen_fighting_style(self.inv, ui)
+                                if self.char_class == 6:
+                                        self.gen_fighting_style(self.inv, ui)
                         if self.level == 3:
                                 if self.char_class == 1:
                                         pass
@@ -1012,6 +1069,8 @@ class Character:
                                         self.specials["divine smite"] = [3, 0, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
+                                if self.char_class == 6:
+                                        pass
                         if self.level == 4:
                                 #self.asi_choice()
                                 if self.char_class == 1:
@@ -1025,6 +1084,8 @@ class Character:
                                 if self.char_class == 5:
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
+                                if self.char_class == 6:
+                                        pass
                         if self.level == 5:
                                 #self.prof_bonus_up()
                                 if self.char_class != 4:
@@ -1043,13 +1104,16 @@ class Character:
                                         self.specials["divine smite"] = [4, 2, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
+                                if self.char_class == 6:
+                                        pass
         def get_char_class(self):
                 classes = {
                         1: "fighter",
                         2: "monk",
                         3: "barbarian",
                         4: "rogue",
-                        5: "paladin"
+                        5: "paladin",
+                        6: "ranger"
                         }
                 return classes[self.char_class]
         def get_char_race(self):
@@ -1158,15 +1222,15 @@ class Barbarian(Character):
                         self.off_str_dmg_mod += self.rage_mod
                         self.bonus_actions.pop(3)
                         self.bonus_actions[3] = "end rage"
-                        ui.push_message( self.name + " would like to rage.")
+                        ui.push_prompt( self.name + " would like to rage.")
                 elif armor_type == 2 and self.rage_cnt > 0:
                         self.raging = True
                         self.rage_cnt -= 1
                         self.bonus_actions.pop(3)
                         self.bonus_actions[3] = "end rage"
-                        ui.push_message("Warning: raging in heavy armor.")
+                        ui.push_prompt("Warning: raging in heavy armor.")
                 else:
-                        ui.push_message("No rages left.")
+                        ui.push_prompt("No rages left.")
         def rage_off(self, all_items, ui):
                 if self.eq_armor == "unarmored":
                         armor_type = 0
@@ -1183,7 +1247,7 @@ class Barbarian(Character):
                         self.bonus_actions[3] = "rage"
                 else:
                         self.bonus_actions.pop(3)
-                ui.push_message("Rage ended.")
+                ui.push_prompt("Rage ended.")
 
 # Rogue
 class Rogue(Character):
@@ -1203,6 +1267,15 @@ class Paladin(Character):
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
                 self.lay_on_hands_pool = self.lay_on_hands_pool_max
+                self.main_hand_prof = True
+                self.off_hand_prof = True
+
+# Ranger
+class Ranger(Character):
+        "Child for ranger class."
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+                self.char_class = 6
                 self.main_hand_prof = True
                 self.off_hand_prof = True
 
@@ -1398,8 +1471,7 @@ class Battle:
                 if self.init_order[self.current_init - 1][0] == -100:
                         self.round_end = False
         def end(self, ui):
-                ui.push_message("Duel has ended. *jingle*")
-                ui.push_message("---------------")
+                ui.push_message("Duel has ended. *jingle*\n")
                 if self.pcs_fled:
                         ui.push_message(self.allies[0].name + "'s team fled from combat.")
                 if self.foes_fled:
@@ -1767,7 +1839,7 @@ class Shop:
                         if int(ui.get_binary_input()) == 1:
                                 if char.gold >= purchased_item_price:
                                         if char.carry + purchased_item_weight > char.max_carry:
-                                                ui.push_message("You cannot purchase the " + purchased_item + ". Get rid of something first.")
+                                                ui.push_prompt("You cannot purchase the " + purchased_item + ". Get rid of something first.")
                                         else:
                                                 char.inv.add_item(purchased_item, type)
                                                 char.gold -= purchased_item_price
@@ -1775,18 +1847,18 @@ class Shop:
                                                 char.carry += purchased_item_weight
                                                 char.carry = round(char.carry, 2)
                                                 shop_list[purchase_choice - 1][0] = "sold"
-                                                ui.push_message("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
+                                                ui.push_prompt("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
                                                 ui.update_status()
                                                 if type != 4:
                                                         ui.push_message("Wanna equip the " + purchased_item + "?")
                                                         if int(ui.get_binary_input()) == 1:
                                                                 char.equip(1, purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons, self.all_ranged_weapons, ui)
                                 else:
-                                        ui.push_message(random.choice(["Not enough gold.", "You've not enough gold coins."]))
+                                        ui.push_prompt(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                         else:
-                                ui.push_message("Ah, you've changed your mind, I see...")
+                                ui.push_prompt("Ah, you've changed your mind, I see...")
                 elif purchase_choice == -1:
-                        ui.push_message("Oh, not interested, huh?")
+                        ui.push_prompt("Oh, not interested, huh?")
                 return purchase_choice
 
 class AI:
@@ -1863,19 +1935,19 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         for _ in range(attacker.attacks):
                                                 attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
                                 else:
-                                        ui.push_message("Noone to attack.")
+                                        ui.push_prompt("Noone to attack.")
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
                         # dodge action
                         elif action in attacker.actions and action == 2:
                                 attacker.conditions["dodge"] = True
-                                ui.push_message(attacker.name + " is taking a defensive stance.")
+                                ui.push_prompt(attacker.name + " is taking a defensive stance.")
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
                         # disengage action
                         elif action in attacker.actions and action == 3:
                                 attacker.conditions["flee"] = True
-                                ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
+                                ui.push_prompt(attacker.name + " has disengaged and is about to flee from combat.")
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
                         # shove action
@@ -1888,7 +1960,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
                                 else:
-                                        ui.push_message("Noone to shove.")
+                                        ui.push_prompt("Noone to shove.")
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
                         # grapple action
@@ -1902,7 +1974,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
                                 else:
-                                        ui.push_message("Noone to grapple.")
+                                        ui.push_prompt("Noone to grapple.")
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
                         # use action to escape a grapple
@@ -1974,11 +2046,11 @@ def act(attacker, act_choice, battle, all_items, ui):
                                                 roll_mod = get_adv_disadv(attacker, defender, ui)
                                                 attack(attacker, defender, 2, roll_mod, battle, all_items, ui)
                                         else:
-                                                ui.push_message("Noone to attack.")
+                                                ui.push_prompt("Noone to attack.")
                                         if attacker.char_class == 3:
                                                 attacker.did_attack = True
                                 else:
-                                        ui.push_message("Must use an attack action first.")
+                                        ui.push_prompt("Must use an attack action first.")
                                         attacker.battle_menu_options[2][1] += 1
                         # second wind bonus action (fighter only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 2:
@@ -1989,7 +2061,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         actual_heal = second_wind_heal - ((current_hp + second_wind_heal) - attacker.max_hp)
                                 else:
                                         actual_heal = second_wind_heal
-                                ui.push_message(attacker.name + " healed " + str(actual_heal) + " HP.")
+                                ui.push_prompt(attacker.name + " healed " + str(actual_heal) + " HP.")
                                 ui.update_status()
                                 attacker.second_wind = False
                                 attacker.bonus_actions.pop(bonus_action)
@@ -2002,7 +2074,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                         # disengage bonus action (rogue only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 4:
                                 attacker.conditions["flee"] = True
-                                ui.push_message(attacker.name + " has disengaged and is about to flee from combat.")
+                                ui.push_prompt(attacker.name + " has disengaged and is about to flee from combat.")
                         # back to battle menu
                         elif bonus_action in attacker.bonus_actions and bonus_action == 0:
                                 attacker.battle_menu_options[2][1] += 1
@@ -2028,10 +2100,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                 attacker.deaths_door(ui)
                 attacker.turn_done = True
         elif attacker.conditions["down"] and attacker.conditions["dead"]:
-                ui.push_message(attacker.name + " is dead.")
+                ui.push_prompt(attacker.name + " is dead.")
                 attacker.turn_done = True
         elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success == 3:
-                ui.push_message(attacker.name + " is taking a rest.")
+                ui.push_prompt(attacker.name + " is taking a rest.")
                 attacker.turn_done = True
 
 def get_adv_disadv(source, target, ui):
@@ -2073,7 +2145,7 @@ def target_selector(source, battle, targets, ui):
                 return None
 
 def amount_selector(pool, max_avail, ui):
-        ui.push_message("For how much?")
+        ui.push_message("Heal for how much?")
         amount = int(ui.get_amount(pool, max_avail))
         return amount
 
@@ -2181,6 +2253,7 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                 if target.max_hp * -1 >= target.hp:
                         ui.push_message("Death blow! " + target.name + " falls dead. RIP")
                         target.conditions["dead"] = True
+        ui.push_prompt("")
 
 def stop_help(target_id):
         helpee = battle.get_char_by_id(target_id)
@@ -2193,11 +2266,11 @@ def shove(source, target, ui):
         ui.push_message("Contested check: " + str(att_check) + " vs " + str(def_check))
         if att_check > def_check:
                 target.conditions["prone"] = True
-                if target.char_class in [1, 4, 5] or (target.char_class == 2 and target.level < 2) or (target.char_class == 3 and target.level < 5):
+                if target.char_class in [1, 4, 5, 6] or (target.char_class == 2 and target.level < 2) or (target.char_class == 3 and target.level < 5):
                         target.actions.pop(3)
-                ui.push_message(target.name + " was knocked prone.")
+                ui.push_prompt(target.name + " was knocked prone.")
         else:
-                ui.push_message("Shove attempt failed.")
+                ui.push_prompt("Shove attempt failed.")
 
 def grapple(source, target, adv_disadv, all_items, ui):
         att_mod = max(source.off_dex_att_mod, source.off_str_att_mod)
@@ -2209,14 +2282,14 @@ def grapple(source, target, adv_disadv, all_items, ui):
                 source.grappling = target.player_id
                 target.actions.pop(3)
                 target.actions[6] = "escape grapple"
-                ui.push_message(target.name + " is grappled by " + source.name + ".")
+                ui.push_prompt(target.name + " is grappled by " + source.name + ".")
                 if source.eq_weapon_main != "unarmed strike":
                         if all_items.all_melee_weapons[source.eq_weapon_main][8] == 2:
                                 source.actions.pop(1)
                         elif all_items.all_melee_weapons[source.eq_weapon_main][8] == 1.5:
                                 source.dmg_die_main -= 2
         else:
-                ui.push_message(source.name + " failed to grapple " + target.name + ".")
+                ui.push_prompt(source.name + " failed to grapple " + target.name + ".")
 
 def release_grapple(grappler, battle, all_items):
         grapplee = battle.get_char_by_id(grappler.grappling)
@@ -2245,9 +2318,9 @@ def escape_grapple(grapplee, battle, all_items, ui):
                         grappler.actions[1] = "attack"
                 if all_items[grappler.eq_weapon_main][8] == 1.5:
                         grappler.dmg_die_main += 2
-                ui.push_message(grapplee.name + " has escaped the grapple.")
+                ui.push_prompt(grapplee.name + " has escaped the grapple.")
         else:
-                ui.push_message("Grapple escape attempt failed.")
+                ui.push_prompt("Grapple escape attempt failed.")
 
 def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
         dmg = 0
@@ -2440,7 +2513,8 @@ def gen_char(name, starting_level, all_items, npc, ui):
                         2: "monk",
                         3: "barbarian",
                         4: "rogue",
-                        5: "paladin"
+                        5: "paladin",
+                        6: "ranger"
                         }
                 stats = gen_stats(ui)
                 stats_post_race = gen_race(stats, ui)
@@ -2468,6 +2542,9 @@ def gen_char(name, starting_level, all_items, npc, ui):
                 # paladin
                 if str_stat < 13 or cha_stat < 13:
                         classes.pop(5)
+                # ranger
+                if dex_stat < 13 or wis_stat < 13:
+                        classes.pop(6)
                 if classes:
                         need_stat_reroll = False
                 elif not classes:
@@ -2486,6 +2563,8 @@ def gen_char(name, starting_level, all_items, npc, ui):
                 char = Rogue(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         if class_choice == 5:
                 char = Paladin(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+        if class_choice == 6:
+                char = Ranger(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
         ui.create_status(char)
         char.gen_starting_gold(char.char_class, ui)
         char.gen_class(char.char_class, ui)
@@ -2572,9 +2651,11 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: back option for menus
+#TODO: check messaging
+#TODO: unarmed strike not proficient bug
 #TODO: fix rests
 #TODO: implement abilities: sneak attack
+#TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
 #TODO: front-back positioning, net restrain, whip pull, push/pull mechanic
