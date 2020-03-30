@@ -177,9 +177,6 @@ class Character:
                 self.specials = {
                         0: "back" # back to main (battle) menu 
                         }
-                # rogue only extra dmg once per round if certain conditions are met (adv on attack or ally nearby enemy target)
-                if self.char_class == 4:
-                        self.specials[1] = "sneak attack"
         def deaths_door(self, ui):
                 death_st = roll_dice(20, 0, 0, ui)
                 if death_st[1] == 1:
@@ -321,6 +318,8 @@ class Character:
                         specials += "Second Wind: " + str(self.second_wind_cnt) + " (1d10+" + str(self.level) + ")\n"
                 elif self.char_class == 3:
                         specials += "Rages: " + str(self.rage_cnt) + "\n"
+                elif self.char_class == 4:
+                        specials += "Sneak Attack: " + str(self.sneak_damage[1]) + "d" + str(self.sneak_damage[0]) + "\n"
                 elif self.char_class == 5:
                         specials += "Lay on Hands: " + str(self.lay_on_hands_pool) + "/" + str(self.lay_on_hands_pool_max) + "\n"
                 death_saves = "Death Saves\nFails: " + str(self.death_st_fail) + "\nSuccesses: " + str(self.death_st_success)
@@ -353,6 +352,8 @@ class Character:
                 if self.char_class == 3:
                         self.got_attacked = False
                         self.did_attack = False
+                if self.char_class == 4:
+                        self.sneak_attack = True
         def reset_until_end_of_current_turn(self, all_items, ui):
                 if self.char_class == 3:
                         if self.raging and (not self.got_attacked and not self.did_attack):
@@ -420,7 +421,7 @@ class Character:
                         self.skills["acrobatics"][0] += self.prof_bonus * 2
                         self.saving_throws["dex"][0] += self.prof_bonus
                         self.saving_throws["int"][0] += self.prof_bonus
-                        self.specials["sneak attack"] = [6, 1]
+                        self.sneak_damage = [6, 1]
                 elif class_choice == 5:
                         self.char_class = 5
                         self.hd = 10
@@ -1048,8 +1049,9 @@ class Character:
                                         self.dex_st_adv = True
                                 if self.char_class == 4:
                                         self.bonus_actions[3] = "disengage"
+                                        self.sneak_damage = [6, math.ceil(self.level / 2)]
                                 if self.char_class == 5:
-                                        self.specials["divine smite"] = [2, 0, 0, 0, 0]
+                                        self.divine_smite = [2, 0, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
                                         self.gen_fighting_style(self.inv, ui)
@@ -1060,13 +1062,13 @@ class Character:
                                         pass
                                 if self.char_class == 2:
                                         self.specials["ki"] = self.level
-                                        self.specials["deflect missiles"] = True
+                                        #self.specials["deflect missiles"] = True
                                 if self.char_class == 3:
-                                        self.specials["rage"] = 3
+                                        self.rage_cnt = 3
                                 if self.char_class == 4:
-                                        self.specials["sneak attack"] = [6, math.ceil(self.level / 2)]
+                                        self.sneak_damage = [6, math.ceil(self.level / 2)]
                                 if self.char_class == 5:
-                                        self.specials["divine smite"] = [3, 0, 0, 0, 0]
+                                        self.divine_smite = [3, 0, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
                                 if self.char_class == 6:
@@ -1080,7 +1082,7 @@ class Character:
                                 if self.char_class == 3:
                                         pass
                                 if self.char_class == 4:
-                                        self.specials["sneak attack"] = [6, math.ceil(self.level / 2)]
+                                        self.sneak_damage = [6, math.ceil(self.level / 2)]
                                 if self.char_class == 5:
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
@@ -1094,14 +1096,14 @@ class Character:
                                         pass
                                 if self.char_class == 2:
                                         self.specials["ki"] = self.level
-                                        self.specials["stunning strike"] = True
-                                        self.specials["uncanny dodge"] = True
+                                        #self.specials["stunning strike"] = True
+                                        #self.specials["uncanny dodge"] = True
                                 if self.char_class == 3:
                                         pass
                                 if self.char_class == 4:
-                                        pass
+                                        self.sneak_damage = [6, math.ceil(self.level / 2)]
                                 if self.char_class == 5:
-                                        self.specials["divine smite"] = [4, 2, 0, 0, 0]
+                                        self.divine_smite = [4, 2, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
                                 if self.char_class == 6:
@@ -1257,6 +1259,8 @@ class Rogue(Character):
                 self.char_class = 4
                 self.main_hand_prof = False
                 self.off_hand_prof = False
+                self.sneak_damage = []
+                self.sneak_attack = False
 
 # Paladin
 class Paladin(Character):
@@ -1267,6 +1271,7 @@ class Paladin(Character):
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
                 self.lay_on_hands_pool = self.lay_on_hands_pool_max
+                self.divine_smite = []
                 self.main_hand_prof = True
                 self.off_hand_prof = True
 
@@ -1420,39 +1425,39 @@ class Battle:
         def get_targets(self, attacker):
                 i = 1
                 if attacker in self.allies:
-                        enemies_list = {}
+                        enemies_dict = {}
                         for e in self.enemies:
                                 if not e.conditions["down"]:
-                                        enemies_list[i] = e.name
+                                        enemies_dict[i] = e.name
                                 i += 1
-                        return enemies_list
+                        return enemies_dict
                 elif attacker in self.enemies:
-                        allies_list = {}
+                        allies_dict = {}
                         for a in self.allies:
                                 if not a.conditions["down"]:
-                                        allies_list[i] = a.name
+                                        allies_dict[i] = a.name
                                 i += 1
-                        return allies_list
+                        return allies_dict
         def get_allies(self, attacker, self_target):
                 i = 1
                 if attacker in self.enemies:
-                        enemies_list = {}
+                        enemies_dict = {}
                         for e in self.enemies:
                                 if not e.conditions["dead"]:
-                                        enemies_list[i] = e.name
+                                        enemies_dict[i] = e.name
                                 if attacker.name == e.name and self_target == 0:
-                                        enemies_list.pop(i)
+                                        enemies_dict.pop(i)
                                 i += 1
-                        return enemies_list
+                        return enemies_dict
                 elif attacker in self.allies:
-                        allies_list = {}
+                        allies_dict = {}
                         for a in self.allies:
                                 if not a.conditions["dead"]:
-                                        allies_list[i] = a.name
+                                        allies_dict[i] = a.name
                                 if attacker.name == a.name and self_target == 0:
-                                        allies_list.pop(i)
+                                        allies_dict.pop(i)
                                 i += 1
-                        return allies_list
+                        return allies_dict
         def get_target_by_name(self, name):
                 return self.participants[name]
         def get_char_by_id(self, id):
@@ -2080,17 +2085,15 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 attacker.battle_menu_options[2][1] += 1
                 # specials
                 elif act_choice == 3:
-                        attacker.battle_menu_options[3][1] -= 1
                         if not attacker.npc:
                                 special = int(ui.get_dict_choice_input(attacker.specials))
                         else:
                                 special = ai.choose(attacker, attacker.specials.keys(), 4)
-                        # sneak attack special (rogue only)
                         if special in attacker.specials and special == 1:
                                 pass
                         # back to main menu
                         elif special in attacker.specials and special == 0:
-                                attacker.battle_menu_options[3][1] += 1
+                                pass
                 # end turn
                 elif act_choice == 4:
                         attacker.turn_done = True
@@ -2134,7 +2137,8 @@ def get_adv_disadv(source, target, ui):
         return roll_mod
 
 def target_selector(source, battle, targets, ui):
-        ui.push_message("Choose a target.")
+        if not source.npc:
+                ui.push_message("Choose a target.")
         if not source.npc:
                 target_choice = int(ui.get_dict_choice_input(targets))
         else:
@@ -2203,6 +2207,20 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
         # hit -> calculate damage
         dmg = 0
         if to_hit[0] >= target.ac or crit == 1:
+                # sneak attack
+                # rogue only extra dmg once per round if certain conditions are met (adv on attack with finesse or ranged weapon or target is distracted by ally and no disadv on attack roll)
+                if source.char_class == 4:
+                        allies = battle.get_allies(attacker, 1)
+                        # check for sneak attack conditions
+                        distraction = False
+                        if len(allies) > 1:
+                                for value in allies.values():
+                                        if not battle.participants[value].conditions["down"]:
+                                                distraction = True
+                        if (attacker.attack_adv or attacker.help_adv or (distraction and not attacker.attack_disadv)) and ((type == 1 and attacker.eq_weapon_main_finesse) or (type == 2 and attacker.eq_weapon_offhand_finesse) or attacker.ranged):
+                                ui.push_message("Apply sneak attack?")
+                                if int(ui.get_binary_input()) == 1:
+                                        attacker.sneak_attack = True
                 dmg_result = calc_dmg(source, crit, dmg_mod, type, all_items, ui)
                 dmg = dmg_result[0]
                 dmg_type = dmg_result[1]
@@ -2353,6 +2371,17 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
                         dmg_reroll = roll_dice(dmg_die, 0, 0, ui)[0]
                 dmg += max(dmg_roll, dmg_reroll)
         dmg += dmg_mod
+        # sneak attack damage
+        if source.char_class == 4:
+                die_cnt = source.sneak_damage[1]
+                if crit == 1:
+                        die_cnt *= 2
+                else:
+                        die_cnt *= 1
+                if source.sneak_attack:
+                        for _ in range(die_cnt):
+                                dmg += roll_dice(source.sneak_damage[0], 0, 0, ui)[0]
+                        source.sneak_attack = False
         # the minimum damage one can deal is 0
         if dmg < 0:
                 dmg = 0
@@ -2651,10 +2680,8 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: check messaging
-#TODO: unarmed strike not proficient bug
+#TODO: unarmed strike not proficient bug, rogues get unarmed bonus attack
 #TODO: fix rests
-#TODO: implement abilities: sneak attack
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
