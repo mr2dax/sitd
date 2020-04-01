@@ -120,7 +120,12 @@ class Character:
                         "dodge": False,
                         "prone": False,
                         "grappled": False,
-                        "helped": False
+                        "helped": False,
+                        "blinded": False,
+                        "deafened": False,
+                        "charmed": False,
+                        "exhaustion": False,
+                        "frightened": False
                         }
                 self.grappled_by = ""
                 self.grappling = ""
@@ -219,11 +224,11 @@ class Character:
                         actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
                 else:
                         actual_heal = heal_amount
+                ui.update_status()
                 if healer.name == self.name:
                         ui.push_prompt("%s healed self for %s HP." % (healer.name, actual_heal))
                 else:
                         ui.push_prompt("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
-                ui.update_status()
                 return actual_heal
         # return formatted character stats
         def print_char_status(self):
@@ -416,7 +421,6 @@ class Character:
                         self.hd = 8
                         self.hp = self.con_mod + self.hd
                         self.max_hp = self.hp
-                        self.bonus_attack = True
                         self.skills["stealth"][0] += self.prof_bonus * 2
                         self.skills["acrobatics"][0] += self.prof_bonus * 2
                         self.saving_throws["dex"][0] += self.prof_bonus
@@ -909,7 +913,7 @@ class Character:
                 elif eq_uneq == 0:
                         # melee or ranged weapon
                         if type in [1, 2]:
-                                # when unequipping main hand weapon, also take off off-hand (in case of versatile, dual wield or 2-handed), if not a shield
+                                # when unequipping main hand weapon, also "take off" off-hand (in case of versatile, dual wield or 2-handed), if not a shield
                                 if item == self.eq_weapon_main and self.eq_weapon_offhand not in all_items.shields:
                                         self.eq_weapon_main = "unarmed strike"
                                         self.dmg_die_main = 1
@@ -932,6 +936,11 @@ class Character:
                                         self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.main_str_dmg_mod = self.str_mod
                                         self.main_dex_dmg_mod = self.dex_mod
+                                        self.off_hand_prof = False
+                                        self.off_str_att_mod = self.str_mod
+                                        self.off_dex_att_mod = self.dex_mod
+                                        self.off_str_dmg_mod = self.str_mod
+                                        self.off_dex_dmg_mod = self.dex_mod
                                 # when unequipping main hand weapon and off-hand has a shield, then unequip main hand only
                                 elif item == self.eq_weapon_main and self.eq_weapon_offhand in all_items.shields:
                                         self.eq_weapon_main = "unarmed strike"
@@ -983,13 +992,13 @@ class Character:
                         # monk
                         elif self.char_class == 2:
                                 if self.eq_weapon_main == "unarmed strike":
-                                        self.main_hand_prof = False
+                                        self.main_hand_prof = True
                                         self.main_str_att_mod = self.str_mod + self.prof_bonus
                                         self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.main_str_dmg_mod = self.str_mod
                                         self.main_dex_dmg_mod = self.dex_mod
                                 if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
-                                        self.off_hand_prof = False
+                                        self.off_hand_prof = True
                                         self.off_str_att_mod = self.str_mod + self.prof_bonus
                                         self.off_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.off_str_dmg_mod = self.str_mod
@@ -1166,7 +1175,7 @@ class Fighter(Character):
                 self.second_wind = True
                 self.second_wind_cnt = 1
                 self.main_hand_prof = True
-                self.off_hand_prof = True
+                self.main_str_att_mod = self.str_mod + self.prof_bonus
 
 # Monk
 class Monk(Character):
@@ -1200,7 +1209,7 @@ class Barbarian(Character):
                 super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 3
                 self.main_hand_prof = True
-                self.off_hand_prof = True
+                self.main_str_att_mod = self.str_mod + self.prof_bonus
                 self.raging = False
                 self.got_attacked = False
                 self.did_attack = False
@@ -1257,8 +1266,6 @@ class Rogue(Character):
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
                 super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 4
-                self.main_hand_prof = False
-                self.off_hand_prof = False
                 self.sneak_damage = []
                 self.sneak_attack = False
 
@@ -1273,7 +1280,7 @@ class Paladin(Character):
                 self.lay_on_hands_pool = self.lay_on_hands_pool_max
                 self.divine_smite = []
                 self.main_hand_prof = True
-                self.off_hand_prof = True
+                self.main_str_att_mod = self.str_mod + self.prof_bonus
 
 # Ranger
 class Ranger(Character):
@@ -1282,7 +1289,62 @@ class Ranger(Character):
                 super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
                 self.char_class = 6
                 self.main_hand_prof = True
-                self.off_hand_prof = True
+                self.main_str_att_mod = self.str_mod + self.prof_bonus
+
+# Monster
+class Monster(Character):
+        "Child for monsters."
+        def __init__(self, monster, ui):
+                super(Monster, self).__init__(monster["attrs"][0], monster["attrs"][1], monster["attrs"][2], monster["attrs"][3], monster["attrs"][4], monster["attrs"][5], monster["attrs"][6], 1, 0, 0, True, ui)
+                self.str = monster["attrs"][1]
+                self.dex = monster["attrs"][2]
+                self.con = monster["attrs"][3]
+                self.wis = monster["attrs"][4]
+                self.int = monster["attrs"][5]
+                self.cha = monster["attrs"][6]
+                self.npc = True
+                self.hd_cnt = monster["attrs"][8]
+                self.hd = monster["attrs"][7]
+                self.prof_bonus = 2
+                self.attacks = monster["attrs"][10]
+                self.multiattack = monster["attrs"][9]
+                self.main_hand_prof = True
+                self.main_str_att_mod = self.str_mod + self.prof_bonus
+                self.main_dex_att_mod = self.dex_mod + self.prof_bonus
+                if self.attacks < 2:
+                        self.dmg_die_main = monster["attacks"][0][2]
+                        self.dmg_die_cnt_main = monster["attacks"][0][3]
+                        self.dmg_die_type_main = monster["attacks"][0][1]
+                        self.ench_main = 0
+                else:
+                        pass
+                self.max_hp = 0
+                for _ in range(self.hd_cnt):
+                        self.max_hp += roll_dice(self.hd, self.con_mod, 0, ui)[0]
+                self.hp = max(1, self.max_hp)
+                self.max_hp = max(1, self.hp)
+                # save: [mod, bonus, adv, disadv]
+                self.saving_throws = {
+                        "str": [self.str_mod, monster["stmods"][0], False, False],
+                        "dex": [self.dex_mod, monster["stmods"][1], False, False],
+                        "con": [self.con_mod, monster["stmods"][2], False, False],
+                        "wis": [self.wis_mod, monster["stmods"][3], False, False],
+                        "int": [self.int_mod, monster["stmods"][4], False, False],
+                        "cha": [self.cha_mod, monster["stmods"][5], False, False]
+                        }
+                # skill: [mod, bonus, adv, disadv]
+                self.skills = {
+                        "athletics": [self.str_mod, monster["skills"][0], False, False],
+                        "acrobatics": [self.dex_mod, monster["skills"][1], False, False],
+                        "perception": [self.wis_mod, monster["skills"][2], False, False],
+                        "investigation": [self.int_mod, monster["skills"][3], False, False],
+                        "stealth": [self.dex_mod, monster["skills"][4], False, False],
+                        "persuasion": [self.cha_mod, monster["skills"][5], False, False]
+                }
+                if self.attacks < 2:
+                        self.eq_weapon_main = monster["attacks"][0][0]
+                        self.eq_weapon_main_finesse = True
+                self.name = monster["attrs"][0]
 
 # Inventory
 class Inventory:
@@ -1313,17 +1375,18 @@ class Inventory:
 # Dungeon
 class Dungeon:
         "Dungeon creation."
-        def __init__(self, enc_cnt, pc_list, ui):
+        def __init__(self, enc_cnt, pc_list, avail_monsters, ui):
                 self.enc_cnt = enc_cnt
                 self.pc_list = pc_list
                 self.short_rest_cnt = 1
                 self.long_rest_cnt = 2
+                self.avail_monsters = avail_monsters
         def get_respite_options(self, ui):
                 respite_options = {
                         0: "Pass",
                         1: "Short rest",
                         2: "Long rest"
-                }
+                        }
                 if self.short_rest_cnt < 1:
                         respite_options.pop(1)
                 if self.long_rest_cnt < 1:
@@ -1613,6 +1676,35 @@ class AllItems:
                         }
                 # all melee weapons
                 self.all_melee_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons}
+
+class MonsterManual:
+        "Monster listing"
+        def __init__(self):
+                # ix {
+                #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, multiattack?, # of attacks],
+                #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, add dmg type, add dmg die, add die cnt], [attack 2 ...]],
+                #       skills: [athletics, acrobatics, perception, investigation, stealth, persuasion],
+                #       saving throw modifiers: [str, dex, con, int, wis, cha],
+                #       damage resistances/immunities/vulnerabilities: [[dmg type 1, degree], [dmg type 2, degree]],
+                #       condition immunities: [condition 1, condition 2 ...]}
+                self.monsters = {
+                        1: {
+                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, False, 1],
+                                "attacks": [["Pseudopod", "b", 6, 1, 0, "a", 6, 2]],
+                                "skills": [0, 0, 0, 0, 2, 0],
+                                "stmods": [0, 0, 0, 0, 0, 0],
+                                "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
+                                "condimm": ["blinded", "charmed", "deafened", "exhaustion", "frightened", "prone"]
+                                },
+                        2: {
+                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 8, 1, False, 1],
+                                "attacks": [["Slime Attack", "-", 0, 1, 10, "a", 10, 1], ["Test", "-", 0, 1, 10, "a", 10, 1]],
+                                "skills": [0, 0, 0, 0, 2, 0],
+                                "stmods": [0, 0, 0, 0, 0, 0],
+                                "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
+                                "condimm": ["blinded", "charmed", "deafened", "exhaustion", "frightened", "prone"]
+                                }
+                        }
 
 # Shop
 class Shop:
@@ -2601,6 +2693,13 @@ def gen_char(name, starting_level, all_items, npc, ui):
         char.action_economy()
         return char
 
+def gen_mon(monster, all_items, ui):
+        mon = Monster(monster, ui)
+        #ui.create_mon_status(mon)
+        #mon.gen_loot(all_items)
+        mon.action_economy()
+        return mon
+
 '''
 Initialize PCs (player characters)
 IN
@@ -2608,7 +2707,6 @@ IN
 - ui (object)
 OUT
 - allies (array)
-- enemies (array)
 '''
 def init_chars(all_items, ui):
         starting_level = 1
@@ -2619,40 +2717,61 @@ def init_chars(all_items, ui):
                 name = "Rick"
         ui.push_message(name)
         p1_char = gen_char(name, starting_level, all_items, npc, ui)
-
+        
         name = "Rei"
         npc = False
         ui.push_message(name)
         p2_char = gen_char(name, starting_level, all_items, npc, ui)
         
         name = "Benny"
-        npc = True
+        npc = False
         ui.push_message(name)
         p3_char = gen_char(name, starting_level, all_items, npc, ui)
         
         name = "Alf"
-        npc = True
+        npc = False
         ui.push_message(name)
         p4_char = gen_char(name, starting_level, all_items, npc, ui)
         
-        allies = [p1_char]
-        enemies = [p3_char]
-        allies = [p1_char, p2_char]
-        enemies = [p3_char, p4_char]
-        return allies, enemies
+        allies = [p1_char, p2_char, p3_char, p4_char]
+        return allies
+
+'''
+Initialize NPCs (non-player characters)
+IN
+- all_items (object)
+- ui (object)
+OUT
+- enemy_list (list of objects)
+'''
+def init_enemies(all_items, all_monsters, dungeon, enemy_cnt):
+        enemy_counter = {}
+        enemy_list = []
+        for _ in range(enemy_cnt):
+                enemy = gen_mon(all_monsters.monsters[random.choice(dungeon.avail_monsters)], all_items, ui)
+                if enemy.name not in enemy_list:
+                        enemy_counter[enemy.name] = 1
+                else:
+                        enemy_counter[enemy.name] += 1
+                enemy.name = "%s #%s" % (enemy.name, enemy_counter[enemy.name]) #tbc
+                enemy_list.append(enemy)
+        return enemy_list
 
 main_window = tk.Tk()
 ui = gui.GUI(main_window)
 all_items = AllItems()
+all_monsters = MonsterManual()
 ai = AI()
 ui.push_prompt("Welcome to Shining in the Dungeon (5e Duel)")
 ui.push_message("Choose the difficulty.")
 ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
 chars = init_chars(all_items, ui)
-allies = chars[0]
-enemies = chars[1]
+allies = chars
 encounters = 10
-dungeon = Dungeon(encounters, allies, ui)
+monsters = [1, 2]
+dungeon = Dungeon(encounters, allies, monsters, ui)
+enemy_cnt = len(allies)
+enemies = init_enemies(all_items, all_monsters, dungeon, enemy_cnt)
 for enc in range(dungeon.enc_cnt):
         battle = dungeon.start_battle(enc, allies, enemies, ui)
         battle.initiative(ui)
@@ -2680,7 +2799,6 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon(ui)
 main_window.mainloop()
 
-#TODO: unarmed strike not proficient bug, rogues get unarmed bonus attack
 #TODO: fix rests
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)

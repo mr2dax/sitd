@@ -70,7 +70,7 @@ class GUI:
                 self.status_labels = []
                 self.char_num = 0
                 # visual sub frame
-                self.visuals_frame = tk.Frame(self.main_frame, height = 5, width = 80)
+                self.visuals_frame = tk.Frame(self.main_frame, height = 10, width = 80)
                 self.visuals_frame.grid(row = 2, column = 0)
                 # visualization
                 self.visuals_pane = tk.Canvas(self.visuals_frame, height = 50, width = 80)
