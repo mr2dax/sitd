@@ -1680,7 +1680,7 @@ class AllItems:
 class MonsterManual:
         "Monster listing"
         def __init__(self):
-                # ix {
+                # monster index {
                 #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, multiattack?, # of attacks],
                 #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, add dmg type, add dmg die, add die cnt], [attack 2 ...]],
                 #       skills: [athletics, acrobatics, perception, investigation, stealth, persuasion],
@@ -1698,7 +1698,7 @@ class MonsterManual:
                                 },
                         2: {
                                 "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 8, 1, False, 1],
-                                "attacks": [["Slime Attack", "-", 0, 1, 10, "a", 10, 1], ["Test", "-", 0, 1, 10, "a", 10, 1]],
+                                "attacks": [["Slime Attack", "b", 4, 1, 10, "a", 10, 1]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
@@ -2158,8 +2158,8 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         actual_heal = second_wind_heal - ((current_hp + second_wind_heal) - attacker.max_hp)
                                 else:
                                         actual_heal = second_wind_heal
-                                ui.push_prompt(attacker.name + " healed " + str(actual_heal) + " HP.")
                                 ui.update_status()
+                                ui.push_prompt(attacker.name + " healed " + str(actual_heal) + " HP.")
                                 attacker.second_wind = False
                                 attacker.bonus_actions.pop(bonus_action)
                         # rage bonus action (barbarian only)
@@ -2749,11 +2749,11 @@ def init_enemies(all_items, all_monsters, dungeon, enemy_cnt):
         enemy_list = []
         for _ in range(enemy_cnt):
                 enemy = gen_mon(all_monsters.monsters[random.choice(dungeon.avail_monsters)], all_items, ui)
-                if enemy.name not in enemy_list:
+                if enemy.name not in enemy_counter:
                         enemy_counter[enemy.name] = 1
                 else:
                         enemy_counter[enemy.name] += 1
-                enemy.name = "%s #%s" % (enemy.name, enemy_counter[enemy.name]) #tbc
+                enemy.name = "%s #%s" % (enemy.name, enemy_counter[enemy.name])
                 enemy_list.append(enemy)
         return enemy_list
 
