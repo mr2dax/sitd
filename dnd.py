@@ -7,7 +7,24 @@ import gui
 import time
 
 # Classes
-# General character
+'''
+General character prototype, don't use
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- character (object)
+'''
 class Character:
         "Character creation."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1166,7 +1183,24 @@ class Character:
                         }
                 return styles[self.fighting_style]
 
-# Fighter
+'''
+Fighter (Character child)
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- fighter (object)
+'''
 class Fighter(Character):
         "Child for fighter class."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1177,7 +1211,24 @@ class Fighter(Character):
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
 
-# Monk
+'''
+Monk (Character child)
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- monk (object)
+'''
 class Monk(Character):
         "Child for monk class."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1202,7 +1253,24 @@ class Monk(Character):
                 else:
                         self.ac = 10 + self.dex_mod
 
-# Barbarian
+'''
+Barbarian (Character child)
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- barbarian (object)
+'''
 class Barbarian(Character):
         "Child for barbarian class."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1260,7 +1328,24 @@ class Barbarian(Character):
                         self.bonus_actions.pop(3)
                 ui.push_prompt("Rage ended.")
 
-# Rogue
+'''
+Rogue (Character child)
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- rogue (object)
+'''
 class Rogue(Character):
         "Child for rogue class."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1269,7 +1354,24 @@ class Rogue(Character):
                 self.sneak_damage = []
                 self.sneak_attack = False
 
-# Paladin
+'''
+Paladin (Character child)
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- paladin (object)
+'''
 class Paladin(Character):
         "Child for paladin class."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1282,7 +1384,24 @@ class Paladin(Character):
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
 
-# Ranger
+'''
+Ranger (Character child)
+IN
+- name (string)
+- strength (int)
+- dexterity (int)
+- constitution (int)
+- wisdom (int)
+- intelligence (int)
+- charisma (int)
+- starting level (int)
+- race (int)
+- subrace (int)
+- npc (bool)
+- ui (object)
+OUT
+- ranger (object)
+'''
 class Ranger(Character):
         "Child for ranger class."
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
@@ -1291,7 +1410,14 @@ class Ranger(Character):
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
 
-# Monster
+'''
+Monster (Character child)
+IN
+- monster (dict)
+- ui (object)
+OUT
+- monster (object)
+'''
 class Monster(Character):
         "Child for monsters."
         def __init__(self, monster, ui):
@@ -1346,10 +1472,18 @@ class Monster(Character):
                         self.eq_weapon_main_finesse = True
                 self.name = monster["attrs"][0]
 
-# Inventory
+'''
+Inventory for PCs/NPCs
+IN
+- owner (string)
+- ui (object)
+OUT
+- inventory (object)
+'''
 class Inventory:
         "Inventory creation."
         def __init__(self, owner, ui):
+                # player id
                 self.owner = owner
                 # name: type, quantity
                 self.inv = {}
@@ -1372,7 +1506,16 @@ class Inventory:
                 else:
                         self.inv.pop(item)
 
-# Dungeon
+'''
+Dungeon: consecutive battles, looting, resting and some skill checks.
+IN
+- encounter count (int)
+- PCs (list)
+- available monsters (list)
+- ui (object)
+OUT
+- dungeon (object)
+'''
 class Dungeon:
         "Dungeon creation."
         def __init__(self, enc_cnt, pc_list, avail_monsters, ui):
@@ -1427,7 +1570,15 @@ class Dungeon:
                 battle = Battle(allies, enemies, ui)
                 return battle
 
-# Battle
+'''
+Battle
+IN
+- allies (list)
+- enemies (list)
+- ui (object)
+OUT
+- battle (object)
+'''
 class Battle:
         "Battle creation."
         def __init__(self, allies, enemies, ui):
@@ -1597,7 +1748,13 @@ class Battle:
                         self.foes_fled = True
                 return end
 
-# Item list
+'''
+Item compendium: all the weapons, armor and items in the game.
+IN
+  N/A
+OUT
+- all items (object)
+'''
 class AllItems:
         "Item listing."
         def __init__(self):
@@ -1677,6 +1834,13 @@ class AllItems:
                 # all melee weapons
                 self.all_melee_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons}
 
+'''
+Beastiary: all the monsters available in this game.
+IN
+  N/A
+OUT
+- monster manual (object)
+'''
 class MonsterManual:
         "Monster listing"
         def __init__(self):
@@ -1706,7 +1870,14 @@ class MonsterManual:
                                 }
                         }
 
-# Shop
+'''
+Shop: trade weapons, armor and items.
+IN
+- all items (object)
+- ui (object)
+OUT
+- shop (object)
+'''
 class Shop:
         "Shop creation."
         def __init__(self, all_items, ui):
@@ -1958,6 +2129,13 @@ class Shop:
                         ui.push_prompt("Oh, not interested, huh?")
                 return purchase_choice
 
+'''
+AI a.k.a. artificial intelligence for DM gameplay.
+IN
+  N/A
+OUT
+- ai (object)
+'''
 class AI:
         "Artificial intelligence for enemy activities."
         def __init__(self):
