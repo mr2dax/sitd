@@ -1846,7 +1846,7 @@ class MonsterManual:
         def __init__(self):
                 # monster index {
                 #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, multiattack?, # of attacks],
-                #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, add dmg type, add dmg die, add die cnt], [attack 2 ...]],
+                #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, dc type, save type, add dmg type, add dmg die, add die cnt, status ailment, obtain DC, escape DC], [attack 2 ...]],
                 #       skills: [athletics, acrobatics, perception, investigation, stealth, persuasion],
                 #       saving throw modifiers: [str, dex, con, int, wis, cha],
                 #       damage resistances/immunities/vulnerabilities: [[dmg type 1, degree], [dmg type 2, degree]],
@@ -1854,7 +1854,7 @@ class MonsterManual:
                 self.monsters = {
                         1: {
                                 "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, False, 1],
-                                "attacks": [["Pseudopod", "b", 6, 1, 0, "a", 6, 2]],
+                                "attacks": [["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
@@ -1862,11 +1862,51 @@ class MonsterManual:
                                 },
                         2: {
                                 "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 8, 1, False, 1],
-                                "attacks": [["Slime Attack", "b", 4, 1, 10, "a", 10, 1]],
+                                "attacks": [["Slime Attack", "b", 4, 1, 10, "dex", 0, "a", 10, 1, "-", 0, 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
                                 "condimm": ["blinded", "charmed", "deafened", "exhaustion", "frightened", "prone"]
+                                },
+                        3: {
+                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 5, False, 1],
+                                "attacks": [["Tongue", "s", 6, 1, 0, "-", 0, "a", 8, 1, "-", 0, 0]],
+                                "skills": [0, 0, 0, 0, 0, 0],
+                                "stmods": [0, 0, 0, 0, 0, 0],
+                                "dmgres": [],
+                                "condimm": []
+                                },
+                        4: {
+                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, False, 1],
+                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r/worm", 0, 12]],
+                                "skills": [0, 0, 0, 0, 0, 0],
+                                "stmods": [0, 0, 0, 0, 2, 0],
+                                "dmgres": [],
+                                "condimm": []
+                                },
+                        5: {
+                                "attrs": ["Ape", 16, 14, 14, 6, 12, 7, 8, 3, True, 2],
+                                "attacks": [["Fist", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, 0], ["Rock", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, 0]],
+                                "skills": [2, 0, 2, 0, 0, 0],
+                                "stmods": [0, 0, 0, 0, 2, 0],
+                                "dmgres": [],
+                                "condimm": []
+                                },
+                        6: {
+                                "attrs": ["Giant Wasp", 10, 14, 10, 1, 10, 3, 8, 3, False, 1],
+                                "attacks": [["Sting", "p", 6, 1, 11, "con", 0.5, "v", 0, 0, "p", 0, 0]],
+                                "skills": [0, 0, 0, 0, 0, 0],
+                                "stmods": [0, 0, 0, 0, 0, 0],
+                                "dmgres": [],
+                                "condimm": []
+                                },
+                        7: {
+                                "attrs": ["Giant Bat", 15, 16, 11, 2, 12, 6, 10, 4, False, 1],
+                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, 0]],
+                                "skills": [0, 0, 0, 0, 0, 0],
+                                "stmods": [0, 0, 0, 0, 0, 0],
+                                "dmgres": [],
+                                "condimm": []
                                 }
                         }
 
@@ -2201,16 +2241,16 @@ def act(attacker, act_choice, battle, all_items, ui):
                         else:
                                 action = ai.choose(attacker, attacker.actions.keys(), 2)
                         # attack action
-                        roll_mod = 0
                         if action in attacker.actions and action == 1:
-                                targets = battle.get_targets(attacker)
-                                if len(targets) != 0:
-                                        defender = target_selector(attacker, battle, targets, ui)
-                                        roll_mod = get_adv_disadv(attacker, defender, ui)
-                                        for _ in range(attacker.attacks):
+                                for _ in range(attacker.attacks):
+                                        roll_mod = 0
+                                        targets = battle.get_targets(attacker)
+                                        if len(targets) != 0:
+                                                defender = target_selector(attacker, battle, targets, ui)
+                                                roll_mod = get_adv_disadv(attacker, defender, ui)
                                                 attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
-                                else:
-                                        ui.push_prompt("Noone to attack.")
+                                        else:
+                                                ui.push_prompt("Noone to attack.")
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
                         # dodge action
@@ -2948,7 +2988,7 @@ allies = chars
 encounters = 10
 monsters = [1, 2]
 dungeon = Dungeon(encounters, allies, monsters, ui)
-enemy_cnt = len(allies)
+enemy_cnt = math.ceil(len(allies) * 1.5)
 enemies = init_enemies(all_items, all_monsters, dungeon, enemy_cnt)
 for enc in range(dungeon.enc_cnt):
         battle = dungeon.start_battle(enc, allies, enemies, ui)
@@ -2981,4 +3021,4 @@ main_window.mainloop()
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: after every 2nd battle pcs level up, get loot from opposing team
-#TODO: front-back positioning, net restrain, whip pull, push/pull mechanic
+#TODO: 4-lane battle formation/2-lane marching order, net restrain, whip pull, push/pull, move mechanic
