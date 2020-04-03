@@ -363,6 +363,9 @@ class GUI:
                         4: "+2 INT",
                         5: "+2 DEX",
                         6: "+2 STR +1 CON",
+                        7: "+2 STR +1 CHA",
+                        8: "+2 CHA +1 INT",
+                        9: "+2 DEX +1 WIS",
                         11: "N/A",
                         21: "+1 CHA",
                         22: "+1 CON",
@@ -376,7 +379,10 @@ class GUI:
                         51: "+1 INT",
                         52: "+1 WIS",
                         53: "+1 CHA",
-                        61: "N/A"
+                        61: "N/A",
+                        71: "N/A",
+                        81: "N/A",
+                        91: "N/A",
                         }
                 stats = races[race]
                 return stats

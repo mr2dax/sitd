@@ -8,7 +8,7 @@ import time
 
 # Classes
 '''
-General character prototype, don't use
+General character prototype, don't instantiate
 IN
 - name (string)
 - strength (int)
@@ -21,13 +21,12 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - character (object)
 '''
 class Character:
         "Character creation."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
                 self.str = str
                 self.dex = dex
                 self.con = con
@@ -36,7 +35,7 @@ class Character:
                 self.cha = cha
                 self.starting_lvl = starting_lvl
                 self.player_id = random_str(10)
-                self.inv = Inventory(self.player_id, ui)
+                self.inv = Inventory(self.player_id)
                 self.level = 1
                 self.npc = npc
                 self.race = race
@@ -77,6 +76,17 @@ class Character:
                 self.dmg_die_cnt_off = 1
                 self.dmg_die_type_off = "b"
                 self.ench_off = 0
+                self.extra_dmg = False
+                self.extra_dmg_dc = 0
+                self.extra_dmg_dc_type = ""
+                self.extra_dmg_save_type = ""
+                self.extra_dmg_die = 0
+                self.extra_dmg_cnt = 0
+                self.extra_dmg_die_type = ""
+                self.extra_condition = ""
+                self.extra_condition_dc = 0
+                self.extra_condition_dc_type = ""
+                self.extra_condition_escape_dc = 0
                 self.ac = 10 + self.dex_mod
                 self.init_mod = self.dex_mod
                 self.max_hp = 0
@@ -130,27 +140,90 @@ class Character:
                 self.reaction_cnt = 1
                 self.reactions = {}
                 self.turn_done = False
-                self.conditions = {
-                        "flee": False,
-                        "down": False,
-                        "dead": False,
-                        "dodge": False,
-                        "prone": False,
-                        "grappled": False,
-                        "helped": False,
-                        "blinded": False,
-                        "deafened": False,
-                        "charmed": False,
-                        "exhaustion": False,
-                        "frightened": False
+                # abbreviation: degree (-1 -> vulnerability, 0 -> none, 1 -> resistance, 2 -> immune)
+                self.resistances = {
+                        "s": 1, # slashing
+                        "ms": 1, # magical slashing
+                        "b": 1, # bludgeoning
+                        "mb": 1, # magical bludgeoning
+                        "p": 1, # piercing
+                        "mp": 1, # magical piercing
+                        "f": 1, # fire
+                        "c": 1, # cold
+                        "l": 1, # lightning
+                        "t": 1, # thunder
+                        "a": 1, # acid
+                        "v": 1, # poison
+                        "n": 1, # necrotic
+                        "r": 1, # radiant
+                        "m": 1, # psychic
+                        "d": 1 # force
                         }
+                # condition: [affected, immune]
+                self.conditions = {
+                        "flee": [False, False],
+                        "down": [False, False],
+                        "dead": [False, False],
+                        "dodge": [False, False],
+                        "prone": [False, False],
+                        "grappled": [False, False],
+                        "helped": [False, False],
+                        "blinded": [False, False],
+                        "deafened": [False, False],
+                        "charmed": [False, False],
+                        "fatigued": [False, False],
+                        "frightened": [False, False],
+                        "poisoned": [False, False],
+                        "stunned": [False, False],
+                        "paralyzed": [False, False],
+                        "restrained": [False, False],
+                        "incapacitated": [False, False],
+                        "invisible": [False, False],
+                        "petrified": [False, False],
+                        "unconscious": [False, False]
+                        }
+                self.exhaustion = 0
                 self.grappled_by = ""
                 self.grappling = ""
                 self.helpee = ""
                 if self.starting_lvl > 2:
-                        self.level_up(self.starting_lvl - 1, ui)
-        def battle_menu(self, ui):
-                if self.conditions["down"] or self.conditions["dead"]:
+                        self.level_up(self.starting_lvl - 1)
+        '''
+        Calculate resistances
+        IN
+        - resistance type (string)
+        - resistance degree (int)
+        OUT
+          N/A
+        '''
+        def calc_resist(self, res_type, res):
+                # vulnerability cancels out resistance and breaks immunity, but vulnerabilities from multiple sources don't stack
+                if res == 1.5:
+                        if self.resistances[res_type] != 1.5:
+                                self.resistances[res_type] += 0.5
+                # set back to normal
+                elif res == 1:
+                        self.resistances[res_type] = 1
+                # resistance cancels out vulnerability, but resistances from multiple sources don't stack and don't accumulate to immunity
+                elif res == 0.5:
+                        if self.resistances[res_type] >= 1:
+                                self.resistances[res_type] -= 0.5
+                # immunity turns vulnerability to resistance, otherwise get immunity
+                elif res == 0:
+                        if self.resistances[res_type] != 1.5:
+                                self.resistances[res_type] = 0
+                        else:
+                                self.resistances[res_type] = 0.5
+
+        '''
+        Construct in-battle menu
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def battle_menu(self):
+                if self.conditions["down"][0] or self.conditions["dead"][0]:
                         act_choice = 4
                 else:
                         if not self.npc:
@@ -199,10 +272,10 @@ class Character:
                 self.specials = {
                         0: "back" # back to main (battle) menu 
                         }
-        def deaths_door(self, ui):
-                death_st = roll_dice(20, 0, 0, ui)
+        def deaths_door(self):
+                death_st = roll_dice(20, 0, 0)
                 if death_st[1] == 1:
-                        self.conditions["down"] = False
+                        self.conditions["down"][0] = False
                         self.hp = 1
                         self.death_st_success = 0
                         self.death_st_fail = 0
@@ -219,7 +292,7 @@ class Character:
                                 self.death_st_success += 1
                 ui.push_prompt(self.name + " - Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
                 if self.death_st_fail > 2:
-                        self.conditions["dead"] = True
+                        self.conditions["dead"][0] = True
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt(self.name + " just died. RIP")
@@ -228,11 +301,11 @@ class Character:
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt(self.name + " has stabilized.")
-        def receive_healing(self, healer, heal_amount, ui):
+        def receive_healing(self, healer, heal_amount):
                 current_hp = self.hp
                 if self.hp < 0:
                         self.hp = 0
-                        self.conditions["down"] = False
+                        self.conditions["down"][0] = False
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt(self.name + " is back up!")
@@ -270,7 +343,7 @@ class Character:
                         skill_names[2].capitalize() + ": {0:+}".format(self.skills["perception"][0] + self.skills["perception"][1]) + " (%s,%s)" % (self.skills["perception"][2], self.skills["perception"][3]),
                         skill_names[5].capitalize() + ": {0:+}".format(self.skills["persuasion"][0] + self.skills["persuasion"][1]) + " (%s,%s)" % (self.skills["persuasion"][2], self.skills["persuasion"][3]))
                 skills = "Skills (adv,disadv)\n%s\n%s\n%s\n%s\n%s\n%s" % skills_tup
-                cond_list = [" " +  key for key, value in self.conditions.items() if value]
+                cond_list = [" " +  key for key, value in self.conditions.items() if value[0]]
                 conditions = "Conditions:"
                 for cond in cond_list:
                         conditions += cond
@@ -308,13 +381,7 @@ class Character:
                         combat += "To hit: " + "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_dmg_mod) + self.ench_main)
                 else:
                         combat += "To hit: " + "{0:+}".format(self.main_str_att_mod + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_str_dmg_mod + self.ench_main)
-                if self.dmg_die_type_main == "b":
-                        combat += " (bludgeoning)"
-                elif self.dmg_die_type_main == "s":
-                        combat += " (slashing)"
-                elif self.dmg_die_type_main == "p":
-                        combat += " (piercing)"
-                combat += "\nOff Hand:\n"
+                combat += " (%s)\nOff Hand:\n" % (get_dmg_type(self.dmg_die_type_main))
                 if not self.bonus_attack:
                         combat += "-"
                 else:
@@ -322,12 +389,7 @@ class Character:
                                 combat += "To hit: " + "{0:+}".format(max(self.off_dex_att_mod, self.off_str_att_mod) + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(max(self.off_dex_dmg_mod, self.off_str_dmg_mod) + self.ench_off)
                         else:
                                 combat += "To hit: " + "{0:+}".format(self.off_str_att_mod + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(self.off_str_dmg_mod + self.ench_off)
-                        if self.dmg_die_type_off == "b":
-                                combat += " (bludgeoning)"
-                        elif self.dmg_die_type_off == "s":
-                                combat += " (slashing)"
-                        elif self.dmg_die_type_off == "p":
-                                combat += " (piercing)"
+                        combat += " (%s)" % (get_dmg_type(self.dmg_die_type_off))
                 equipped = "Equipped\nMain Hand: " + self.eq_weapon_main + "\nOff Hand: " + self.eq_weapon_offhand + "\nArmor: " + self.eq_armor
                 inventory = "Inventory\n"
                 inventory += "Gold: " + str(self.gold) + " GP\nCarry weight: " + str(self.carry) + "/" + str(self.max_carry) + " lbs.\n"
@@ -347,17 +409,17 @@ class Character:
                 death_saves = "Death Saves\nFails: " + str(self.death_st_fail) + "\nSuccesses: " + str(self.death_st_success)
                 return abilities, scores, mods, sts, conditions, combat, equipped, inventory, specials, death_saves, skills
         # reset conditions that would have ended since last turn (until the start of its next turn effects)
-        def reset_until_start_of_next_turn(self, ui):
-                if self.conditions["prone"] and not self.conditions["grappled"]:
-                        self.conditions["prone"] = False
+        def reset_until_start_of_next_turn(self):
+                if self.conditions["prone"][0] and not self.conditions["grappled"][0]:
+                        self.conditions["prone"][0] = False
                         ui.push_prompt(self.name + " stood up.")
                         if 3 not in self.actions:
                                 self.actions[3] = "disengage"
-                if self.conditions["dodge"]:
-                        self.conditions["dodge"] = False
+                if self.conditions["dodge"][0]:
+                        self.conditions["dodge"][0] = False
                         ui.push_prompt("Dodge ended.")
-                if self.conditions["flee"]:
-                        self.conditions["flee"] = False
+                if self.conditions["flee"][0]:
+                        self.conditions["flee"][0] = False
                         ui.push_prompt(self.name + " couldn't run away.")
                 if self.helpee != "":
                         stop_help(self.helpee)
@@ -376,11 +438,11 @@ class Character:
                         self.did_attack = False
                 if self.char_class == 4:
                         self.sneak_attack = True
-        def reset_until_end_of_current_turn(self, all_items, ui):
+        def reset_until_end_of_current_turn(self, all_items):
                 if self.char_class == 3:
                         if self.raging and (not self.got_attacked and not self.did_attack):
-                                self.rage_off(all_items, ui)
-        def gen_starting_gold(self, char_class, ui):
+                                self.rage_off(all_items)
+        def gen_starting_gold(self, char_class):
                 gold_die = {
                         1: 5,
                         2: 5,
@@ -390,14 +452,14 @@ class Character:
                         6: 5
                         }
                 for _ in range(gold_die[char_class]):
-                        self.gold += roll_dice(4, 0, 0, ui)[0]
+                        self.gold += roll_dice(4, 0, 0)[0]
                 if char_class != 2:
                         self.gold *= 10
                 ui.update_status()
-        def gen_starting_equipment(self, all_items, ui):
-                starting_shop = Shop(all_items, ui)
-                starting_shop.shopping_flow(self, ui)
-        def gen_class(self, class_choice, ui):
+        def gen_starting_equipment(self, all_items):
+                starting_shop = Shop(all_items)
+                starting_shop.shopping_flow(self)
+        def gen_class(self, class_choice):
                 if class_choice == 1:
                         self.char_class = 1
                         self.hd = 10
@@ -409,7 +471,7 @@ class Character:
                         self.skills["acrobatics"][0] += self.prof_bonus
                         self.saving_throws["str"][0] += self.prof_bonus
                         self.saving_throws["con"][0] += self.prof_bonus
-                        self.gen_fighting_style(self.inv, ui)
+                        self.gen_fighting_style(self.inv)
                 elif class_choice == 2:
                         self.char_class = 2
                         self.hd = 10
@@ -462,7 +524,7 @@ class Character:
                         self.saving_throws["str"][0] += self.prof_bonus
                         self.saving_throws["dex"][0] += self.prof_bonus
                 ui.update_status()
-        def gen_fighting_style(self, inv, ui):
+        def gen_fighting_style(self, inv):
                 styles = {
                         1: "defense",
                         2: "great weapon fighting",
@@ -505,7 +567,7 @@ class Character:
                                 self.fighting_style = 4
                         elif style_choice == 5:
                                 self.fighting_style = 5
-        def equip(self, eq_uneq, item, type, item_list, all_items, everything, all_melee_weapons, all_ranged_weapons, ui):
+        def equip(self, eq_uneq, item, type, item_list, all_items, everything, all_melee_weapons, all_ranged_weapons):
                 # stats for currently equipped armor, shield and/or weapon
                 curr_armor_ac = 0
                 curr_armor_ench = 0
@@ -652,25 +714,34 @@ class Character:
                                 armor_ench = item_list[item][2]
                                 str_req = item_list[item][3]
                                 armor_type = item_list[item][4]
-                                # light armor: unlimited +/- DEX bonus
+                                stealth_disadv = item_list[item][5]
+                                # light armor: unlimited +/- DEX bonus, disadv on stealth for padded
                                 if armor_type == 0:
                                         self.eq_armor = item
                                         self.ac = armor_class + self.dex_mod + armor_ench + curr_shield_ac + curr_shield_ench
-                                # medium armor: +2 max / unlimited negative DEX bonus
+                                        if stealth_disadv:
+                                                self.skills["stealth"][3] = True
+                                # medium armor: +2 max / unlimited negative DEX bonus, disadv on stealth for scale mail and half plate
                                 elif armor_type == 1:
                                         self.eq_armor = item
                                         if self.dex_mod <= 2:
                                                 self.ac = armor_class + self.dex_mod + armor_ench + curr_shield_ac + curr_shield_ench
                                         else:
                                                 self.ac = armor_class + 2 + armor_ench + curr_shield_ac + curr_shield_ench
-                                # heavy armor: no +/- DEX bonus
+                                        if stealth_disadv:
+                                                self.skills["stealth"][3] = True
+                                # heavy armor: no +/- DEX bonus, disadv on stealth
                                 elif armor_type == 2:
                                         if item not in ["chain mail", "splint", "plate"]:
                                                 self.eq_armor = item
                                                 self.ac = armor_class + armor_ench + curr_shield_ac + curr_shield_ench
+                                                if stealth_disadv:
+                                                        self.skills["stealth"][3] = True
                                         elif (item == "chain mail" and self.str >= str_req) or (item in ["splint", "plate"] and self.str >= str_req):
                                                 self.eq_armor = item
                                                 self.ac = armor_class + armor_ench + curr_shield_ac + curr_shield_ench
+                                                if stealth_disadv:
+                                                        self.skills["stealth"][3] = True
                                         else:
                                                 ui.push_prompt("Not strong enough to don a " + item + ".")
                                 # shield: + cumulative AC
@@ -989,6 +1060,7 @@ class Character:
                                         self.off_dex_dmg_mod = self.dex_mod
                         # armor or shield
                         elif type == 3:
+                                stealth_disadv = item_list[item][5]
                                 if item in all_items.armors:
                                         self.eq_armor = "unarmored"
                                         self.ac = 10 + self.dex_mod
@@ -1000,6 +1072,8 @@ class Character:
                                 for st in self.saving_throws.keys():
                                         self.saving_throws[st][3] = False
                                 self.attack_disadv = False
+                                if stealth_disadv:
+                                        self.skills["stealth"][3] = False
                         else:
                                 ui.push_prompt("Unequip failed.")
                         # class specific adjustments
@@ -1057,12 +1131,12 @@ class Character:
                         # ranger
                         elif self.char_class == 6:
                                 pass
-        def level_up(self, levels, ui):
+        def level_up(self, levels):
                 for lvl in levels:
                         self.level = 1 + lvl
                         self.hd_cnt += 1 + lvl
                         self.hd_max += 1 + lvl
-                        rolled_hp = roll_dice(self.hd, self.con_mod, 0, ui)[0]
+                        rolled_hp = roll_dice(self.hd, self.con_mod, 0)[0]
                         self.max_hp += rolled_hp
                         self.hp += rolled_hp
                         if self.level == 2:
@@ -1080,9 +1154,9 @@ class Character:
                                         self.divine_smite = [2, 0, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
-                                        self.gen_fighting_style(self.inv, ui)
+                                        self.gen_fighting_style(self.inv)
                                 if self.char_class == 6:
-                                        self.gen_fighting_style(self.inv, ui)
+                                        self.gen_fighting_style(self.inv)
                         if self.level == 3:
                                 if self.char_class == 1:
                                         pass
@@ -1151,7 +1225,10 @@ class Character:
                         3: "dwarf",
                         4: "gnome",
                         5: "elf",
-                        6: "half-orc"
+                        6: "half-orc",
+                        7: "dragonborn",
+                        8: "tiefling",
+                        9: "aarakocra"
                         }
                 return races[self.race]
         def get_char_subrace(self):
@@ -1169,7 +1246,10 @@ class Character:
                         51: "high elf",
                         52: "wood elf",
                         53: "drow",
-                        61: "vanilla"
+                        61: "vanilla",
+                        71: "vanilla",
+                        81: "vanilla",
+                        91: "vanilla"
                         }
                 return subraces[self.subrace]
         def get_fighting_style(self):
@@ -1197,14 +1277,13 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - fighter (object)
 '''
 class Fighter(Character):
         "Child for fighter class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 1
                 self.second_wind = True
                 self.second_wind_cnt = 1
@@ -1225,14 +1304,13 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - monk (object)
 '''
 class Monk(Character):
         "Child for monk class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 2
                 self.dmg_die_main = 4
                 self.dmg_die_cnt_main = 1
@@ -1267,14 +1345,13 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - barbarian (object)
 '''
 class Barbarian(Character):
         "Child for barbarian class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 3
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
@@ -1287,7 +1364,7 @@ class Barbarian(Character):
                         self.ac = 10 + self.dex_mod + self.con_mod
                 else:
                         self.ac = 10 + self.dex_mod
-        def rage_on(self, all_items, ui):
+        def rage_on(self, all_items):
                 if self.eq_armor == "unarmored":
                         armor_type = 0
                 else:
@@ -1299,9 +1376,15 @@ class Barbarian(Character):
                         self.saving_throws["str"][2] = True
                         self.main_str_dmg_mod += self.rage_mod
                         self.off_str_dmg_mod += self.rage_mod
+                        self.calc_resist("s", 0.5)
+                        self.calc_resist("ms", 0.5)
+                        self.calc_resist("b", 0.5)
+                        self.calc_resist("mb", 0.5)
+                        self.calc_resist("p", 0.5)
+                        self.calc_resist("mp", 0.5)
                         self.bonus_actions.pop(3)
                         self.bonus_actions[3] = "end rage"
-                        ui.push_prompt( self.name + " would like to rage.")
+                        ui.push_prompt(self.name + " would like to rage.")
                 elif armor_type == 2 and self.rage_cnt > 0:
                         self.raging = True
                         self.rage_cnt -= 1
@@ -1310,7 +1393,7 @@ class Barbarian(Character):
                         ui.push_prompt("Warning: raging in heavy armor.")
                 else:
                         ui.push_prompt("No rages left.")
-        def rage_off(self, all_items, ui):
+        def rage_off(self, all_items):
                 if self.eq_armor == "unarmored":
                         armor_type = 0
                 else:
@@ -1320,6 +1403,12 @@ class Barbarian(Character):
                         self.saving_throws["str"][2] = False
                         self.main_str_dmg_mod -= self.rage_mod
                         self.off_str_dmg_mod -= self.rage_mod
+                        self.calc_resist("s", 1)
+                        self.calc_resist("ms", 1)
+                        self.calc_resist("b", 1)
+                        self.calc_resist("mb", 1)
+                        self.calc_resist("p", 1)
+                        self.calc_resist("mp", 1)
                 self.raging = False
                 if self.rage_cnt > 0:
                         self.bonus_actions.pop(3)
@@ -1342,14 +1431,13 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - rogue (object)
 '''
 class Rogue(Character):
         "Child for rogue class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 4
                 self.sneak_damage = []
                 self.sneak_attack = False
@@ -1368,14 +1456,13 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - paladin (object)
 '''
 class Paladin(Character):
         "Child for paladin class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 5
                 self.lay_on_hands = True
                 self.lay_on_hands_pool_max = 5
@@ -1398,14 +1485,13 @@ IN
 - race (int)
 - subrace (int)
 - npc (bool)
-- ui (object)
 OUT
 - ranger (object)
 '''
 class Ranger(Character):
         "Child for ranger class."
-        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui):
-                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc, ui)
+        def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
+                super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 6
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
@@ -1414,14 +1500,13 @@ class Ranger(Character):
 Monster (Character child)
 IN
 - monster (dict)
-- ui (object)
 OUT
 - monster (object)
 '''
 class Monster(Character):
         "Child for monsters."
-        def __init__(self, monster, ui):
-                super(Monster, self).__init__(monster["attrs"][0], monster["attrs"][1], monster["attrs"][2], monster["attrs"][3], monster["attrs"][4], monster["attrs"][5], monster["attrs"][6], 1, 0, 0, True, ui)
+        def __init__(self, monster):
+                super(Monster, self).__init__(monster["attrs"][0], monster["attrs"][1], monster["attrs"][2], monster["attrs"][3], monster["attrs"][4], monster["attrs"][5], monster["attrs"][6], 1, 0, 0, True)
                 self.str = monster["attrs"][1]
                 self.dex = monster["attrs"][2]
                 self.con = monster["attrs"][3]
@@ -1432,21 +1517,38 @@ class Monster(Character):
                 self.hd_cnt = monster["attrs"][8]
                 self.hd = monster["attrs"][7]
                 self.prof_bonus = 2
-                self.attacks = monster["attrs"][10]
-                self.multiattack = monster["attrs"][9]
+                self.attacks = monster["attrs"][9]
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
                 self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                 if self.attacks < 2:
+                        self.eq_weapon_main = monster["attacks"][0][0]
+                        self.eq_weapon_main_finesse = True
                         self.dmg_die_main = monster["attacks"][0][2]
                         self.dmg_die_cnt_main = monster["attacks"][0][3]
                         self.dmg_die_type_main = monster["attacks"][0][1]
                         self.ench_main = 0
+                        #     0               1       2          3            4          5        6           7             8           9              10            11          12             13
+                        #[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, dc type, save type, add dmg type, add dmg die, add die cnt, status ailment, obtain DC, obtain dc type, escape DC]
+                        #["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, "-", 0]
+                        if monster["attacks"][0][7] != "-":
+                                self.extra_dmg = True
+                                self.extra_dmg_dc = monster["attacks"][0][4]
+                                self.extra_dmg_dc_type = monster["attacks"][0][5]
+                                self.extra_dmg_save_type = monster["attacks"][0][6]
+                                self.extra_dmg_die = monster["attacks"][0][8]
+                                self.extra_dmg_cnt = monster["attacks"][0][9]
+                                self.extra_dmg_die_type = monster["attacks"][0][7]
+                        if monster["attacks"][0][10] != "-":
+                                self.extra_condition = monster["attacks"][0][10]
+                                self.extra_condition_dc = monster["attacks"][0][11]
+                                self.extra_condition_dc_type = monster["attacks"][0][12]
+                                self.extra_condition_escape_dc = monster["attacks"][0][13]
                 else:
                         pass
                 self.max_hp = 0
                 for _ in range(self.hd_cnt):
-                        self.max_hp += roll_dice(self.hd, self.con_mod, 0, ui)[0]
+                        self.max_hp += roll_dice(self.hd, self.con_mod, 0)[0]
                 self.hp = max(1, self.max_hp)
                 self.max_hp = max(1, self.hp)
                 # save: [mod, bonus, adv, disadv]
@@ -1467,22 +1569,22 @@ class Monster(Character):
                         "stealth": [self.dex_mod, monster["skills"][4], False, False],
                         "persuasion": [self.cha_mod, monster["skills"][5], False, False]
                 }
-                if self.attacks < 2:
-                        self.eq_weapon_main = monster["attacks"][0][0]
-                        self.eq_weapon_main_finesse = True
                 self.name = monster["attrs"][0]
+                for dmgres in monster["dmgres"]:
+                        self.resistances[dmgres[0]] = dmgres[1]
+                for condimm in monster["condimm"]:
+                        self.conditions[condimm][1] = True
 
 '''
 Inventory for PCs/NPCs
 IN
 - owner (string)
-- ui (object)
 OUT
 - inventory (object)
 '''
 class Inventory:
         "Inventory creation."
-        def __init__(self, owner, ui):
+        def __init__(self, owner):
                 # player id
                 self.owner = owner
                 # name: type, quantity
@@ -1512,19 +1614,18 @@ IN
 - encounter count (int)
 - PCs (list)
 - available monsters (list)
-- ui (object)
 OUT
 - dungeon (object)
 '''
 class Dungeon:
         "Dungeon creation."
-        def __init__(self, enc_cnt, pc_list, avail_monsters, ui):
+        def __init__(self, enc_cnt, pc_list, avail_monsters):
                 self.enc_cnt = enc_cnt
                 self.pc_list = pc_list
                 self.short_rest_cnt = 1
                 self.long_rest_cnt = 2
                 self.avail_monsters = avail_monsters
-        def get_respite_options(self, ui):
+        def get_respite_options(self):
                 respite_options = {
                         0: "Pass",
                         1: "Short rest",
@@ -1537,37 +1638,37 @@ class Dungeon:
                 ui.push_message("Out of initiative order. What would you like to do?")
                 rest = int(ui.get_dict_choice_input(respite_options))
                 if rest == 1 and rest in respite_options:
-                        self.short_rest(ui)
+                        self.short_rest()
                 elif rest == 2 and rest in respite_options:
                         self.long_rest()
-        def short_rest(self, ui):
+        def short_rest(self):
                 for pc in self.pc_list:
-                        if not pc.conditions["dead"] and pc.conditions["down"]:
-                                wake_up = roll_dice(4, 0, 0, ui)[0]
+                        if not pc.conditions["dead"][0] and pc.conditions["down"][0]:
+                                wake_up = roll_dice(4, 0, 0)[0]
                                 if wake_up == 1:
-                                        pc.conditions["down"] = False
-                        if pc.hp < pc.max_hp and not pc.conditions["dead"] and not pc.conditions["down"]:
+                                        pc.conditions["down"][0] = False
+                        if pc.hp < pc.max_hp and not pc.conditions["dead"][0] and not pc.conditions["down"][0]:
                                 while pc.hp < pc.max_hp and pc.hd_cnt != 0:
-                                        pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0, ui), pc.max_hp)
-                        if not pc.conditions["dead"] and not pc.conditions["down"] and pc.second_wind:
+                                        pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0), pc.max_hp)
+                        if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.second_wind:
                                 pc.second_wind_cnt = 1
                 self.short_rest_cnt = 0
         def long_rest(self):
                 for pc in self.pc_list:
-                        if not pc.conditions["dead"]:
+                        if not pc.conditions["dead"][0]:
                                 pc.hp = pc.max_hp
                                 pc.hd_cnt = max(math.floor(pc.level / 2), 1)
-                                pc.conditions["down"] = False
-                        if not pc.conditions["dead"] and pc.second_wind:
+                                pc.conditions["down"][0] = False
+                        if not pc.conditions["dead"][0] and pc.second_wind:
                                 pc.second_wind_cnt = 1
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
-        def end_dungeon(self, ui):
+        def end_dungeon(self):
                 ui.push_prompt("GG")
                 quit()
-        def start_battle(self, enc, allies, enemies, ui):
+        def start_battle(self, enc, allies, enemies):
                 ui.push_battle_info("Battle #" + str(enc + 1))
-                battle = Battle(allies, enemies, ui)
+                battle = Battle(allies, enemies)
                 return battle
 
 '''
@@ -1575,13 +1676,12 @@ Battle
 IN
 - allies (list)
 - enemies (list)
-- ui (object)
 OUT
 - battle (object)
 '''
 class Battle:
         "Battle creation."
-        def __init__(self, allies, enemies, ui):
+        def __init__(self, allies, enemies):
                 self.allies = allies
                 self.enemies = enemies
                 self.init_order = []
@@ -1594,41 +1694,41 @@ class Battle:
                 self.pcs_won = False
                 self.pcs_fled = False
                 self.foes_fled = False
-        def initiative(self, ui):
+        def initiative(self):
                 for ally in self.allies:
-                        if not ally.conditions["dead"] or not ally.conditions["down"]:
-                                init_roll = roll_dice(20, ally.init_mod, 0, ui)
+                        if not ally.conditions["dead"][0] or not ally.conditions["down"][0]:
+                                init_roll = roll_dice(20, ally.init_mod, 0)
                                 self.init_order.append([init_roll[0], ally.init_mod, ally.name, ally])
                 for enemy in self.enemies:
-                        init_roll = roll_dice(20, enemy.init_mod, 0, ui)
+                        init_roll = roll_dice(20, enemy.init_mod, 0)
                         self.init_order.append([init_roll[0], enemy.init_mod, enemy.name, enemy])
                 self.init_order.append([-100, 0 ,"Round End", ""])
                 self.init_order.sort(reverse = True)
                 self.build_participants()
                 self.build_id_list()
-                self.get_hp_init_board(ui)
+                self.get_hp_init_board()
         def build_participants(self):
                 for a in self.allies:
-                        if not a.conditions["dead"] or not a.conditions["down"]:
+                        if not a.conditions["dead"][0] or not a.conditions["down"][0]:
                                 self.participants[a.name] = a
                 for e in self.enemies:
                         self.participants[e.name] = e
         def build_id_list(self):
                 for a in self.allies:
-                        if not a.conditions["dead"] or not a.conditions["down"]:
+                        if not a.conditions["dead"][0] or not a.conditions["down"][0]:
                                 self.id_list[a.player_id] = a
                 for e in self.enemies:
                         self.id_list[e.player_id] = e
-        def get_first_init(self, ui):
+        def get_first_init(self):
                 self.round += 1
                 ui.update_round_info("Round " + str(self.round))
                 return self.init_order[0][3]
         def get_next_init(self):
                 return self.init_order[self.next_init][3]
-        def get_current_init(self, ui):
+        def get_current_init(self):
                 ui.update_turn_info(self.init_order[self.current_init][2] + "'s turn")
                 return self.init_order[self.current_init][3]
-        def set_next_init(self, ui):
+        def set_next_init(self):
                 if self.init_order[self.current_init + 1][0] == -100:
                         self.current_init = 0
                         self.next_init = 1
@@ -1641,14 +1741,14 @@ class Battle:
                 if attacker in self.allies:
                         enemies_dict = {}
                         for e in self.enemies:
-                                if not e.conditions["down"]:
+                                if not e.conditions["down"][0]:
                                         enemies_dict[i] = e.name
                                 i += 1
                         return enemies_dict
                 elif attacker in self.enemies:
                         allies_dict = {}
                         for a in self.allies:
-                                if not a.conditions["down"]:
+                                if not a.conditions["down"][0]:
                                         allies_dict[i] = a.name
                                 i += 1
                         return allies_dict
@@ -1657,7 +1757,7 @@ class Battle:
                 if attacker in self.enemies:
                         enemies_dict = {}
                         for e in self.enemies:
-                                if not e.conditions["dead"]:
+                                if not e.conditions["dead"][0]:
                                         enemies_dict[i] = e.name
                                 if attacker.name == e.name and self_target == 0:
                                         enemies_dict.pop(i)
@@ -1666,7 +1766,7 @@ class Battle:
                 elif attacker in self.allies:
                         allies_dict = {}
                         for a in self.allies:
-                                if not a.conditions["dead"]:
+                                if not a.conditions["dead"][0]:
                                         allies_dict[i] = a.name
                                 if attacker.name == a.name and self_target == 0:
                                         allies_dict.pop(i)
@@ -1679,7 +1779,7 @@ class Battle:
         def get_char_hp_by_name(self, name):
                 char = self.participants[name]
                 return char.hp, char.max_hp
-        def get_hp_init_board(self, ui):
+        def get_hp_init_board(self):
                 hp_init_board = []
                 for i in range(len(self.participants)):
                         hp_init_board.append([self.init_order[i][0], self.init_order[i][2]])
@@ -1689,7 +1789,7 @@ class Battle:
                         self.round_end = True
                 if self.init_order[self.current_init - 1][0] == -100:
                         self.round_end = False
-        def end(self, ui):
+        def end(self):
                 ui.push_message("Duel has ended. *jingle*\n")
                 if self.pcs_fled:
                         ui.push_message(self.allies[0].name + "'s team fled from combat.")
@@ -1700,7 +1800,7 @@ class Battle:
                         loser_team = []
                         everyone = self.allies + self.enemies
                         for eo in everyone:
-                                if eo.conditions["dead"] or eo.conditions["down"]:
+                                if eo.conditions["dead"][0] or eo.conditions["down"][0]:
                                         loser_team.append(eo)
                                         eo.death_st_success = 0
                                         eo.death_st_fail = 0
@@ -1726,15 +1826,15 @@ class Battle:
                 enemies_fled = 0
                 for a in self.allies:
                         allies_cnt += 1
-                        if a.conditions["down"]:
+                        if a.conditions["down"][0]:
                                 allies_down += 1
-                        if a.conditions["flee"] and not a.conditions in ["grappled", "prone"]:
+                        if a.conditions["flee"][0] and not a.conditions["grappled"][0] and not a.conditions["prone"][0]:
                                 allies_fled += 1
                 for e in self.enemies:
                         enemies_cnt += 1
-                        if e.conditions["down"]:
+                        if e.conditions["down"][0]:
                                 enemies_down += 1
-                        if e.conditions["flee"] and not e.conditions in ["grappled", "prone"]:
+                        if e.conditions["flee"][0] and not a.conditions["grappled"][0] and not a.conditions["prone"][0]:
                                 enemies_fled += 1
                 if allies_cnt == allies_down or enemies_cnt == enemies_down:
                         end = True
@@ -1845,64 +1945,64 @@ class MonsterManual:
         "Monster listing"
         def __init__(self):
                 # monster index {
-                #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, multiattack?, # of attacks],
-                #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, dc type, save type, add dmg type, add dmg die, add die cnt, status ailment, obtain DC, escape DC], [attack 2 ...]],
+                #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, # of attacks],
+                #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, dc type, save type, add dmg type, add dmg die, add die cnt, status ailment, obtain DC, obtain DC type, escape DC], [attack 2 ...]],
                 #       skills: [athletics, acrobatics, perception, investigation, stealth, persuasion],
                 #       saving throw modifiers: [str, dex, con, int, wis, cha],
                 #       damage resistances/immunities/vulnerabilities: [[dmg type 1, degree], [dmg type 2, degree]],
                 #       condition immunities: [condition 1, condition 2 ...]}
                 self.monsters = {
                         1: {
-                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, False, 1],
-                                "attacks": [["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, 0]],
+                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, 1],
+                                "attacks": [["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
-                                "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
-                                "condimm": ["blinded", "charmed", "deafened", "exhaustion", "frightened", "prone"]
+                                "dmgres": [["a", 0.5], ["c", 0.5], ["f", 0.5], ["s", 0.5]],
+                                "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         2: {
-                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 8, 1, False, 1],
-                                "attacks": [["Slime Attack", "b", 4, 1, 10, "dex", 0, "a", 10, 1, "-", 0, 0]],
+                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 8, 1, 1],
+                                "attacks": [["Slime Attack", "b", 4, 1, 10, "dex", 0, "a", 10, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
-                                "dmgres": [["a", 1], ["c", 1], ["f", 1], ["s", 1]],
-                                "condimm": ["blinded", "charmed", "deafened", "exhaustion", "frightened", "prone"]
+                                "dmgres": [["a", 0.5], ["c", 0.5], ["f", 0.5], ["s", 0.5]],
+                                "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         3: {
-                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 5, False, 1],
-                                "attacks": [["Tongue", "s", 6, 1, 0, "-", 0, "a", 8, 1, "-", 0, 0]],
+                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 5, 1],
+                                "attacks": [["Tongue", "s", 6, 1, 0, "-", 0, "a", 8, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [],
                                 "condimm": []
                                 },
                         4: {
-                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, False, 1],
-                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r/worm", 0, 12]],
+                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, 1],
+                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r/worm", 0, "-", 12]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
                                 "dmgres": [],
                                 "condimm": []
                                 },
                         5: {
-                                "attrs": ["Ape", 16, 14, 14, 6, 12, 7, 8, 3, True, 2],
-                                "attacks": [["Fist", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, 0], ["Rock", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, 0]],
+                                "attrs": ["Ape", 16, 14, 14, 6, 12, 7, 8, 3, 2],
+                                "attacks": [["Fist", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, "-", 0], ["Rock", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, "-", 0]],
                                 "skills": [2, 0, 2, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
                                 "dmgres": [],
                                 "condimm": []
                                 },
                         6: {
-                                "attrs": ["Giant Wasp", 10, 14, 10, 1, 10, 3, 8, 3, False, 1],
-                                "attacks": [["Sting", "p", 6, 1, 11, "con", 0.5, "v", 0, 0, "p", 0, 0]],
+                                "attrs": ["Giant Wasp", 10, 14, 10, 1, 10, 3, 8, 3, 1],
+                                "attacks": [["Sting", "p", 6, 1, 11, "con", 0.5, "v", 6, 3, "p", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [],
                                 "condimm": []
                                 },
                         7: {
-                                "attrs": ["Giant Bat", 15, 16, 11, 2, 12, 6, 10, 4, False, 1],
-                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, 0]],
+                                "attrs": ["Giant Bat", 15, 16, 11, 2, 12, 6, 10, 4, 1],
+                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [],
@@ -1914,13 +2014,12 @@ class MonsterManual:
 Shop: trade weapons, armor and items.
 IN
 - all items (object)
-- ui (object)
 OUT
 - shop (object)
 '''
 class Shop:
         "Shop creation."
-        def __init__(self, all_items, ui):
+        def __init__(self, all_items):
                 self.all_items = all_items
                 self.simple_melee_weapons = self.all_items.simple_melee_weapons
                 self.martial_melee_weapons = self.all_items.martial_melee_weapons
@@ -1947,13 +2046,7 @@ class Shop:
                 attributes_string = ""
                 #[cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, thrown, monk weapon]
                 if type == 1:
-                        dmg_type = ""
-                        if attr[4] == "b":
-                                dmg_type = " (bludgeoning)"
-                        elif attr[4] == "s":
-                                dmg_type = " (slashing)"
-                        elif attr[4] == "p":
-                                dmg_type = " (piercing)"
+                        dmg_type = " (%s)" % (get_dmg_type(attr[4]))
                         light_heavy = ""
                         if attr[6] == 1:
                                 light_heavy = "light"
@@ -1984,13 +2077,7 @@ class Shop:
                                 "Properties: " + properties
                 #[cost, dmg die, dmg die cnt, ench, dmg type, weight, light/heavy, finesse, hands, load]
                 elif type == 2:
-                        dmg_type = ""
-                        if attr[4] == "b":
-                                dmg_type = " (bludgeoning)"
-                        elif attr[4] == "s":
-                                dmg_type = " (slashing)"
-                        elif attr[4] == "p":
-                                dmg_type = " (piercing)"
+                        dmg_type = " (%s)" % (get_dmg_type(attr[4]))
                         light_heavy = ""
                         if attr[6] == 1:
                                 light_heavy = "light"
@@ -2084,14 +2171,14 @@ class Shop:
                         random_choice = random.choice(list(self.potions.keys()))
                         attributes = self.convert_attributes(self.potions[random_choice], type)
                         self.shop_list_potions.append([random_choice, index, attributes])
-        def shopping_flow(self, char, ui):
+        def shopping_flow(self, char):
                 done_shopping = False
                 while done_shopping == False:
                         for i in range(4):
                                 i += 1
                                 exit_shop = False
                                 while not exit_shop:
-                                        choice = self.shop_purchase(i, char, ui)
+                                        choice = self.shop_purchase(i, char)
                                         if choice != -1:
                                                 ui.push_message("Take another look?")
                                                 if int(ui.get_binary_input()) == 0:
@@ -2105,7 +2192,7 @@ class Shop:
                         if finished == 0:
                                 done_shopping = True
                                 ui.push_prompt(char.name + " has left the marketplace.\n")
-        def shop_purchase(self, type, char, ui):
+        def shop_purchase(self, type, char):
                 ui.push_message(self.shop_types[type].capitalize())
                 ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?", "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
                 # price and weight positions may need to be adjusted across different types of items (dictionary)
@@ -2160,7 +2247,7 @@ class Shop:
                                                 if type != 4:
                                                         ui.push_message("Wanna equip the " + purchased_item + "?")
                                                         if int(ui.get_binary_input()) == 1:
-                                                                char.equip(1, purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons, self.all_ranged_weapons, ui)
+                                                                char.equip(1, purchased_item, type, item_list, self.all_items, self.everything, self.all_melee_weapons, self.all_ranged_weapons)
                                 else:
                                         ui.push_prompt(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                         else:
@@ -2209,7 +2296,7 @@ class AI:
                 return choice
 
 # Utilities
-def roll_dice(dice, mod, type, ui):
+def roll_dice(dice, mod, type):
         if type == -1:
                 roll = min(random.randint(1, dice), random.randint(1, dice))
         elif type == 1:
@@ -2230,9 +2317,9 @@ def random_str(length):
         return "".join(random.choice(chars) for _ in range(length))
 
 # Combat related
-def act(attacker, act_choice, battle, all_items, ui):
+def act(attacker, act_choice, battle, all_items):
         # character is not unconscious = can act on its turn
-        if not attacker.conditions["down"]:
+        if not attacker.conditions["down"][0]:
                 # actions
                 if act_choice == 1:
                         attacker.battle_menu_options[1][1] -= 1
@@ -2246,22 +2333,22 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         roll_mod = 0
                                         targets = battle.get_targets(attacker)
                                         if len(targets) != 0:
-                                                defender = target_selector(attacker, battle, targets, ui)
-                                                roll_mod = get_adv_disadv(attacker, defender, ui)
-                                                attack(attacker, defender, 1, roll_mod, battle, all_items, ui)
+                                                defender = target_selector(attacker, battle, targets)
+                                                roll_mod = get_adv_disadv(attacker, defender)
+                                                attack(attacker, defender, 1, roll_mod, battle, all_items)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
                         # dodge action
                         elif action in attacker.actions and action == 2:
-                                attacker.conditions["dodge"] = True
+                                attacker.conditions["dodge"][0] = True
                                 ui.push_prompt(attacker.name + " is taking a defensive stance.")
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
                         # disengage action
                         elif action in attacker.actions and action == 3:
-                                attacker.conditions["flee"] = True
+                                attacker.conditions["flee"][0] = True
                                 ui.push_prompt(attacker.name + " has disengaged and is about to flee from combat.")
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
@@ -2269,9 +2356,9 @@ def act(attacker, act_choice, battle, all_items, ui):
                         elif action in attacker.actions and action == 4:
                                 targets = battle.get_targets(attacker)
                                 if len(targets) != 0:
-                                        defender = target_selector(attacker, battle, targets, ui)
+                                        defender = target_selector(attacker, battle, targets)
                                         for _ in range(attacker.attacks):
-                                                shove(attacker, defender, ui)
+                                                shove(attacker, defender)
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
                                 else:
@@ -2282,10 +2369,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                         elif action in attacker.actions and action == 5:
                                 targets = battle.get_targets(attacker)
                                 if len(targets) != 0:
-                                        defender = target_selector(attacker, battle, targets, ui)
-                                        roll_mod = get_adv_disadv(attacker, defender, ui)
+                                        defender = target_selector(attacker, battle, targets)
+                                        roll_mod = get_adv_disadv(attacker, defender)
                                         for _ in range(attacker.attacks):
-                                                grapple(attacker, defender, roll_mod, all_items, ui)
+                                                grapple(attacker, defender, roll_mod, all_items)
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
                                 else:
@@ -2294,7 +2381,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                                         attacker.did_attack = True
                         # use action to escape a grapple
                         elif action in attacker.actions and action == 6:
-                                escape_grapple(attacker, battle, all_items, ui)
+                                escape_grapple(attacker, battle, all_items)
                                 if attacker.bonus_attack:
                                         attacker.bonus_actions.pop(1)
                                 if attacker.char_class == 3:
@@ -2302,10 +2389,10 @@ def act(attacker, act_choice, battle, all_items, ui):
                         # lay on hands (paladin only)
                         elif action in attacker.actions and action == 7:
                                 allies = battle.get_allies(attacker, 1)
-                                receiver = target_selector(attacker, battle, allies, ui)
+                                receiver = target_selector(attacker, battle, allies)
                                 receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
-                                lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable, ui)
-                                actual_heal = receiver.receive_healing(attacker, lay_on_hands_heal, ui)
+                                lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable)
+                                actual_heal = receiver.receive_healing(attacker, lay_on_hands_heal)
                                 attacker.lay_on_hands_pool -= actual_heal
                                 if attacker.lay_on_hands_pool <= 0:
                                         attacker.actions.pop(action)
@@ -2313,8 +2400,8 @@ def act(attacker, act_choice, battle, all_items, ui):
                         # help action
                         elif action in attacker.actions and action == 8:
                                 allies = battle.get_allies(attacker, 0)
-                                receiver = target_selector(attacker, battle, allies, ui)
-                                receiver.conditions["helped"] = True
+                                receiver = target_selector(attacker, battle, allies)
+                                receiver.conditions["helped"][0] = True
                                 receiver.help_adv = True
                                 attacker.helpee = receiver.player_id
                                 if attacker.bonus_attack:
@@ -2330,14 +2417,14 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 potion_choice = int(ui.get_list_choice_input(potions_for_choice))
                                 if potion_choice != -1:
                                         allies = battle.get_allies(attacker, 1)
-                                        receiver = target_selector(attacker, battle, allies, ui)
+                                        receiver = target_selector(attacker, battle, allies)
                                         receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
                                         potion_heal = 0
                                         potion_stats = all_items.potions[avail_potions[potion_choice]]
                                         for _ in range(potion_stats[2]):
-                                                potion_heal += roll_dice(potion_stats[1], 0, 0, ui)[0]
+                                                potion_heal += roll_dice(potion_stats[1], 0, 0)[0]
                                         potion_heal += potion_stats[3]
-                                        actual_heal = receiver.receive_healing(attacker, potion_heal, ui)
+                                        actual_heal = receiver.receive_healing(attacker, potion_heal)
                                         attacker.inv.remove_item(avail_potions[potion_choice])
                                         attacker.carry -= all_items.potions[value][4]
                                 else:
@@ -2357,9 +2444,9 @@ def act(attacker, act_choice, battle, all_items, ui):
                                 if attacker.battle_menu_options[1][1] < 1:
                                         targets = battle.get_targets(attacker)
                                         if len(targets) != 0:
-                                                defender = target_selector(attacker, battle, targets, ui)
-                                                roll_mod = get_adv_disadv(attacker, defender, ui)
-                                                attack(attacker, defender, 2, roll_mod, battle, all_items, ui)
+                                                defender = target_selector(attacker, battle, targets)
+                                                roll_mod = get_adv_disadv(attacker, defender)
+                                                attack(attacker, defender, 2, roll_mod, battle, all_items)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
                                         if attacker.char_class == 3:
@@ -2370,7 +2457,7 @@ def act(attacker, act_choice, battle, all_items, ui):
                         # second wind bonus action (fighter only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 2:
                                 current_hp = attacker.hp
-                                second_wind_heal = roll_dice(10, attacker.level, 0, ui)[0]
+                                second_wind_heal = roll_dice(10, attacker.level, 0)[0]
                                 attacker.hp = min(attacker.hp + second_wind_heal, attacker.max_hp)
                                 if current_hp + second_wind_heal > attacker.max_hp:
                                         actual_heal = second_wind_heal - ((current_hp + second_wind_heal) - attacker.max_hp)
@@ -2383,12 +2470,12 @@ def act(attacker, act_choice, battle, all_items, ui):
                         # rage bonus action (barbarian only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 3:
                                 if attacker.raging == False:
-                                        attacker.rage_on(all_items, ui)
+                                        attacker.rage_on(all_items)
                                 else:
-                                        attacker.rage_off(all_items, ui)
+                                        attacker.rage_off(all_items)
                         # disengage bonus action (rogue only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 4:
-                                attacker.conditions["flee"] = True
+                                attacker.conditions["flee"][0] = True
                                 ui.push_prompt(attacker.name + " has disengaged and is about to flee from combat.")
                         # back to battle menu
                         elif bonus_action in attacker.bonus_actions and bonus_action == 0:
@@ -2409,23 +2496,23 @@ def act(attacker, act_choice, battle, all_items, ui):
                         attacker.turn_done = True
                         ui.clear_message()
         # character is unconscious = death saving throw or stabilized (incapacitated)
-        elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success < 3:
-                attacker.deaths_door(ui)
+        elif attacker.conditions["down"][0] and not attacker.conditions["dead"][0] and attacker.death_st_success < 3:
+                attacker.deaths_door()
                 attacker.turn_done = True
-        elif attacker.conditions["down"] and attacker.conditions["dead"]:
+        elif attacker.conditions["down"][0] and attacker.conditions["dead"][0]:
                 ui.push_prompt(attacker.name + " is dead.")
                 attacker.turn_done = True
-        elif attacker.conditions["down"] and not attacker.conditions["dead"] and attacker.death_st_success == 3:
+        elif attacker.conditions["down"][0] and not attacker.conditions["dead"][0] and attacker.death_st_success == 3:
                 ui.push_prompt(attacker.name + " is taking a rest.")
                 attacker.turn_done = True
 
-def get_adv_disadv(source, target, ui):
+def get_adv_disadv(source, target):
         roll_mod = 0
-        if target.conditions["prone"] and not source.ranged:
+        if target.conditions["prone"][0] and not source.ranged:
                 roll_mod += 1
-        if target.conditions["prone"] and source.ranged:
+        if target.conditions["prone"][0] and source.ranged:
                 roll_mod -= 1
-        elif target.conditions["dodge"]:
+        elif target.conditions["dodge"][0]:
                 roll_mod -= 1
         if source.help_adv:
                 roll_mod += 1
@@ -2446,7 +2533,7 @@ def get_adv_disadv(source, target, ui):
                 ui.push_message("Straight roll.")
         return roll_mod
 
-def target_selector(source, battle, targets, ui):
+def target_selector(source, battle, targets):
         if not source.npc:
                 ui.push_message("Choose a target.")
         if not source.npc:
@@ -2458,12 +2545,55 @@ def target_selector(source, battle, targets, ui):
         else:
                 return None
 
-def amount_selector(pool, max_avail, ui):
+def amount_selector(pool, max_avail):
         ui.push_message("Heal for how much?")
         amount = int(ui.get_amount(pool, max_avail))
         return amount
 
-def attack(source, target, type, adv_disadv, battle, all_items, ui):
+'''
+Get full damage type name from abbreviation
+IN
+- dmg type abbreviation (string)
+OUT
+- full damage type name (string)
+'''
+def get_dmg_type(abbr):
+        full_dmg_type = ""
+        if abbr == "b":
+                full_dmg_type = "bludgeoning"
+        elif abbr == "p":
+                full_dmg_type = "piercing"
+        elif abbr == "s":
+                full_dmg_type = "slashing"
+        elif abbr == "mb":
+                full_dmg_type = "magical bludgeoning"
+        elif abbr == "mp":
+                full_dmg_type = "magical piercing"
+        elif abbr == "ms":
+                full_dmg_type = "magical slashing"
+        elif abbr == "f":
+                full_dmg_type = "fire"
+        elif abbr == "c":
+                full_dmg_type = "cold"
+        elif abbr == "l":
+                full_dmg_type = "lightning"
+        elif abbr == "t":
+                full_dmg_type = "thunder"
+        elif abbr == "a":
+                full_dmg_type = "acid"
+        elif abbr == "v":
+                full_dmg_type = "poison"
+        elif abbr == "n":
+                full_dmg_type = "necrotic"
+        elif abbr == "r":
+                full_dmg_type = "radiant"
+        elif abbr == "m":
+                full_dmg_type = "psychic"
+        elif abbr == "d":
+                full_dmg_type = "force"
+        return full_dmg_type
+
+def attack(source, target, type, adv_disadv, battle, all_items):
         str_att_mod = 0
         dex_att_mod = 0
         str_dmg_mod = 0
@@ -2471,7 +2601,7 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
         ench = 0
         # main hand attack
         if type == 1:
-                ui.push_message(source.name + " attacks " + target.name + " with " + source.eq_weapon_main + ".")
+                ui.push_message("%s attacks %s with %s." % (source.name, target.name, source.eq_weapon_main))
                 str_att_mod = source.main_str_att_mod
                 dex_att_mod = source.main_dex_att_mod
                 str_dmg_mod = source.main_str_dmg_mod
@@ -2479,7 +2609,7 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                 ench = source.ench_main
         # off-hand attack
         elif type == 2:
-                ui.push_message(source.name + " attacks " + target.name + " with " + source.eq_weapon_offhand + ".")
+                ui.push_message("%s attacks %s with %s." % (source.name, target.name, source.eq_weapon_offhand))
                 str_att_mod = source.off_str_att_mod
                 dex_att_mod = source.off_dex_att_mod
                 str_dmg_mod = source.off_str_dmg_mod
@@ -2505,10 +2635,10 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
         if type == 2 and source.offhand_dmg_mod:
                 dmg_mod = min(0, max(dex_dmg_mod, str_dmg_mod)) + ench
         # to hit calculation
-        to_hit = roll_dice(20, att_mod, adv_disadv, ui)
+        to_hit = roll_dice(20, att_mod, adv_disadv)
         crit = to_hit[1]
         if crit == 1:
-                to_hit_conf = roll_dice(20, att_mod, adv_disadv, ui)
+                to_hit_conf = roll_dice(20, att_mod, adv_disadv)
                 to_hit_conf_flag = False
                 if to_hit_conf[0] < target.ac and to_hit_conf[1] != 1:
                         crit = 0
@@ -2525,104 +2655,97 @@ def attack(source, target, type, adv_disadv, battle, all_items, ui):
                         distraction = False
                         if len(allies) > 1:
                                 for value in allies.values():
-                                        if not battle.participants[value].conditions["down"]:
+                                        if not battle.participants[value].conditions["down"][0]:
                                                 distraction = True
                         if (attacker.attack_adv or attacker.help_adv or (distraction and not attacker.attack_disadv)) and ((type == 1 and attacker.eq_weapon_main_finesse) or (type == 2 and attacker.eq_weapon_offhand_finesse) or attacker.ranged):
                                 ui.push_message("Apply sneak attack?")
                                 if int(ui.get_binary_input()) == 1:
                                         attacker.sneak_attack = True
-                dmg_result = calc_dmg(source, crit, dmg_mod, type, all_items, ui)
-                dmg = dmg_result[0]
-                dmg_type = dmg_result[1]
-                if dmg_type == "b":
-                        dmg_type = "bludgeoning"
-                elif dmg_type == "p":
-                        dmg_type = "piercing"
-                elif dmg_type == "s":
-                        dmg_type = "slashing"
-                elif dmg_type == "mb":
-                        dmg_type = "magical bludgeoning"
-                elif dmg_type == "mp":
-                        dmg_type = "magical piercing"
-                elif dmg_type == "ms":
-                        dmg_type = "magical slashing"
+                dmg_result = calc_dmg(source, crit, dmg_mod, type, all_items)
+                dmg = math.floor(dmg * target.resistances[dmg_result[1]])
+                dmg_type = get_dmg_type(dmg_result[1])
+                # calculate extra damage, if applies (mostly monsters and some magic weapons)
+                if source.extra_dmg:
+                        extra_dmg_result = calc_dmg(source, crit, 0, type, all_items) #tbc
                 # critical threat and confirmation for critical damage (double damage dice) (D&D 3.5 style)
                 if crit == 0:
-                        ui.push_message("Hit: " + str(to_hit[0]) + " vs AC " + str(target.ac) + " \nDamage: " + str(dmg) + " (" + dmg_type + ")\n")
+                        ui.push_message("Hit: %s vs AC %s\nDamage: %s (%s)\n" % (to_hit[0], target.ac, dmg, dmg_type))
                 elif crit == 1:
-                        ui.push_message("Critical hit: " + str(to_hit[0]) + " vs AC " + str(target.ac))
-                        ui.push_message("Critical hit confirmation: " + str(to_hit_conf[0]) + " vs AC " + str(target.ac))
+                        ui.push_message("Critical hit: %s vs AC %s" % (to_hit[0], target.ac))
+                        ui.push_message("Critical hit confirmation: %s vs AC %s" % (to_hit_conf[0], target.ac))
                         if not to_hit_conf_flag:
-                                ui.push_message("Damage: " + str(dmg) + " (" + dmg_type + ")\n")
+                                ui.push_message("Damage: %s (%s)\n" % (dmg, dmg_type))
                         else:
-                                ui.push_message("2x dice damage: " + str(dmg) + " (" + dmg_type + ")\n")
+                                ui.push_message("2x dice damage: %s (%s)\n" % (dmg, dmg_type))
+                if target.resistances[dmg_result[1]] == 0.5:
+                        ui.push_message("%s didn't seem to take as much damage as expected." % (target.name))
+                elif target.resistances[dmg_result[1]] == 1.5:
+                        ui.push_message("%s seems to have taken more damage than expected." % (target.name))
+                elif target.resistances[dmg_result[1]] == 0:
+                        ui.push_message("%s was immune to %s's %s damage." % (target.name, source.name, dmg_type))
+                target.hp -= dmg
                 if target.char_class == 3:
                         target.got_attacked = True
-                        if target.raging and dmg_type in ["piercing", "bludgeoning", "slashing", "magical piercing", "magical bludgeoning", "magical slashing"]:
-                                dmg = math.floor(dmg / 2)
-                                ui.push_message(target.name + " didn't take as much damage as expected.")
-                target.hp -= dmg
                 ui.update_status()
         # miss
         elif to_hit[0] < target.ac or crit == -1:
                 if crit == 0:
-                        ui.push_message("Miss: " + str(to_hit[0]) + " vs AC " + str(target.ac) + "\n")
+                        ui.push_message("Miss: %s vs AC %s\n" % (to_hit[0], target.ac))
                 elif crit == -1:
                         ui.push_message("Critical miss\n")
         # check if target got downed
         if target.hp <= 0:
-                target.conditions["down"] = True
-                ui.push_message(target.name + " is down.")
+                target.conditions["down"][0] = True
+                ui.push_message("%s is down." % (target.name))
                 if target.grappling != "":
                         release_grapple(target, battle, all_items)
                 if target.char_class == 3:
                         if target.raging == True:
                                 target.got_attacked = True
                 if target.max_hp * -1 >= target.hp:
-                        ui.push_message("Death blow! " + target.name + " falls dead. RIP")
-                        target.conditions["dead"] = True
-        ui.push_prompt("")
+                        ui.push_message("Death blow! %s falls dead. RIP" % (target.name))
+                        target.conditions["dead"][0] = True
 
 def stop_help(target_id):
         helpee = battle.get_char_by_id(target_id)
-        helpee.conditions["helped"] = False
+        helpee.conditions["helped"][0] = False
         helpee.help_adv = False
 
-def shove(source, target, ui):
-        att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], 0, ui)[0]
-        def_check = roll_dice(20, max(target.skills["athletics"][0] + target.skills["athletics"][1], target.skills["acrobatics"][0] + target.skills["acrobatics"][1]), 0, ui)[0]
-        ui.push_message("Contested check: " + str(att_check) + " vs " + str(def_check))
+def shove(source, target):
+        att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], 0)[0]
+        def_check = roll_dice(20, max(target.skills["athletics"][0] + target.skills["athletics"][1], target.skills["acrobatics"][0] + target.skills["acrobatics"][1]), 0)[0]
+        ui.push_message("Contested check: %s vs %s" % (att_check, def_check))
         if att_check > def_check:
-                target.conditions["prone"] = True
+                target.conditions["prone"][0] = True
                 if target.char_class in [1, 4, 5, 6] or (target.char_class == 2 and target.level < 2) or (target.char_class == 3 and target.level < 5):
                         target.actions.pop(3)
-                ui.push_prompt(target.name + " was knocked prone.")
+                ui.push_prompt("%s was knocked prone." % (target.name))
         else:
                 ui.push_prompt("Shove attempt failed.")
 
-def grapple(source, target, adv_disadv, all_items, ui):
+def grapple(source, target, adv_disadv, all_items):
         att_mod = max(source.off_dex_att_mod, source.off_str_att_mod)
-        to_hit = roll_dice(20, att_mod, adv_disadv, ui)
-        ui.push_message("Hit: " + str(to_hit[0]) + " vs AC " + str(target.ac) + "\n")
+        to_hit = roll_dice(20, att_mod, adv_disadv)
+        ui.push_message("Hit: %s vs AC %s\n" % (to_hit[0], target.ac))
         if to_hit[0] > target.ac:
-                target.conditions["grappled"] = True
+                target.conditions["grappled"][0] = True
                 target.grappled_by = source.player_id
                 source.grappling = target.player_id
                 target.actions.pop(3)
                 target.actions[6] = "escape grapple"
-                ui.push_prompt(target.name + " is grappled by " + source.name + ".")
+                ui.push_prompt("%s is grappled by %s." % (target.name, source.name))
                 if source.eq_weapon_main != "unarmed strike":
                         if all_items.all_melee_weapons[source.eq_weapon_main][8] == 2:
                                 source.actions.pop(1)
                         elif all_items.all_melee_weapons[source.eq_weapon_main][8] == 1.5:
                                 source.dmg_die_main -= 2
         else:
-                ui.push_prompt(source.name + " failed to grapple " + target.name + ".")
+                ui.push_prompt("%s failed to grapple %s." % (source.name, target.name))
 
 def release_grapple(grappler, battle, all_items):
         grapplee = battle.get_char_by_id(grappler.grappling)
         grapplee.grappled_by = ""
-        grapplee.conditions["grappled"] = False
+        grapplee.conditions["grappled"][0] = False
         grappler.grappling = ""
         grapplee.actions[3] = "disengage"
         grapplee.actions.pop(6)
@@ -2631,14 +2754,14 @@ def release_grapple(grappler, battle, all_items):
         elif all_items[grappler.eq_weapon_main][8] == 1.5:
                 grappler.dmg_die_main += 2
 
-def escape_grapple(grapplee, battle, all_items, ui):
+def escape_grapple(grapplee, battle, all_items):
         grappler = battle.get_char_by_id(grapplee.grappled_by)
-        att_check = roll_dice(20, max(grapplee.skills["athletics"][0] + grapplee.skills["athletics"][1], grapplee.skills["acrobatics"][0] + grapplee.skills["acrobatics"][1]), 0, ui)[0]
-        def_check = roll_dice(20, grappler.skills["athletics"][0] + grappler.skills["athletics"][1], 0, ui)[0]
+        att_check = roll_dice(20, max(grapplee.skills["athletics"][0] + grapplee.skills["athletics"][1], grapplee.skills["acrobatics"][0] + grapplee.skills["acrobatics"][1]), 0)[0]
+        def_check = roll_dice(20, grappler.skills["athletics"][0] + grappler.skills["athletics"][1], 0)[0]
         ui.push_message("Contested check: " + str(att_check) + " vs " + str(def_check))
         if att_check > def_check:
                 grapplee.grappled_by = ""
-                grapplee.conditions["grappled"] = False
+                grapplee.conditions["grappled"][0] = False
                 grappler.grappling = ""
                 grapplee.actions[3] = "disengage"
                 grapplee.actions.pop(6)
@@ -2646,11 +2769,11 @@ def escape_grapple(grapplee, battle, all_items, ui):
                         grappler.actions[1] = "attack"
                 if all_items[grappler.eq_weapon_main][8] == 1.5:
                         grappler.dmg_die_main += 2
-                ui.push_prompt(grapplee.name + " has escaped the grapple.")
+                ui.push_prompt("%s has escaped the grapple." % (grapplee.name))
         else:
                 ui.push_prompt("Grapple escape attempt failed.")
 
-def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
+def calc_dmg(source, crit, dmg_mod, type, all_items):
         dmg = 0
         die_cnt = 1
         dmg_die = 1
@@ -2675,10 +2798,10 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
         else:
                 die_cnt *= 1
         for _ in range(die_cnt):
-                dmg_roll = roll_dice(dmg_die, 0, 0, ui)[0]
+                dmg_roll = roll_dice(dmg_die, 0, 0)[0]
                 dmg_reroll = 0
                 if (dmg_roll == 1 or dmg_roll == 2) and source.reroll_dmg:
-                        dmg_reroll = roll_dice(dmg_die, 0, 0, ui)[0]
+                        dmg_reroll = roll_dice(dmg_die, 0, 0)[0]
                 dmg += max(dmg_roll, dmg_reroll)
         dmg += dmg_mod
         # sneak attack damage
@@ -2690,7 +2813,7 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
                         die_cnt *= 1
                 if source.sneak_attack:
                         for _ in range(die_cnt):
-                                dmg += roll_dice(source.sneak_damage[0], 0, 0, ui)[0]
+                                dmg += roll_dice(source.sneak_damage[0], 0, 0)[0]
                         source.sneak_attack = False
         # the minimum damage one can deal is 0
         if dmg < 0:
@@ -2698,7 +2821,7 @@ def calc_dmg(source, crit, dmg_mod, type, all_items, ui):
         return dmg, dmg_type
 
 # Character initialization
-def gen_stats(ui):
+def gen_stats():
         stre = 0
         dex = 0
         con = 0
@@ -2708,51 +2831,51 @@ def gen_stats(ui):
         roll = 0
         min = 6
         for _ in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
+                roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
                 stre += roll
         stre -= min
         min = 6
         for _ in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
+                roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
                 dex += roll
         dex -= min
         min = 6
         for _ in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
+                roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
                 con += roll
         con -= min
         min = 6
         for _ in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
+                roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
                 inte += roll
         inte -= min
         min = 6
         for _ in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
+                roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
                 wis += roll
         wis -= min
         min = 6
         for _ in range(4):
-                roll = roll_dice(6, 0, 0, ui)[0]
+                roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
                 cha += roll
         cha -= min
         ui.push_message("============")
-        ui.push_message("Rolled stats\n" + "Strength: " + str(stre) + "\n" + "Dexterity: " + str(dex) + "\n" + "Constitution: " + str(con) + "\n" + "Intelligence: " + str(inte) + "\n" + "Wisdom: " + str(wis) + "\n" + "Charisma: " + str(cha) + "\n")
+        ui.push_message("Rolled stats\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (stre, dex, con, inte, wis, cha))
         return stre, dex, con, inte, wis, cha
 
-def gen_race(stats, ui):
+def gen_race(stats):
         str_stat = stats[0]
         dex_stat = stats[1]
         con_stat = stats[2]
@@ -2765,7 +2888,10 @@ def gen_race(stats, ui):
                 3: "dwarf",
                 4: "gnome",
                 5: "elf",
-                6: "half-orc"
+                6: "half-orc",
+                7: "dragonborn",
+                8: "tiefling",
+                9: "aarakocra"
                 }
         ui.push_message("Choose your race.")
         race_choice = int(ui.get_dict_choice_input_racial(races))
@@ -2788,8 +2914,7 @@ def gen_race(stats, ui):
                 str_stat += 2
                 con_stat += 1
         ui.push_message("============")
-        ui.push_message("Stats with racial traits\n" + "Strength: " + str(str_stat) + "\n" + "Dexterity: " + str(dex_stat) + "\n" + "Constitution: " + str(con_stat) + "\n" + "Intelligence: " + \
-                str(int_stat) + "\n" + "Wisdom: " + str(wis_stat) + "\n" + "Charisma: " + str(cha_stat) + "\n")
+        ui.push_message("Stats with racial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat))
         subraces = {
                 11: "vanilla",
                 21: "lightfoot",
@@ -2804,7 +2929,10 @@ def gen_race(stats, ui):
                 51: "high",
                 52: "wood",
                 53: "drow",
-                61: "vanilla"
+                61: "vanilla",
+                71: "vanilla",
+                81: "vanilla",
+                91: "vanilla"
                 }
         for sr in subraces.copy():
                 if race_choice != math.floor(sr / 10):
@@ -2840,11 +2968,10 @@ def gen_race(stats, ui):
         elif subrace_choice == 61:
                 pass
         ui.push_message("============")
-        ui.push_message("Stats with subracial traits\n" + "Strength: " + str(str_stat) + "\n" + "Dexterity: " + str(dex_stat) + "\n" + "Constitution: " + str(con_stat) + "\n" + "Intelligence: " + \
-                str(int_stat) + "\n" + "Wisdom: " + str(wis_stat) + "\n" + "Charisma: " + str(cha_stat) + "\n")
+        ui.push_message("Stats with subracial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat))
         return race_choice, subrace_choice, [str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat]
 
-def gen_char(name, starting_level, all_items, npc, ui):
+def gen_char(name, starting_level, all_items, npc):
         need_stat_reroll = True
         while need_stat_reroll:
                 classes = {
@@ -2855,8 +2982,8 @@ def gen_char(name, starting_level, all_items, npc, ui):
                         5: "paladin",
                         6: "ranger"
                         }
-                stats = gen_stats(ui)
-                stats_post_race = gen_race(stats, ui)
+                stats = gen_stats()
+                stats_post_race = gen_race(stats)
                 str_stat = stats_post_race[2][0]
                 dex_stat = stats_post_race[2][1]
                 con_stat = stats_post_race[2][2]
@@ -2893,26 +3020,26 @@ def gen_char(name, starting_level, all_items, npc, ui):
         ui.push_message("Choose your class.")
         class_choice = int(ui.get_dict_choice_input(classes))
         if class_choice == 1:
-                char = Fighter(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+                char = Fighter(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         if class_choice == 2:
-                char = Monk(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+                char = Monk(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         if class_choice == 3:
-                char = Barbarian(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+                char = Barbarian(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         if class_choice == 4:
-                char = Rogue(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+                char = Rogue(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         if class_choice == 5:
-                char = Paladin(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+                char = Paladin(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         if class_choice == 6:
-                char = Ranger(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc, ui)
+                char = Ranger(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         ui.create_status(char)
-        char.gen_starting_gold(char.char_class, ui)
-        char.gen_class(char.char_class, ui)
-        char.gen_starting_equipment(all_items, ui)
+        char.gen_starting_gold(char.char_class)
+        char.gen_class(char.char_class)
+        char.gen_starting_equipment(all_items)
         char.action_economy()
         return char
 
-def gen_mon(monster, all_items, ui):
-        mon = Monster(monster, ui)
+def gen_mon(monster, all_items):
+        mon = Monster(monster)
         #ui.create_mon_status(mon)
         #mon.gen_loot(all_items)
         mon.action_economy()
@@ -2922,11 +3049,10 @@ def gen_mon(monster, all_items, ui):
 Initialize PCs (player characters)
 IN
 - all_items (object)
-- ui (object)
 OUT
 - allies (array)
 '''
-def init_chars(all_items, ui):
+def init_chars(all_items):
         starting_level = 1
         ui.push_message("Name your hero:")
         name = ui.get_text_input()
@@ -2934,22 +3060,22 @@ def init_chars(all_items, ui):
         if name == "":
                 name = "Rick"
         ui.push_message(name)
-        p1_char = gen_char(name, starting_level, all_items, npc, ui)
+        p1_char = gen_char(name, starting_level, all_items, npc)
         
         name = "Rei"
         npc = False
         ui.push_message(name)
-        p2_char = gen_char(name, starting_level, all_items, npc, ui)
+        p2_char = gen_char(name, starting_level, all_items, npc)
         
         name = "Benny"
         npc = False
         ui.push_message(name)
-        p3_char = gen_char(name, starting_level, all_items, npc, ui)
+        p3_char = gen_char(name, starting_level, all_items, npc)
         
         name = "Alf"
         npc = False
         ui.push_message(name)
-        p4_char = gen_char(name, starting_level, all_items, npc, ui)
+        p4_char = gen_char(name, starting_level, all_items, npc)
         
         allies = [p1_char, p2_char, p3_char, p4_char]
         return allies
@@ -2958,7 +3084,6 @@ def init_chars(all_items, ui):
 Initialize NPCs (non-player characters)
 IN
 - all_items (object)
-- ui (object)
 OUT
 - enemy_list (list of objects)
 '''
@@ -2966,7 +3091,7 @@ def init_enemies(all_items, all_monsters, dungeon, enemy_cnt):
         enemy_counter = {}
         enemy_list = []
         for _ in range(enemy_cnt):
-                enemy = gen_mon(all_monsters.monsters[random.choice(dungeon.avail_monsters)], all_items, ui)
+                enemy = gen_mon(all_monsters.monsters[random.choice(dungeon.avail_monsters)], all_items)
                 if enemy.name not in enemy_counter:
                         enemy_counter[enemy.name] = 1
                 else:
@@ -2983,38 +3108,38 @@ ai = AI()
 ui.push_prompt("Welcome to Shining in the Dungeon (5e Duel)")
 ui.push_message("Choose the difficulty.")
 ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
-chars = init_chars(all_items, ui)
+chars = init_chars(all_items)
 allies = chars
 encounters = 10
 monsters = [1, 2]
-dungeon = Dungeon(encounters, allies, monsters, ui)
+dungeon = Dungeon(encounters, allies, monsters)
 enemy_cnt = math.ceil(len(allies) * 1.5)
 enemies = init_enemies(all_items, all_monsters, dungeon, enemy_cnt)
 for enc in range(dungeon.enc_cnt):
-        battle = dungeon.start_battle(enc, allies, enemies, ui)
-        battle.initiative(ui)
-        attacker = battle.get_first_init(ui)
+        battle = dungeon.start_battle(enc, allies, enemies)
+        battle.initiative()
+        attacker = battle.get_first_init()
         battle_end = False
         while not battle_end:
-                battle.get_hp_init_board(ui)
-                attacker = battle.get_current_init(ui)
-                attacker.reset_until_start_of_next_turn(ui)
+                battle.get_hp_init_board()
+                attacker = battle.get_current_init()
+                attacker.reset_until_start_of_next_turn()
                 attacker.turn_done = False
                 while not attacker.turn_done:
-                        act_choice = attacker.battle_menu(ui)
-                        act(attacker, act_choice, battle, all_items, ui)
-                attacker.reset_until_end_of_current_turn(all_items, ui)
+                        act_choice = attacker.battle_menu()
+                        act(attacker, act_choice, battle, all_items)
+                attacker.reset_until_end_of_current_turn(all_items)
                 if battle.check_end():
-                        battle.get_hp_init_board(ui)
-                        battle_end = battle.end(ui)
+                        battle.get_hp_init_board()
+                        battle_end = battle.end()
                 else:
-                        battle.set_next_init(ui)
+                        battle.set_next_init()
                         battle.check_round_end()
         if battle.pcs_won or battle.pcs_fled or battle.foes_fled:
-                dungeon.get_respite_options(ui)
+                dungeon.get_respite_options()
         else:
                 break
-dungeon.end_dungeon(ui)
+dungeon.end_dungeon()
 main_window.mainloop()
 
 #TODO: fix rests
