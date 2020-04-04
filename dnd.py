@@ -51,6 +51,7 @@ class Character:
                 self.attack_adv = False
                 self.help_adv = False
                 self.attack_disadv = False
+                self.armor_shield_disadv = False
                 self.bonus_attack = False
                 self.str_mod = math.floor((self.str - 10) / 2)
                 self.dex_mod = math.floor((self.dex - 10) / 2)
@@ -420,6 +421,8 @@ class Character:
                 if self.conditions["prone"][0] and not self.conditions["grappled"][0]:
                         self.conditions["prone"][0] = False
                         ui.push_prompt(self.name + " stood up.")
+                        if not self.armor_shield_disadv:
+                                self.attack_disadv = False
                         if 3 not in self.actions:
                                 self.actions[3] = "disengage"
                 if self.conditions["dodge"][0]:
@@ -882,6 +885,7 @@ class Character:
                                         for st in self.saving_throws.keys():
                                                 self.saving_throws[st][3] = True
                                         self.attack_disadv = True
+                                        self.armor_shield_disadv = True
                         # barbarian
                         elif self.char_class == 3:
                                 # barbarians are proficient in all weapons
@@ -913,6 +917,7 @@ class Character:
                                         for st in self.saving_throws.keys():
                                                 self.saving_throws[st][3] = True
                                         self.attack_disadv = True
+                                        self.armor_shield_disadv = True
                         # rogue
                         elif self.char_class == 4:
                                 # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
@@ -939,6 +944,7 @@ class Character:
                                                 for st in self.saving_throws.keys():
                                                         self.saving_throws[st][3] = True
                                                 self.attack_disadv = True
+                                                self.armor_shield_disadv = True
                         # paladin
                         elif self.char_class == 5:
                                 # paladins are proficient in all weapons and armor
@@ -1004,6 +1010,7 @@ class Character:
                                         for st in self.saving_throws.keys():
                                                 self.saving_throws[st][3] = True
                                         self.attack_disadv = True
+                                        self.armor_shield_disadv = True
                 # unequip
                 elif eq_uneq == 0:
                         # melee or ranged weapon
@@ -1079,6 +1086,7 @@ class Character:
                                 for st in self.saving_throws.keys():
                                         self.saving_throws[st][3] = False
                                 self.attack_disadv = False
+                                self.armor_shield_disadv = False
                                 if stealth_disadv:
                                         self.skills["stealth"][3] = False
                         else:
@@ -1973,7 +1981,7 @@ class MonsterManual:
                                 "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         2: {
-                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 8, 1, 1],
+                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 12, 1, 1],
                                 "attacks": [["Slime Attack", "b", 4, 1, 10, "dex", 0, "a", 10, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2307,13 +2315,24 @@ class AI:
                 return choice
 
 # Utilities
+'''
+Roll dice
+IN
+- dice type (int)
+- modifier (int) 
+- advantage/normal/disadvantage (int)
+OUT
+- tuple(roll (int), critical? (int))
+'''
 def roll_dice(dice, mod, type):
+        # check for advantage/disadvantage
         if type == -1:
                 roll = min(random.randint(1, dice), random.randint(1, dice))
         elif type == 1:
                 roll = max(random.randint(1, dice), random.randint(1, dice))
         else:
                 roll = random.randint(1, dice)
+        # determine critical hit/critical miss
         if roll == 1:
                 crit = -1
         elif roll == 20:
@@ -2345,7 +2364,7 @@ def act(attacker, act_choice, battle):
                                         targets = battle.get_targets(attacker)
                                         if len(targets) != 0:
                                                 defender = target_selector(attacker, battle, targets)
-                                                roll_mod = get_adv_disadv(attacker, defender)
+                                                roll_mod = get_adv_disadv(attacker, defender, "attack")
                                                 attack(attacker, defender, 1, roll_mod, battle)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
@@ -2381,7 +2400,7 @@ def act(attacker, act_choice, battle):
                                 targets = battle.get_targets(attacker)
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets)
-                                        roll_mod = get_adv_disadv(attacker, defender)
+                                        roll_mod = get_adv_disadv(attacker, defender, "attack")
                                         for _ in range(attacker.attacks):
                                                 grapple(attacker, defender, roll_mod)
                                         if attacker.bonus_attack:
@@ -2456,7 +2475,7 @@ def act(attacker, act_choice, battle):
                                         targets = battle.get_targets(attacker)
                                         if len(targets) != 0:
                                                 defender = target_selector(attacker, battle, targets)
-                                                roll_mod = get_adv_disadv(attacker, defender)
+                                                roll_mod = get_adv_disadv(attacker, defender, "attack")
                                                 attack(attacker, defender, 2, roll_mod, battle)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
@@ -2517,21 +2536,41 @@ def act(attacker, act_choice, battle):
                 ui.push_prompt(attacker.name + " is taking a rest.")
                 attacker.turn_done = True
 
-def get_adv_disadv(source, target):
+'''
+Determine advantage/disadvantage
+IN
+- attacker (object)
+- defender (object) 
+- type (string)
+OUT
+  roll modifier (int)
+'''
+def get_adv_disadv(source, target, type):
         roll_mod = 0
-        if target.conditions["prone"][0] and not source.ranged:
-                roll_mod += 1
-        if target.conditions["prone"][0] and source.ranged:
-                roll_mod -= 1
-        elif target.conditions["dodge"][0]:
-                roll_mod -= 1
-        if source.help_adv:
-                roll_mod += 1
-                stop_help(source.player_id)
-        if source.attack_adv:
-                roll_mod += 1
-        elif source.attack_disadv:
-                roll_mod -= 1
+        if type == "attack":
+                if target.conditions["prone"][0] and not source.ranged:
+                        roll_mod += 1
+                if target.conditions["prone"][0] and source.ranged:
+                        roll_mod -= 1
+                elif target.conditions["dodge"][0]:
+                        roll_mod -= 1
+                if source.help_adv:
+                        roll_mod += 1
+                        stop_help(source.player_id)
+                if source.attack_adv:
+                        roll_mod += 1
+                elif source.attack_disadv:
+                        roll_mod -= 1
+        elif type in ["str", "dex", "con", "int", "wis", "cha"] or "death":
+                if source.saving_throws[type][2] and not source.saving_throws[type][3]:
+                        roll_mod = 1
+                elif source.saving_throws[type][3] and not source.saving_throws[type][2]:
+                        roll_mod = -1
+        else:
+                if source.skills[type][2] and not source.skills[type][3]:
+                        roll_mod = 1
+                elif source.skills[type][3] and not source.skills[type][2]:
+                        roll_mod = -1
         if roll_mod < -1:
                 roll_mod = -1
         elif roll_mod > 1:
@@ -2542,6 +2581,7 @@ def get_adv_disadv(source, target):
                 ui.push_message("Rolling with disadvantage.")
         elif roll_mod == 0:
                 ui.push_message("Straight roll.")
+                pass
         return roll_mod
 
 def target_selector(source, battle, targets):
@@ -2629,9 +2669,10 @@ def attack(source, target, type, adv_disadv, battle):
         str_dmg_mod = 0
         dex_dmg_mod = 0
         ench = 0
+        attack_message = ""
         # main hand attack
         if type == 1:
-                ui.push_message("%s attacks %s with %s." % (source.name, target.name, source.eq_weapon_main))
+                attack_message += "%s attacks %s with %s.\n" % (source.name, target.name, source.eq_weapon_main)
                 str_att_mod = source.main_str_att_mod
                 dex_att_mod = source.main_dex_att_mod
                 str_dmg_mod = source.main_str_dmg_mod
@@ -2639,7 +2680,7 @@ def attack(source, target, type, adv_disadv, battle):
                 ench = source.ench_main
         # off-hand attack
         elif type == 2:
-                ui.push_message("%s attacks %s with %s." % (source.name, target.name, source.eq_weapon_offhand))
+                attack_message += "%s attacks %s with %s.\n" % (source.name, target.name, source.eq_weapon_offhand)
                 str_att_mod = source.off_str_att_mod
                 dex_att_mod = source.off_dex_att_mod
                 str_dmg_mod = source.off_str_dmg_mod
@@ -2664,7 +2705,7 @@ def attack(source, target, type, adv_disadv, battle):
         # monks and martial classes with two weapon fighting style add the damage modifier to their bonus attack, everyone else does not, unless it's negative
         if type == 2 and source.offhand_dmg_mod:
                 dmg_mod = min(0, max(dex_dmg_mod, str_dmg_mod)) + ench
-        # to hit calculation
+        # to-hit calculation
         to_hit = roll_dice(20, att_mod, adv_disadv)
         crit = to_hit[1]
         if crit == 1:
@@ -2676,6 +2717,7 @@ def attack(source, target, type, adv_disadv, battle):
                         to_hit_conf_flag = True
         # hit -> calculate damage
         dmg = 0
+        extra_dmg = 0
         if to_hit[0] >= target.ac or crit == 1:
                 # sneak attack
                 # rogue only extra dmg once per round if certain conditions are met (adv on attack with finesse or ranged weapon or target is distracted by ally and no disadv on attack roll)
@@ -2692,28 +2734,51 @@ def attack(source, target, type, adv_disadv, battle):
                                 if int(ui.get_binary_input()) == 1:
                                         attacker.sneak_attack = True
                 dmg_result = calc_dmg(source, crit, dmg_mod, type)
-                dmg = math.floor(dmg_result[0] * target.resistances[dmg_result[1]])
+                dmg = math.floor(dmg_result[0][0] * target.resistances[dmg_result[1][0]])
                 #ui.push_message("dmg_result: %s res: %s" % (dmg_result, target.resistances[dmg_result[1]]))
-                dmg_type = get_dmg_type(dmg_result[1])
-                # calculate extra damage, if applies (mostly monsters and some magic weapons)
-                if source.extra_dmg:
-                        extra_dmg_result = calc_dmg(source, crit, 0, type) #tbc
+                dmg_type = get_dmg_type(dmg_result[1][0])
                 # critical threat and confirmation for critical damage (double damage dice) (D&D 3.5 style)
                 if crit == 0:
-                        ui.push_message("Hit: %s vs AC %s\nDamage: %s (%s)\n" % (to_hit[0], target.ac, dmg, dmg_type))
+                        attack_message += "Hit: %s vs AC %s\nDamage: %s (%s)\n" % (to_hit[0], target.ac, dmg, dmg_type)
                 elif crit == 1:
-                        ui.push_message("Critical hit: %s vs AC %s" % (to_hit[0], target.ac))
-                        ui.push_message("Critical hit confirmation: %s vs AC %s" % (to_hit_conf[0], target.ac))
+                        attack_message += "Critical hit: %s vs AC %s" % (to_hit[0], target.ac)
+                        attack_message += "\nCritical hit confirmation: %s vs AC %s" % (to_hit_conf[0], target.ac)
                         if not to_hit_conf_flag:
-                                ui.push_message("Damage: %s (%s)\n" % (dmg, dmg_type))
+                                attack_message += "Damage: %s (%s)\n" % (dmg, dmg_type)
                         else:
-                                ui.push_message("2x dice damage: %s (%s)\n" % (dmg, dmg_type))
-                if target.resistances[dmg_result[1]] == 0.5:
-                        ui.push_message("%s didn't seem to take as much damage as expected." % (target.name))
-                elif target.resistances[dmg_result[1]] == 1.5:
-                        ui.push_message("%s seems to have taken more damage than expected." % (target.name))
-                elif target.resistances[dmg_result[1]] == 0:
-                        ui.push_message("%s was immune to %s's %s damage." % (target.name, source.name, dmg_type))
+                                attack_message += "2x dice damage: %s (%s)\n" % (dmg, dmg_type)
+                if target.resistances[dmg_result[1][0]] == 0.5:
+                        attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
+                elif target.resistances[dmg_result[1][0]] == 1.5:
+                        attack_message += "%s seems to have taken more damage than expected." % (target.name)
+                elif target.resistances[dmg_result[1][0]] == 0:
+                        attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, dmg_type)
+                # extra damage
+                if source.extra_dmg:
+                        extra_dmg_mod = 1
+                        extra_dmg_type = get_dmg_type(dmg_result[1][1])
+                        if source.extra_dmg_dc_type != "-":
+                                target_save = roll_dice(20, target.saving_throws[source.extra_dmg_dc_type][0] + target.saving_throws[source.extra_dmg_dc_type][1], get_adv_disadv(target, source, source.extra_dmg_dc_type))[0]
+                                attack_message += "\n%s Saving Throw: %s vs %s" % (source.extra_dmg_dc_type.upper(), target_save, source.extra_dmg_dc)
+                                if target_save >= source.extra_dmg_dc:
+                                        attack_message += "\nSuccess: "
+                                        extra_dmg_mod = source.extra_dmg_save_type
+                                        if source.extra_dmg_save_type == 0:
+                                                attack_message += "no %s damage." % (extra_dmg_type)
+                                        elif source.extra_dmg_save_type == 0.5:
+                                                attack_message += "half %s damage." % (extra_dmg_type)
+                                else:
+                                        attack_message += "\nFailed."
+                        extra_dmg = math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod
+                        if extra_dmg > 0:
+                                attack_message += "\nPlus %s %s damage\n" % (extra_dmg, extra_dmg_type)
+                                if target.resistances[dmg_result[1][1]] == 0.5:
+                                        attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
+                                elif target.resistances[dmg_result[1][1]] == 1.5:
+                                        attack_message += "%s seems to have taken more damage than expected." % (target.name)
+                                elif target.resistances[dmg_result[1][1]] == 0:
+                                        attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, extra_dmg_type)
+                                dmg += extra_dmg
                 target.hp -= dmg
                 if target.char_class == 3:
                         target.got_attacked = True
@@ -2721,15 +2786,19 @@ def attack(source, target, type, adv_disadv, battle):
         # miss
         elif to_hit[0] < target.ac or crit == -1:
                 if crit == 0:
-                        ui.push_message("Miss: %s vs AC %s\n" % (to_hit[0], target.ac))
+                        attack_message += "Miss: %s vs AC %s\n" % (to_hit[0], target.ac)
                 elif crit == -1:
-                        ui.push_message("Critical miss\n")
+                        attack_message += "Critical miss\n"
+        ui.push_prompt(attack_message)
         # check if target got downed
         if target.hp <= 0:
                 target.conditions["down"][0] = True
                 ui.push_message("%s is down." % (target.name))
                 if target.grappling != "":
                         release_grapple(target, battle)
+                if target.helpee != "":
+                        stop_help(target.helpee)
+                        target.helpee = ""
                 if target.char_class == 3:
                         if target.raging == True:
                                 target.got_attacked = True
@@ -2737,17 +2806,33 @@ def attack(source, target, type, adv_disadv, battle):
                         ui.push_message("Death blow! %s falls dead. RIP" % (target.name))
                         target.conditions["dead"][0] = True
 
+'''
+Stop help
+IN
+- helpee's id (help action's target) (string)
+OUT
+  N/A
+'''
 def stop_help(target_id):
         helpee = battle.get_char_by_id(target_id)
         helpee.conditions["helped"][0] = False
         helpee.help_adv = False
 
+'''
+Shove attack
+IN
+- attacker (object)
+- defender (object) 
+OUT
+  N/A
+'''
 def shove(source, target):
-        att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], 0)[0]
-        def_check = roll_dice(20, max(target.skills["athletics"][0] + target.skills["athletics"][1], target.skills["acrobatics"][0] + target.skills["acrobatics"][1]), 0)[0]
+        att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], get_adv_disadv(source, target, "athletics"))[0]
+        def_check = (max(roll_dice(20, target.skills["athletics"][0] + target.skills["athletics"][1], get_adv_disadv(target, source, "athletics"))[0], roll_dice(20, target.skills["acrobatics"][0] + target.skills["acrobatics"][1], get_adv_disadv(target, source, "acrobatics"))[0]))
         ui.push_message("Contested check: %s vs %s" % (att_check, def_check))
-        if att_check > def_check:
+        if att_check > def_check and not target.conditions["prone"][1]:
                 target.conditions["prone"][0] = True
+                target.attack_disadv = True
                 if target.char_class in [1, 4, 5, 6] or (target.char_class == 2 and target.level < 2) or (target.char_class == 3 and target.level < 5):
                         target.actions.pop(3)
                 ui.push_prompt("%s was knocked prone." % (target.name))
@@ -2804,11 +2889,23 @@ def escape_grapple(grapplee, battle):
         else:
                 ui.push_prompt("Grapple escape attempt failed.")
 
+'''
+Calculate damage
+IN
+- source of damage (object)
+- to-hit was critical? (int) 
+- damage modifier (int)
+- type of attack (int)
+OUT
+- tuple(damage (int list), damage type(string list))
+'''
 def calc_dmg(source, crit, dmg_mod, type):
         dmg = 0
         die_cnt = 1
         dmg_die = 1
         dmg_type = ""
+        extra_dmg = 0
+        extra_dmg_type = ""
         # action attack
         if type == 1:
                 die_cnt = source.dmg_die_cnt_main
@@ -2824,10 +2921,12 @@ def calc_dmg(source, crit, dmg_mod, type):
                 die_cnt = source.dmg_die_cnt_main
                 dmg_die = source.dmg_die_main
                 dmg_type = source.dmg_die_type_main
+        # check for critical
         if crit == 1:
                 die_cnt *= 2
         else:
                 die_cnt *= 1
+        # roll damage
         for _ in range(die_cnt):
                 dmg_roll = roll_dice(dmg_die, 0, 0)[0]
                 dmg_reroll = 0
@@ -2835,7 +2934,7 @@ def calc_dmg(source, crit, dmg_mod, type):
                         dmg_reroll = roll_dice(dmg_die, 0, 0)[0]
                 dmg += max(dmg_roll, dmg_reroll)
         dmg += dmg_mod
-        # sneak attack damage
+        # sneak attack damage (rogue only)
         if source.char_class == 4:
                 die_cnt = source.sneak_damage[1]
                 if crit == 1:
@@ -2846,10 +2945,22 @@ def calc_dmg(source, crit, dmg_mod, type):
                         for _ in range(die_cnt):
                                 dmg += roll_dice(source.sneak_damage[0], 0, 0)[0]
                         source.sneak_attack = False
-        # the minimum damage one can deal is 0 (not RAW)
+        # calculate extra damage, if applies (mostly monsters and some magic weapons)
+        if source.extra_dmg:
+                extra_die_cnt = source.extra_dmg_cnt
+                # check for critical, as it applies to all dice rolls involved in the attack
+                if crit == 1:
+                        extra_die_cnt *= 2
+                else:
+                        extra_die_cnt *= 1
+                extra_dmg_die = source.extra_dmg_die
+                extra_dmg_type = source.extra_dmg_die_type
+                for _ in range(extra_die_cnt):
+                        extra_dmg += roll_dice(extra_dmg_die, 0, 0)[0]
+        # the minimum damage one can deal is 0 (not 5e RAW)
         if dmg < 0:
                 dmg = 0
-        return dmg, dmg_type
+        return [dmg, extra_dmg], [dmg_type, extra_dmg_type]
 
 # Character initialization
 def gen_stats():
@@ -3174,6 +3285,8 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
+#TODO: separate extra attack (attack+shove etc...)
+#TODO: contemplate get_adv_disadv message
 #TODO: fix rests
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
