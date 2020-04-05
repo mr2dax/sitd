@@ -493,6 +493,7 @@ class Character:
                         self.bonus_attack = True
                         self.eq_weapon_main_finesse = True
                         self.eq_weapon_offhand_finesse = True
+                        self.offhand_dmg_mod = True
                         self.eq_weapon_offhand = "unarmed strike"
                         self.skills["acrobatics"][0] += self.prof_bonus
                         self.skills["perception"][0] += self.prof_bonus
@@ -596,7 +597,7 @@ class Character:
                         curr_shield_ench = all_items.shields[self.eq_weapon_offhand][2]
                 if self.eq_weapon_main != "unarmed strike":
                         curr_main_weapon_ench = everything[self.eq_weapon_main][3]
-                if self.eq_weapon_offhand not in ["unarmed strike", "nothing", "shield"]:
+                if self.eq_weapon_offhand not in ["unarmed strike", "nothing"] and self.eq_weapon_offhand not in all_items.shields:
                         curr_off_weapon_ench = everything[self.eq_weapon_offhand][3]
                 # equip
                 if eq_uneq == 1:
@@ -625,7 +626,7 @@ class Character:
                                 else:
                                         eq_off_light_heavy = everything[self.eq_weapon_offhand][6]
                                 # 1. nothing in main hand, shield in off-hand and weapon to equip is one-handed or versatile (1.5 hands)
-                                if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand == "shield" and hands < 2:
+                                if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand in all_items.shields and hands < 2:
                                         self.eq_weapon_main = item
                                         self.dmg_die_main = dmg_die
                                         self.dmg_die_cnt_main = dmg_die_cnt
@@ -649,8 +650,8 @@ class Character:
                                                 self.dmg_die_type_main = dmg_type
                                                 self.ench_main = ench
                                                 self.eq_weapon_main_finesse = finesse
-                                        # something in main hand, then equip to off-hand if not 2-handed weapon
-                                        elif self.eq_weapon_main != "unarmed strike" and hands < 2:
+                                        # something in main hand, then equip to off-hand if not 2-handed or versatile weapon
+                                        elif self.eq_weapon_main != "unarmed strike" and hands == 1:
                                                 self.eq_weapon_offhand = item
                                                 self.dmg_die_off = dmg_die
                                                 self.dmg_die_cnt_off = dmg_die_cnt
@@ -663,10 +664,12 @@ class Character:
                                                 else:
                                                         self.bonus_attack = False
                                         # something in main hand, but want to equip 2-handed, then switch weapons in main hand
-                                        elif self.eq_weapon_main != "unarmed strike" and hands == 2:
+                                        elif self.eq_weapon_main != "unarmed strike" and hands > 1:
                                                 self.eq_weapon_main = item
                                                 self.eq_weapon_offhand = item
                                                 self.dmg_die_main = dmg_die
+                                                if hands == 1.5:
+                                                        self.dmg_die_main = dmg_die + 2
                                                 self.dmg_die_cnt_main = dmg_die_cnt
                                                 self.dmg_die_type_main = dmg_type
                                                 self.ench_main = ench
@@ -674,22 +677,48 @@ class Character:
                                                 self.eq_weapon_offhand_finesse = finesse
                                 # 3. something in main hand, something in off-hand
                                 elif self.eq_weapon_main != "unarmed strike" and self.eq_weapon_offhand != "nothing":
-                                        # unequip off-hand (shield or weapon) and equip item on main hand
-                                        if hands == 2:
-                                                self.ac -= 2
-                                                self.dmg_die_off = 1
-                                                self.dmg_die_cnt_off = 1
-                                                self.dmg_die_type_off = "b"
-                                                self.ench_off = 0
-                                                self.eq_weapon_offhand = item
-                                                self.eq_weapon_main_finesse = finesse
-                                                self.eq_weapon_offhand_finesse = finesse
+                                        # equip item on main hand
+                                        curr_hands = all_items.all_weapons[self.eq_weapon_main][8]
                                         self.eq_weapon_main = item
                                         self.dmg_die_main = dmg_die
                                         self.dmg_die_cnt_main = dmg_die_cnt
                                         self.dmg_die_type_main = dmg_type
                                         self.ench_main = ench
                                         self.eq_weapon_main_finesse = finesse
+                                        # unequip off-hand (weapon or shield) if weapon to equip is 2-handed 
+                                        if hands == 2:
+                                                if self.eq_weapon_offhand in all_items.shields:
+                                                        self.ac -= 2
+                                                else:
+                                                        self.dmg_die_off = 1
+                                                        self.dmg_die_cnt_off = 1
+                                                        self.dmg_die_type_off = "b"
+                                                        self.ench_off = 0
+                                                self.bonus_attack = False
+                                                self.offhand_dmg_mod = False
+                                                self.eq_weapon_offhand = item
+                                                self.eq_weapon_offhand_finesse = False
+                                        # equip versatile weapon as 1-handed if off-hand is not empty, otherwise, equip it as 2-handed
+                                        elif hands == 1.5:
+                                                if self.eq_weapon_offhand in all_items.shields or self.eq_weapon_offhand in all_items.all_weapons:
+                                                        pass
+                                                else:
+                                                        self.dmg_die_main = dmg_die + 2
+                                                        self.dmg_die_off = 1
+                                                        self.dmg_die_cnt_off = 1
+                                                        self.dmg_die_type_off = "b"
+                                                        self.ench_off = 0
+                                                        self.eq_weapon_offhand = item
+                                                        self.eq_weapon_offhand_finesse = False
+                                                self.bonus_attack = False
+                                                self.offhand_dmg_mod = False
+                                        # equip 1-handed weapon to main hand, don't touch off-hand
+                                        elif hands == 1:
+                                                if self.eq_weapon_offhand in all_items.shields or curr_hands == 1:
+                                                        pass
+                                                else:
+                                                        
+                                                        self.eq_weapon_offhand = "nothing"
                                         # check for two-weapon fighting
                                         if light_heavy and eq_off_light_heavy:
                                                 self.bonus_attack = True
@@ -698,7 +727,7 @@ class Character:
                                 # 4. nothing in main hand, weapon or shield in off-hand and weapon to equip is 2-handed
                                 elif self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand != "nothing" and hands == 2:
                                         self.eq_weapon_main = item
-                                        if self.eq_weapon_offhand == "shield":
+                                        if self.eq_weapon_offhand in all_items.shields:
                                                 self.ac -= 2
                                         else:
                                                 self.dmg_die_off = 1
@@ -842,16 +871,16 @@ class Character:
                                         monk_weapon_offhand = all_melee_weapons[self.eq_weapon_offhand][10]
                                 # monks get their WIS mod to AC, martial arts die, unarmed finesse and bonus action unarmed strike if they don't wear armor or shield, and only wielding monk weapons
                                 if self.eq_armor != "unarmored" or self.eq_weapon_offhand in all_items.shields or not monk_weapon_main or not monk_weapon_offhand:
+                                        self.bonus_attack = False
+                                        self.offhand_dmg_mod = False
                                         if self.eq_weapon_main == "unarmed strike":
-                                                self.bonus_attack = False
-                                                self.offhand_dmg_mod = False
                                                 self.dmg_die_off = 1
                                                 self.dmg_die_cnt_off = 1
                                                 self.dmg_die_type_off = "b"
                                                 self.ench_off = 0
                                                 self.eq_weapon_main_finesse = False
                                         if self.eq_armor == "unarmored":
-                                                self.ac = self.dex_mod
+                                                self.ac = 10 + self.dex_mod
                                 # monks are proficient with simple weapons and shortswords only, no armor and shield proficiencies
                                 if monk_weapon_main or self.eq_weapon_main == "shortsword" or monk_weapon_offhand or self.eq_weapon_offhand == "shortsword":
                                         if monk_weapon_main:
@@ -868,6 +897,20 @@ class Character:
                                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
                                                 self.off_str_dmg_mod = self.str_mod
                                                 self.off_dex_dmg_mod = self.dex_mod
+                                        if monk_weapon_main and self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
+                                                self.eq_weapon_offhand = "unarmed strike"
+                                                self.eq_weapon_offhand_finesse = True
+                                                self.off_hand_prof = True
+                                                self.off_str_att_mod = self.str_mod + self.prof_bonus
+                                                self.off_dex_att_mod = self.dex_mod + self.prof_bonus
+                                                self.off_str_dmg_mod = self.str_mod
+                                                self.off_dex_dmg_mod = self.dex_mod
+                                                self.dmg_die_off = 4
+                                                self.dmg_die_cnt_off = 1
+                                                self.dmg_die_type_off = "b"
+                                                self.ench_off = 0
+                                                self.bonus_attack = True
+                                                self.offhand_dmg_mod = True
                                 else:
                                         self.main_hand_prof = False
                                         self.main_str_att_mod = self.str_mod
@@ -882,7 +925,7 @@ class Character:
                                 if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
                                         self.bonus_attack = False
                                         self.eq_weapon_main_finesse = False
-                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
+                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand in all_items.shields:
                                         for s in self.skills.keys():
                                                 self.skills[s][3] = True
                                         for st in self.saving_throws.keys():
@@ -936,12 +979,12 @@ class Character:
                                         self.off_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.off_str_dmg_mod = self.str_mod
                                         self.off_dex_dmg_mod = self.dex_mod
-                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand == "shield":
+                                if self.eq_armor != "unarmored" or self.eq_weapon_offhand in all_items.shields:
                                         if self.eq_armor == "unarmored":
                                                 armor_type = 0
                                         else:
                                                 armor_type = all_items.armors[self.eq_armor][4]
-                                        if armor_type in [1, 2] or self.eq_weapon_offhand == "shield":
+                                        if armor_type in [1, 2] or self.eq_weapon_offhand in all_items.shields:
                                                 for s in self.skills.keys():
                                                         self.skills[s][3] = True
                                                 for st in self.saving_throws.keys():
@@ -1108,12 +1151,14 @@ class Character:
                                         self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.main_str_dmg_mod = self.str_mod
                                         self.main_dex_dmg_mod = self.dex_mod
+                                        self.offhand_dmg_mod = True
                                 if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
                                         self.off_hand_prof = True
                                         self.off_str_att_mod = self.str_mod + self.prof_bonus
                                         self.off_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.off_str_dmg_mod = self.str_mod
                                         self.off_dex_dmg_mod = self.dex_mod
+                                        self.offhand_dmg_mod = True
                                 if self.eq_armor == "unarmored":
                                         if self.wis_mod > 0:
                                                 self.ac = 10 + self.dex_mod + self.wis_mod
@@ -2491,6 +2536,7 @@ def act(attacker, act_choice, battle):
                                                 attack(attacker, defender, 2, get_adv_disadv(attacker, defender, "attack"), battle)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
+                                                attacker.battle_menu_options[2][1] += 1
                                         if attacker.char_class == 3:
                                                 attacker.did_attack = True
                                 else:
@@ -2691,7 +2737,10 @@ def attack(source, target, type, adv_disadv, battle):
                 ench = source.ench_main
         # off-hand attack
         elif type == 2:
-                attack_message += "%s attacks %s with %s.\n" % (source.name, target.name, source.eq_weapon_offhand)
+                if source.char_class == 2 and source.eq_weapon_main == source.eq_weapon_offhand:
+                        attack_message += "%s attacks %s with %s.\n" % (source.name, target.name, "unarmed strike")
+                else:
+                        attack_message += "%s attacks %s with %s.\n" % (source.name, target.name, source.eq_weapon_offhand)
                 str_att_mod = source.off_str_att_mod
                 dex_att_mod = source.off_dex_att_mod
                 str_dmg_mod = source.off_str_dmg_mod
@@ -2715,7 +2764,10 @@ def attack(source, target, type, adv_disadv, battle):
                 dmg_mod = str_dmg_mod + ench
         # monks and martial classes with two weapon fighting style add the damage modifier to their bonus attack, everyone else does not, unless it's negative
         if type == 2 and source.offhand_dmg_mod:
-                dmg_mod = min(0, max(dex_dmg_mod, str_dmg_mod)) + ench
+                if source.eq_weapon_offhand_finesse:
+                        dmg_mod = max(0, max(dex_dmg_mod, str_dmg_mod)) + ench
+                else:
+                        dmg_mod = max(0, str_dmg_mod) + ench
         # to-hit calculation
         to_hit = roll_dice(20, att_mod, adv_disadv)
         crit = to_hit[1]
@@ -2780,16 +2832,16 @@ def attack(source, target, type, adv_disadv, battle):
                                                 attack_message += "half %s damage." % (extra_dmg_type)
                                 else:
                                         attack_message += "\nFailed."
-                        extra_dmg = math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod
-                        if extra_dmg > 0:
-                                attack_message += "\nPlus %s %s damage\n" % (extra_dmg, extra_dmg_type)
-                                if target.resistances[dmg_result[1][1]] == 0.5:
-                                        attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
-                                elif target.resistances[dmg_result[1][1]] == 1.5:
-                                        attack_message += "%s seems to have taken more damage than expected." % (target.name)
-                                elif target.resistances[dmg_result[1][1]] == 0:
-                                        attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, extra_dmg_type)
-                                dmg += extra_dmg
+                                extra_dmg = int(math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod)
+                                if extra_dmg > 0:
+                                        attack_message += "\n%s takes plus %s %s damage.\n" % (target.name, extra_dmg, extra_dmg_type)
+                                        if target.resistances[dmg_result[1][1]] == 0.5:
+                                                attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
+                                        elif target.resistances[dmg_result[1][1]] == 1.5:
+                                                attack_message += "%s seems to have taken more damage than expected." % (target.name)
+                                        elif target.resistances[dmg_result[1][1]] == 0:
+                                                attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, extra_dmg_type)
+                                        dmg += extra_dmg
                 target.hp -= dmg
                 if target.char_class == 3:
                         target.got_attacked = True
@@ -3281,7 +3333,7 @@ ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
 chars = init_chars()
 allies = chars
 encounters = 10
-monsters = [5]
+monsters = [4, 6]
 dungeon = Dungeon(encounters, allies, monsters)
 enemy_cnt = math.ceil(len(allies) * 1.5)
 enemies = init_enemies(dungeon, enemy_cnt)
@@ -3312,6 +3364,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
+#TODO: monk - martial arts vs two weapon fighting prio
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: fix rests
 #TODO: back option for menus
