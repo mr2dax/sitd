@@ -38,6 +38,7 @@ class Character:
                 self.inv = Inventory(self.player_id)
                 self.level = 1
                 self.npc = npc
+                self.mon = False
                 self.race = race
                 self.subrace = subrace
                 self.char_class = 0
@@ -47,7 +48,8 @@ class Character:
                 self.xp = 0
                 self.gold = 0
                 self.prof_bonus = 2
-                self.attacks = 1
+                self.attack_cnt = 1
+                self.attack_choices = 1
                 self.attack_adv = False
                 self.help_adv = False
                 self.attack_disadv = False
@@ -84,7 +86,8 @@ class Character:
                 self.extra_dmg_die = 0
                 self.extra_dmg_cnt = 0
                 self.extra_dmg_die_type = ""
-                self.extra_condition = ""
+                self.extra_condition = False
+                self.extra_condition_type = ""
                 self.extra_condition_dc = 0
                 self.extra_condition_dc_type = ""
                 self.extra_condition_escape_dc = 0
@@ -367,7 +370,7 @@ class Character:
                 combat = "Hit Points: " + str(self.hp) + "/" + str(self.max_hp) + " (Temp HP: " + str(self.temp_hp) + ")\n"
                 combat += "Hit Dice: " + str(self.hd_cnt) + "/" + str(self.hd_max) + " (d" + str(self.hd) + ")\n"
                 combat += "Armor Class: " + str(self.ac) + ", Initiative: " + str(self.init_mod) + "\n"
-                combat += "Attacks: x" + str(self.attacks) + ", Bonus attack: "
+                combat += "Attacks: x" + str(self.attack_cnt) + ", Bonus attack: "
                 if self.bonus_attack:
                         combat += "Yes"
                 else:
@@ -1004,6 +1007,8 @@ class Character:
                                 elif self.fighting_style == 4 and self.bonus_attack:
                                         self.offhand_dmg_mod = True
                                 # rangers are not proficient in heavy armor
+                                if self.eq_armor == "unarmored":
+                                        pass
                                 elif all_items.armors[self.eq_armor][4] == 2:
                                         for s in self.skills.keys():
                                                 self.skills[s][3] = True
@@ -1206,7 +1211,7 @@ class Character:
                         if self.level == 5:
                                 #self.prof_bonus_up()
                                 if self.char_class != 4:
-                                        self.attacks = 2
+                                        self.attack_cnt = 2
                                 if self.char_class == 1:
                                         pass
                                 if self.char_class == 2:
@@ -1525,45 +1530,25 @@ class Monster(Character):
         "Child for monsters."
         def __init__(self, monster):
                 super(Monster, self).__init__(monster["attrs"][0], monster["attrs"][1], monster["attrs"][2], monster["attrs"][3], monster["attrs"][4], monster["attrs"][5], monster["attrs"][6], 1, 0, 0, True)
-                self.str = monster["attrs"][1]
-                self.dex = monster["attrs"][2]
-                self.con = monster["attrs"][3]
-                self.wis = monster["attrs"][4]
-                self.int = monster["attrs"][5]
-                self.cha = monster["attrs"][6]
+                self.monster = monster
+                self.str = self.monster["attrs"][1]
+                self.dex = self.monster["attrs"][2]
+                self.con = self.monster["attrs"][3]
+                self.wis = self.monster["attrs"][4]
+                self.int = self.monster["attrs"][5]
+                self.cha = self.monster["attrs"][6]
                 self.npc = True
-                self.hd_cnt = monster["attrs"][8]
-                self.hd = monster["attrs"][7]
+                self.mon = True
+                self.hd_cnt = self.monster["attrs"][8]
+                self.hd = self.monster["attrs"][7]
                 self.prof_bonus = 2
-                self.attacks = monster["attrs"][9]
+                self.attack_cnt = self.monster["attrs"][9]
+                self.attack_choices = len(self.monster["attacks"])
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
                 self.main_dex_att_mod = self.dex_mod + self.prof_bonus
-                if self.attacks < 2:
-                        self.eq_weapon_main = monster["attacks"][0][0]
-                        self.eq_weapon_main_finesse = True
-                        self.dmg_die_main = monster["attacks"][0][2]
-                        self.dmg_die_cnt_main = monster["attacks"][0][3]
-                        self.dmg_die_type_main = monster["attacks"][0][1]
-                        self.ench_main = 0
-                        #     0               1       2          3            4          5        6           7             8           9              10            11          12             13
-                        #[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, dc type, save type, add dmg type, add dmg die, add die cnt, status ailment, obtain DC, obtain dc type, escape DC]
-                        #["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, "-", 0]
-                        if monster["attacks"][0][7] != "-":
-                                self.extra_dmg = True
-                                self.extra_dmg_dc = monster["attacks"][0][4]
-                                self.extra_dmg_dc_type = monster["attacks"][0][5]
-                                self.extra_dmg_save_type = monster["attacks"][0][6]
-                                self.extra_dmg_die = monster["attacks"][0][8]
-                                self.extra_dmg_cnt = monster["attacks"][0][9]
-                                self.extra_dmg_die_type = monster["attacks"][0][7]
-                        if monster["attacks"][0][10] != "-":
-                                self.extra_condition = monster["attacks"][0][10]
-                                self.extra_condition_dc = monster["attacks"][0][11]
-                                self.extra_condition_dc_type = monster["attacks"][0][12]
-                                self.extra_condition_escape_dc = monster["attacks"][0][13]
-                else:
-                        pass
+                # choose first available attack as default
+                self.set_attack(0)
                 self.max_hp = 0
                 for _ in range(self.hd_cnt):
                         self.max_hp += roll_dice(self.hd, self.con_mod, 0)[0]
@@ -1571,27 +1556,51 @@ class Monster(Character):
                 self.max_hp = max(1, self.hp)
                 # save: [mod, bonus, adv, disadv]
                 self.saving_throws = {
-                        "str": [self.str_mod, monster["stmods"][0], False, False],
-                        "dex": [self.dex_mod, monster["stmods"][1], False, False],
-                        "con": [self.con_mod, monster["stmods"][2], False, False],
-                        "wis": [self.wis_mod, monster["stmods"][3], False, False],
-                        "int": [self.int_mod, monster["stmods"][4], False, False],
-                        "cha": [self.cha_mod, monster["stmods"][5], False, False]
+                        "str": [self.str_mod, self.monster["stmods"][0], False, False],
+                        "dex": [self.dex_mod, self.monster["stmods"][1], False, False],
+                        "con": [self.con_mod, self.monster["stmods"][2], False, False],
+                        "wis": [self.wis_mod, self.monster["stmods"][3], False, False],
+                        "int": [self.int_mod, self.monster["stmods"][4], False, False],
+                        "cha": [self.cha_mod, self.monster["stmods"][5], False, False]
                         }
                 # skill: [mod, bonus, adv, disadv]
                 self.skills = {
-                        "athletics": [self.str_mod, monster["skills"][0], False, False],
-                        "acrobatics": [self.dex_mod, monster["skills"][1], False, False],
-                        "perception": [self.wis_mod, monster["skills"][2], False, False],
-                        "investigation": [self.int_mod, monster["skills"][3], False, False],
-                        "stealth": [self.dex_mod, monster["skills"][4], False, False],
-                        "persuasion": [self.cha_mod, monster["skills"][5], False, False]
+                        "athletics": [self.str_mod, self.monster["skills"][0], False, False],
+                        "acrobatics": [self.dex_mod, self.monster["skills"][1], False, False],
+                        "perception": [self.wis_mod, self.monster["skills"][2], False, False],
+                        "investigation": [self.int_mod, self.monster["skills"][3], False, False],
+                        "stealth": [self.dex_mod, self.monster["skills"][4], False, False],
+                        "persuasion": [self.cha_mod, self.monster["skills"][5], False, False]
                 }
-                self.name = monster["attrs"][0]
-                for dmgres in monster["dmgres"]:
+                self.name = self.monster["attrs"][0]
+                for dmgres in self.monster["dmgres"]:
                         self.resistances[dmgres[0]] = dmgres[1]
-                for condimm in monster["condimm"]:
+                for condimm in self.monster["condimm"]:
                         self.conditions[condimm][1] = True
+                self.attacks = {}
+                for i in range(self.attack_choices):
+                        self.attacks[i] = self.monster["attacks"][i][0]
+        def set_attack(self, choice):
+                self.eq_weapon_main = self.monster["attacks"][choice][0]
+                self.eq_weapon_main_finesse = True
+                self.dmg_die_main = self.monster["attacks"][choice][2]
+                self.dmg_die_cnt_main = self.monster["attacks"][choice][3]
+                self.dmg_die_type_main = self.monster["attacks"][choice][1]
+                self.ench_main = 0
+                if self.monster["attacks"][choice][7] != "-":
+                        self.extra_dmg = True
+                        self.extra_dmg_dc = self.monster["attacks"][choice][4]
+                        self.extra_dmg_dc_type = self.monster["attacks"][choice][5]
+                        self.extra_dmg_save_type = self.monster["attacks"][choice][6]
+                        self.extra_dmg_die = self.monster["attacks"][choice][8]
+                        self.extra_dmg_cnt = self.monster["attacks"][choice][9]
+                        self.extra_dmg_die_type = self.monster["attacks"][choice][7]
+                if self.monster["attacks"][choice][10] != "-":
+                        self.extra_condition = True
+                        self.extra_condition_type = self.monster["attacks"][choice][10]
+                        self.extra_condition_dc = self.monster["attacks"][choice][11]
+                        self.extra_condition_dc_type = self.monster["attacks"][choice][12]
+                        self.extra_condition_escape_dc = self.monster["attacks"][choice][13]
 
 '''
 Inventory for PCs/NPCs
@@ -1998,7 +2007,7 @@ class MonsterManual:
                                 },
                         4: {
                                 "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, 1],
-                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r/worm", 0, "-", 12]],
+                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r", 0, "-", 12]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
                                 "dmgres": [],
@@ -2359,15 +2368,19 @@ def act(attacker, act_choice, battle):
                                 action = ai.choose(attacker, attacker.actions.keys(), 2)
                         # attack action
                         if action in attacker.actions and action == 1:
-                                for _ in range(attacker.attacks):
-                                        roll_mod = 0
+                                # a creature can attack more than once if it has extra attack or multiattack
+                                for _ in range(attacker.attack_cnt):
+                                        # monsters get to choose from multiple types of attacks
+                                        if attacker.mon:
+                                                attacker.set_attack(ai.choose(attacker, attacker.attacks.keys(), 0))
+                                        # get targets, if any
                                         targets = battle.get_targets(attacker)
                                         if len(targets) != 0:
                                                 defender = target_selector(attacker, battle, targets)
-                                                roll_mod = get_adv_disadv(attacker, defender, "attack")
-                                                attack(attacker, defender, 1, roll_mod, battle)
+                                                attack(attacker, defender, 1, get_adv_disadv(attacker, defender, "attack"), battle)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
+                                # keep rage up if attacked (barbarian only)
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
                         # dodge action
@@ -2387,7 +2400,7 @@ def act(attacker, act_choice, battle):
                                 targets = battle.get_targets(attacker)
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets)
-                                        for _ in range(attacker.attacks):
+                                        for _ in range(attacker.attacks_cnt):
                                                 shove(attacker, defender)
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
@@ -2401,7 +2414,7 @@ def act(attacker, act_choice, battle):
                                 if len(targets) != 0:
                                         defender = target_selector(attacker, battle, targets)
                                         roll_mod = get_adv_disadv(attacker, defender, "attack")
-                                        for _ in range(attacker.attacks):
+                                        for _ in range(attacker.attacks_cnt):
                                                 grapple(attacker, defender, roll_mod)
                                         if attacker.bonus_attack:
                                                 attacker.bonus_actions.pop(1)
@@ -2475,8 +2488,7 @@ def act(attacker, act_choice, battle):
                                         targets = battle.get_targets(attacker)
                                         if len(targets) != 0:
                                                 defender = target_selector(attacker, battle, targets)
-                                                roll_mod = get_adv_disadv(attacker, defender, "attack")
-                                                attack(attacker, defender, 2, roll_mod, battle)
+                                                attack(attacker, defender, 2, get_adv_disadv(attacker, defender, "attack"), battle)
                                         else:
                                                 ui.push_prompt("Noone to attack.")
                                         if attacker.char_class == 3:
@@ -2575,13 +2587,12 @@ def get_adv_disadv(source, target, type):
                 roll_mod = -1
         elif roll_mod > 1:
                 roll_mod = 1
-        if roll_mod == 1:
-                ui.push_message("Rolling with advantage.")
-        elif roll_mod == -1:
-                ui.push_message("Rolling with disadvantage.")
-        elif roll_mod == 0:
-                ui.push_message("Straight roll.")
-                pass
+        # if roll_mod == 1:
+        #         ui.push_message("Rolling with advantage.")
+        # elif roll_mod == -1:
+        #         ui.push_message("Rolling with disadvantage.")
+        # elif roll_mod == 0:
+        #         ui.push_message("Straight roll.")
         return roll_mod
 
 def target_selector(source, battle, targets):
@@ -2746,7 +2757,7 @@ def attack(source, target, type, adv_disadv, battle):
                         if not to_hit_conf_flag:
                                 attack_message += "Damage: %s (%s)\n" % (dmg, dmg_type)
                         else:
-                                attack_message += "2x dice damage: %s (%s)\n" % (dmg, dmg_type)
+                                attack_message += "\n2x dice damage: %s (%s)\n" % (dmg, dmg_type)
                 if target.resistances[dmg_result[1][0]] == 0.5:
                         attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
                 elif target.resistances[dmg_result[1][0]] == 1.5:
@@ -2793,7 +2804,6 @@ def attack(source, target, type, adv_disadv, battle):
         # check if target got downed
         if target.hp <= 0:
                 target.conditions["down"][0] = True
-                ui.push_message("%s is down." % (target.name))
                 if target.grappling != "":
                         release_grapple(target, battle)
                 if target.helpee != "":
@@ -2805,6 +2815,8 @@ def attack(source, target, type, adv_disadv, battle):
                 if target.max_hp * -1 >= target.hp:
                         ui.push_message("Death blow! %s falls dead. RIP" % (target.name))
                         target.conditions["dead"][0] = True
+                else:
+                        ui.push_message("%s is down." % (target.name))
 
 '''
 Stop help
@@ -3055,6 +3067,15 @@ def gen_race(stats):
         elif race_choice == 6:
                 str_stat += 2
                 con_stat += 1
+        elif race_choice == 7:
+                str_stat += 2
+                cha_stat += 1
+        elif race_choice == 8:
+                cha_stat += 2
+                int_stat += 1
+        elif race_choice == 9:
+                dex_stat += 2
+                wis_stat += 1
         ui.push_message("============")
         ui.push_message("Stats with racial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat))
         subraces = {
@@ -3108,6 +3129,12 @@ def gen_race(stats):
         elif subrace_choice == 53:
                 cha_stat += 1
         elif subrace_choice == 61:
+                pass
+        elif subrace_choice == 71:
+                pass
+        elif subrace_choice == 81:
+                pass
+        elif subrace_choice == 91:
                 pass
         ui.push_message("============")
         ui.push_message("Stats with subracial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat))
@@ -3254,7 +3281,7 @@ ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
 chars = init_chars()
 allies = chars
 encounters = 10
-monsters = [1, 2]
+monsters = [5]
 dungeon = Dungeon(encounters, allies, monsters)
 enemy_cnt = math.ceil(len(allies) * 1.5)
 enemies = init_enemies(dungeon, enemy_cnt)
@@ -3285,8 +3312,7 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
-#TODO: separate extra attack (attack+shove etc...)
-#TODO: contemplate get_adv_disadv message
+#TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: fix rests
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
