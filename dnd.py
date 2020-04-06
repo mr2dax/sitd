@@ -69,8 +69,8 @@ class Character:
                 self.off_hand_prof = False
                 self.off_str_att_mod = self.str_mod
                 self.off_dex_att_mod = self.dex_mod
-                self.off_str_dmg_mod = self.str_mod
-                self.off_dex_dmg_mod = self.dex_mod
+                self.off_str_dmg_mod = 0
+                self.off_dex_dmg_mod = 0
                 self.dmg_die_main = 1
                 self.dmg_die_cnt_main = 1
                 self.dmg_die_type_main = "b"
@@ -833,8 +833,8 @@ class Character:
                                 self.off_hand_prof = True
                                 self.off_str_att_mod = self.str_mod + self.prof_bonus
                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                self.off_str_dmg_mod = self.str_mod
-                                self.off_dex_dmg_mod = self.dex_mod
+                                self.off_str_dmg_mod = 0
+                                self.off_dex_dmg_mod = 0
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -895,8 +895,12 @@ class Character:
                                                 self.off_hand_prof = True
                                                 self.off_str_att_mod = self.str_mod + self.prof_bonus
                                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                                self.off_str_dmg_mod = self.str_mod
-                                                self.off_dex_dmg_mod = self.dex_mod
+                                                if self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
+                                                        self.off_str_dmg_mod = self.str_mod
+                                                        self.off_dex_dmg_mod = self.dex_mod
+                                                else:
+                                                        self.off_str_dmg_mod = 0
+                                                        self.off_dex_dmg_mod = 0
                                         if monk_weapon_main and self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
                                                 self.eq_weapon_offhand = "unarmed strike"
                                                 self.eq_weapon_offhand_finesse = True
@@ -920,8 +924,8 @@ class Character:
                                         self.off_hand_prof = False
                                         self.off_str_att_mod = self.str_mod
                                         self.off_dex_att_mod = self.dex_mod
-                                        self.off_str_dmg_mod = self.str_mod
-                                        self.off_dex_dmg_mod = self.dex_mod
+                                        self.off_str_dmg_mod = 0
+                                        self.off_dex_dmg_mod = 0
                                 if self.eq_weapon_main == self.eq_weapon_offhand == "greatclub":
                                         self.bonus_attack = False
                                         self.eq_weapon_main_finesse = False
@@ -943,8 +947,8 @@ class Character:
                                 self.off_hand_prof = True
                                 self.off_str_att_mod = self.str_mod + self.prof_bonus
                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                self.off_str_dmg_mod = self.str_mod
-                                self.off_dex_dmg_mod = self.dex_mod
+                                self.off_str_dmg_mod = 0
+                                self.off_dex_dmg_mod = 0
                                 # barbarians get to add their CON mod to AC if not wearing any armor, shield bonuses apply though
                                 if self.eq_armor == "unarmored":
                                         barb_shield_mod = 0
@@ -977,8 +981,8 @@ class Character:
                                         self.off_hand_prof = True
                                         self.off_str_att_mod = self.str_mod + self.prof_bonus
                                         self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                        self.off_str_dmg_mod = self.str_mod
-                                        self.off_dex_dmg_mod = self.dex_mod
+                                        self.off_str_dmg_mod = 0
+                                        self.off_dex_dmg_mod = 0
                                 if self.eq_armor != "unarmored" or self.eq_weapon_offhand in all_items.shields:
                                         if self.eq_armor == "unarmored":
                                                 armor_type = 0
@@ -1002,8 +1006,8 @@ class Character:
                                 self.off_hand_prof = True
                                 self.off_str_att_mod = self.str_mod + self.prof_bonus
                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                self.off_str_dmg_mod = self.str_mod
-                                self.off_dex_dmg_mod = self.dex_mod
+                                self.off_str_dmg_mod = 0
+                                self.off_dex_dmg_mod = 0
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -1031,8 +1035,8 @@ class Character:
                                 self.off_hand_prof = True
                                 self.off_str_att_mod = self.str_mod + self.prof_bonus
                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                self.off_str_dmg_mod = self.str_mod
-                                self.off_dex_dmg_mod = self.dex_mod
+                                self.off_str_dmg_mod = 0
+                                self.off_dex_dmg_mod = 0
                                 # defense: +1 AC if wearing armor
                                 if self.fighting_style == 1 and self.eq_armor != "unarmored" and type == 3:
                                         if armor_type != 3:
@@ -1089,8 +1093,8 @@ class Character:
                                         self.off_hand_prof = False
                                         self.off_str_att_mod = self.str_mod
                                         self.off_dex_att_mod = self.dex_mod
-                                        self.off_str_dmg_mod = self.str_mod
-                                        self.off_dex_dmg_mod = self.dex_mod
+                                        self.off_str_dmg_mod = 0
+                                        self.off_dex_dmg_mod = 0
                                 # when unequipping main hand weapon and off-hand has a shield, then unequip main hand only
                                 elif item == self.eq_weapon_main and self.eq_weapon_offhand in all_items.shields:
                                         self.eq_weapon_main = "unarmed strike"
@@ -1118,8 +1122,8 @@ class Character:
                                         self.off_hand_prof = False
                                         self.off_str_att_mod = self.str_mod
                                         self.off_dex_att_mod = self.dex_mod
-                                        self.off_str_dmg_mod = self.str_mod
-                                        self.off_dex_dmg_mod = self.dex_mod
+                                        self.off_str_dmg_mod = 0
+                                        self.off_dex_dmg_mod = 0
                         # armor or shield
                         elif type == 3:
                                 stealth_disadv = item_list[item][5]
@@ -1151,7 +1155,8 @@ class Character:
                                         self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.main_str_dmg_mod = self.str_mod
                                         self.main_dex_dmg_mod = self.dex_mod
-                                        self.offhand_dmg_mod = True
+                                        if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
+                                                self.offhand_dmg_mod = True
                                 if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
                                         self.off_hand_prof = True
                                         self.off_str_att_mod = self.str_mod + self.prof_bonus
@@ -1188,8 +1193,8 @@ class Character:
                                         self.off_hand_prof = False
                                         self.off_str_att_mod = self.str_mod
                                         self.off_dex_att_mod = self.dex_mod
-                                        self.off_str_dmg_mod = self.str_mod
-                                        self.off_dex_dmg_mod = self.dex_mod
+                                        self.off_str_dmg_mod = 0
+                                        self.off_dex_dmg_mod = 0
                         # paladin
                         elif self.char_class == 5:
                                 pass
@@ -1388,6 +1393,8 @@ class Monk(Character):
                 self.dmg_die_cnt_off = 1
                 self.dmg_die_type_off = "b"
                 self.ench_off = 0
+                self.off_dex_dmg_mod = self.dex_mod
+                self.off_str_dmg_mod = self.str_mod
                 self.eq_weapon_main_finesse = True
                 self.eq_weapon_offhand_finesse = True
                 self.bonus_attack = True
