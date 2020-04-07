@@ -895,12 +895,14 @@ class Character:
                                                 self.off_hand_prof = True
                                                 self.off_str_att_mod = self.str_mod + self.prof_bonus
                                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
-                                                if self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
-                                                        self.off_str_dmg_mod = self.str_mod
-                                                        self.off_dex_dmg_mod = self.dex_mod
-                                                else:
-                                                        self.off_str_dmg_mod = 0
-                                                        self.off_dex_dmg_mod = 0
+                                                # overwrite off-hand attack, as it is almost always more efficient to do an unarmed strike instead of two weapon fighting as a monk
+                                                self.off_str_dmg_mod = self.str_mod
+                                                self.off_dex_dmg_mod = self.dex_mod
+                                                self.dmg_die_off = self.martial_arts_die
+                                                self.dmg_die_cnt_off = 1
+                                                self.dmg_die_type_off = "b"
+                                                self.bonus_attack = True
+                                                self.offhand_dmg_mod = True
                                         if monk_weapon_main and self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
                                                 self.eq_weapon_offhand = "unarmed strike"
                                                 self.eq_weapon_offhand_finesse = True
@@ -909,7 +911,7 @@ class Character:
                                                 self.off_dex_att_mod = self.dex_mod + self.prof_bonus
                                                 self.off_str_dmg_mod = self.str_mod
                                                 self.off_dex_dmg_mod = self.dex_mod
-                                                self.dmg_die_off = 4
+                                                self.dmg_die_off = self.martial_arts_die
                                                 self.dmg_die_cnt_off = 1
                                                 self.dmg_die_type_off = "b"
                                                 self.ench_off = 0
@@ -1385,6 +1387,7 @@ class Monk(Character):
         def __init__(self, name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc):
                 super().__init__(name, str, dex, con, int, wis, cha, starting_lvl, race, subrace, npc)
                 self.char_class = 2
+                self.martial_arts_die = 4
                 self.dmg_die_main = 4
                 self.dmg_die_cnt_main = 1
                 self.dmg_die_type_main = "b"
@@ -3371,7 +3374,6 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
-#TODO: monk - martial arts vs two weapon fighting prio
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: fix rests
 #TODO: back option for menus
