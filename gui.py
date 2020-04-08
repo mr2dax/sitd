@@ -153,7 +153,7 @@ class GUI:
         # initialize status pane with PCs
         def create_status(self, char):
                 self.char_num += 1
-                status = char.name + "\n" + str(char.hp) + "/" + str(char.max_hp) + "\n" + str(char.gold) + " GP"
+                status = "%s\n%s/%s\n%s\n%s GP" % (char.name, char.hp, char.max_hp, char.get_char_class(), char.gold)
                 self.status_pane = tk.Label(self.status_frame, text = status)
                 self.status_pane.grid(row = 0, column = self.char_num)
                 self.status_labels.append([self.status_pane, char])
@@ -162,7 +162,7 @@ class GUI:
         # update PC statuses on status pane
         def update_status(self):
                 for sl in self.status_labels:
-                        sl[0].config(text = sl[1].name + "\n" + str(sl[1].hp) + "/" + str(sl[1].max_hp) + "\n" + str(sl[1].gold) + " GP")
+                        sl[0].config(text = "%s\n%s/%s\n%s\n%s GP" % (sl[1].name, sl[1].hp, sl[1].max_hp, sl[1].get_char_class(), sl[1].gold))
         # populate input frame with text input and button, then destroy them once content was fetched
         def get_text_input(self):
                 self.input_pane = tk.Entry(self.input_frame)

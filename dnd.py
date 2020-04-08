@@ -271,19 +271,20 @@ class Character:
                         self.bonus_actions[3] = "rage"
                 # rogue only (as part of cunning action ability from 2nd level)
                 if self.char_class == 4:
-                        self.bonus_actions[4] = "disengage"
+                        pass
                 # specials (no action required)
                 self.specials = {
                         0: "back" # back to main (battle) menu 
                         }
         def deaths_door(self):
                 death_st = roll_dice(20, 0, 0)
+                ui.push_prompt("%s - Death Saving Throw: %s (S:%s,F:%s)" % (self.name, death_st[0], self.death_st_success, self.death_st_fail))
                 if death_st[1] == 1:
                         self.conditions["down"][0] = False
                         self.hp = 1
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_prompt(self.name + " is back up!")
+                        ui.push_prompt("%s is back up!" % (self.name))
                 elif death_st[1] == -1:
                         if self.death_st_fail == 2:
                                 self.death_st_fail += 1
@@ -294,17 +295,17 @@ class Character:
                                 self.death_st_fail += 1
                         elif death_st[0] >= 10:
                                 self.death_st_success += 1
-                ui.push_prompt(self.name + " - Death Saving Throw: " + str(death_st[0]) + " (S:" + str(self.death_st_success) + ",F:" + str(self.death_st_fail) + ")")
                 if self.death_st_fail > 2:
                         self.conditions["dead"][0] = True
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_prompt(self.name + " just died. RIP")
+                        ui.push_prompt("%s just died. RIP" % (self.name))
                 if self.death_st_success > 2:
                         self.hp = 0
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_prompt(self.name + " has stabilized.")
+                        ui.push_prompt("%s has stabilized." % (self.name))
+                ui.update_status()
         def receive_healing(self, healer, heal_amount):
                 current_hp = self.hp
                 if self.hp < 0:
@@ -312,7 +313,7 @@ class Character:
                         self.conditions["down"][0] = False
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_prompt(self.name + " is back up!")
+                        ui.push_prompt("%s is back up!" % (self.name))
                 self.hp = min(self.hp + heal_amount, self.max_hp)
                 if current_hp + heal_amount > self.max_hp:
                         actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
@@ -1220,7 +1221,7 @@ class Character:
                                         self.specials["reckless attack"] = True
                                         self.dex_st_adv = True
                                 if self.char_class == 4:
-                                        self.bonus_actions[3] = "disengage"
+                                        self.bonus_actions[4] = "disengage"
                                         self.sneak_damage = [6, math.ceil(self.level / 2)]
                                 if self.char_class == 5:
                                         self.divine_smite = [2, 0, 0, 0, 0]
@@ -1753,7 +1754,7 @@ class Dungeon:
                 ui.push_prompt("GG")
                 quit()
         def start_battle(self, enc, allies, enemies):
-                ui.push_battle_info("Battle #" + str(enc + 1))
+                ui.push_battle_info("Battle #%s" % (enc + 1))
                 battle = Battle(allies, enemies)
                 return battle
 
@@ -1877,37 +1878,45 @@ class Battle:
                         self.round_end = False
         def end(self):
                 ui.push_message("Duel has ended. *jingle*\n")
+                winner_team = []
+                loser_team = []
+                everyone = self.allies + self.enemies
                 if self.pcs_fled:
                         ui.push_message("%s's team fled from combat." % (self.allies[0].name))
-                if self.foes_fled:
+                elif self.foes_fled:
                         ui.push_message("Your foes have managed to run away.")
-                else:
+                # check who won
+                for eo in everyone:
+                        if eo.conditions["dead"][0] or eo.conditions["down"][0]:
+                                loser_team.append(eo)
+                                eo.death_st_success = 0
+                                eo.death_st_fail = 0
+                        else:
+                                winner_team.append(eo)
+                                eo.death_st_success = 0
+                                eo.death_st_fail = 0
+                # if the heroes have won, then dish out loot and xp
+                if winner_team[0] in self.allies:
+                        self.pcs_won = True
                         winner_team = []
                         loser_team = []
-                        everyone = self.allies + self.enemies
                         for eo in everyone:
-                                if eo.conditions["dead"][0] or (eo.conditions["down"][0] and eo in self.enemies):
+                                if (eo.conditions["dead"][0] or eo.conditions["down"][0]) and eo in self.enemies:
                                         loser_team.append(eo)
-                                        eo.death_st_success = 0
-                                        eo.death_st_fail = 0
                                 else:
                                         winner_team.append(eo)
-                                        eo.death_st_success = 0
-                                        eo.death_st_fail = 0
-                        if winner_team[0] in self.allies:
-                                self.pcs_won = True
-                                loot = 0
-                                xp = 0
-                                for lt in loser_team:
-                                        loot += lt.gold
-                                        xp += lt.xp
-                                loot = round(loot / len(winner_team))
-                                xp = round(xp / len(winner_team))
-                                for wt in winner_team:
-                                        wt.gold += loot
-                                        wt.xp += xp
-                                ui.push_message("%s's team stands victorious. Each surviving member gets: +%s GP +%s XP." % (winner_team[0].name, loot, xp))
-
+                        loot = 0
+                        xp = 0
+                        for lt in loser_team:
+                                loot += lt.gold
+                                xp += lt.xp
+                        loot = round(loot / len(winner_team))
+                        xp = round(xp / len(winner_team))
+                        for wt in winner_team:
+                                wt.gold += loot
+                                wt.xp += xp
+                        ui.push_message("%s's team stands victorious. Each surviving member gets: +%s GP +%s XP." % (winner_team[0].name, loot, xp))
+                        ui.update_status()
                 return True
         def check_end(self):
                 end = False
@@ -2374,10 +2383,17 @@ class AI:
                         1: "noob",
                         2: "minmaxer"
                         }
+                self.mon_cnt_mod = 1
         def get_diff_lvls(self):
                 return self.diff_lvls
         def set_diff_lvl(self, diff):
                 self.diff = diff
+                if self.diff == 0:
+                        self.mon_cnt_mod = 0.5
+                elif self.diff == 1:
+                        self.mon_cnt_mod = 1.5
+                elif self.diff == 2:
+                        self.mon_cnt_mod = 2
         def choose(self, char, choices, type):
                 choice = 0
                 list_of_choices = list(choices)
@@ -3291,7 +3307,6 @@ def gen_char(name, starting_level, npc):
 def gen_mon(monster):
         mon = Monster(monster)
         ui.create_status(mon)
-        #mon.gen_loot()
         mon.action_economy()
         return mon
 
@@ -3364,7 +3379,7 @@ allies = chars
 encounters = 10
 monsters = [1, 2, 3, 4, 5, 6, 7]
 dungeon = Dungeon(encounters, allies, monsters)
-enemy_cnt = math.ceil(len(allies) * 2)
+enemy_cnt = math.ceil(len(allies) * ai.mon_cnt_mod)
 enemies = init_enemies(dungeon, enemy_cnt)
 for enc in range(dungeon.enc_cnt):
         battle = dungeon.start_battle(enc, allies, enemies)
@@ -3393,7 +3408,9 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
-#TODO: fix rests & battle end
+#TODO: fix rests & dungeon continuity
+#TODO: enemy count xp pool
+#TODO: status ailments (prone immune, poison apply, poisoned state)
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
