@@ -1594,7 +1594,11 @@ class Monster(Character):
                 self.cha = self.monster["attrs"][6]
                 self.npc = True
                 self.mon = True
+                self.xp = self.monster["attrs"][10]
                 self.hd_cnt = self.monster["attrs"][8]
+                self.gold = 0
+                for _ in range(self.hd_cnt):
+                        self.gold += roll_dice(4, 0, 0)[0]
                 self.hd = self.monster["attrs"][7]
                 self.prof_bonus = 2
                 self.attack_cnt = self.monster["attrs"][9]
@@ -1874,7 +1878,7 @@ class Battle:
         def end(self):
                 ui.push_message("Duel has ended. *jingle*\n")
                 if self.pcs_fled:
-                        ui.push_message(self.allies[0].name + "'s team fled from combat.")
+                        ui.push_message("%s's team fled from combat." % (self.allies[0].name))
                 if self.foes_fled:
                         ui.push_message("Your foes have managed to run away.")
                 else:
@@ -1882,7 +1886,7 @@ class Battle:
                         loser_team = []
                         everyone = self.allies + self.enemies
                         for eo in everyone:
-                                if eo.conditions["dead"][0] or eo.conditions["down"][0]:
+                                if eo.conditions["dead"][0] or (eo.conditions["down"][0] and eo in self.enemies):
                                         loser_team.append(eo)
                                         eo.death_st_success = 0
                                         eo.death_st_fail = 0
@@ -1893,10 +1897,17 @@ class Battle:
                         if winner_team[0] in self.allies:
                                 self.pcs_won = True
                                 loot = 0
+                                xp = 0
                                 for lt in loser_team:
                                         loot += lt.gold
-                                xp = 0
-                                ui.push_message(winner_team[0].name + "'s team stands victorious: +" + str(loot) + " GP " + "+" + str(xp) + " XP gained.")
+                                        xp += lt.xp
+                                loot = round(loot / len(winner_team))
+                                xp = round(xp / len(winner_team))
+                                for wt in winner_team:
+                                        wt.gold += loot
+                                        wt.xp += xp
+                                ui.push_message("%s's team stands victorious. Each surviving member gets: +%s GP +%s XP." % (winner_team[0].name, loot, xp))
+
                 return True
         def check_end(self):
                 end = False
@@ -2029,7 +2040,7 @@ class MonsterManual:
         "Monster listing"
         def __init__(self):
                 # monster index {
-                #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, # of attacks],
+                #       attributes: [name, str, dex, con, int, wis, cha, hd, hd_mul, # of attacks, xp],
                 #       attacks: [[attack 1 name, dmg type, dmg die, dmg die cnt, add dmg dc, dc type, save type, add dmg type, add dmg die, add die cnt, status ailment, obtain DC, obtain DC type, escape DC], [attack 2 ...]],
                 #       skills: [athletics, acrobatics, perception, investigation, stealth, persuasion],
                 #       saving throw modifiers: [str, dex, con, int, wis, cha],
@@ -2037,7 +2048,7 @@ class MonsterManual:
                 #       condition immunities: [condition 1, condition 2 ...]}
                 self.monsters = {
                         1: {
-                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, 1],
+                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, 1, 100],
                                 "attacks": [["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2045,7 +2056,7 @@ class MonsterManual:
                                 "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         2: {
-                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 12, 1, 1],
+                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 12, 1, 1, 25],
                                 "attacks": [["Slime Attack", "b", 4, 1, 10, "dex", 0, "a", 10, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2053,7 +2064,7 @@ class MonsterManual:
                                 "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         3: {
-                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 5, 1],
+                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 5, 1, 100],
                                 "attacks": [["Tongue", "s", 6, 1, 0, "-", 0, "a", 8, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2061,7 +2072,7 @@ class MonsterManual:
                                 "condimm": []
                                 },
                         4: {
-                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, 1],
+                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, 1, 100],
                                 "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r", 0, "-", 12]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
@@ -2069,7 +2080,7 @@ class MonsterManual:
                                 "condimm": []
                                 },
                         5: {
-                                "attrs": ["Ape", 16, 14, 14, 6, 12, 7, 8, 3, 2],
+                                "attrs": ["Ape", 16, 14, 14, 6, 12, 7, 8, 3, 2, 100],
                                 "attacks": [["Fist", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, "-", 0], ["Rock", "b", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, "-", 0]],
                                 "skills": [2, 0, 2, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
@@ -2077,7 +2088,7 @@ class MonsterManual:
                                 "condimm": []
                                 },
                         6: {
-                                "attrs": ["Giant Wasp", 10, 14, 10, 1, 10, 3, 8, 3, 1],
+                                "attrs": ["Giant Wasp", 10, 14, 10, 1, 10, 3, 8, 3, 1, 100],
                                 "attacks": [["Sting", "p", 6, 1, 11, "con", 0.5, "v", 6, 3, "p", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2085,7 +2096,7 @@ class MonsterManual:
                                 "condimm": []
                                 },
                         7: {
-                                "attrs": ["Giant Bat", 15, 16, 11, 2, 12, 6, 10, 4, 1],
+                                "attrs": ["Giant Bat", 15, 16, 11, 2, 12, 6, 10, 4, 1, 50],
                                 "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2254,30 +2265,38 @@ class Shop:
                         random_choice = random.choice(list(self.potions.keys()))
                         attributes = self.convert_attributes(self.potions[random_choice], type)
                         self.shop_list_potions.append([random_choice, index, attributes])
+        '''
+        Shopping flow.
+        IN
+        - character (object)
+        OUT
+          N/A
+        '''
         def shopping_flow(self, char):
-                done_shopping = False
-                while done_shopping == False:
-                        for i in range(4):
-                                i += 1
-                                exit_shop = False
-                                while not exit_shop:
-                                        choice = self.shop_purchase(i, char)
-                                        if choice != -1:
-                                                ui.push_message("Take another look?")
-                                                if int(ui.get_binary_input()) == 0:
-                                                        exit_shop = True
-                                                        ui.push_prompt("Ola Kala, bye.\n")
-                                        else:
+                shop_choice = 0
+                # check to see if player wants to skip the marketplace entirely
+                while shop_choice != -1:
+                        ui.push_message("Where do you want to go?")
+                        exit_shop = False
+                        shop_choice = ui.get_dict_choice_input_shop(self.shop_types)
+                        if shop_choice != -1:
+                                ui.push_message(self.shop_types[shop_choice].capitalize())
+                                ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?",
+                                        "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.",
+                                        "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
+                        else:
+                                exit_shop = True
+                        # stay in selected shop until exiting
+                        while not exit_shop:
+                                choice = self.shop_purchase(shop_choice, char)
+                                if choice != -1:
+                                        ui.push_message("Take another look?")
+                                        if int(ui.get_binary_input()) == 0:
                                                 exit_shop = True
-                                                ui.push_prompt("Ola Kala, bye.\n")
-                        ui.push_message("Another round?")
-                        finished = int(ui.get_binary_input())
-                        if finished == 0:
-                                done_shopping = True
-                                ui.push_prompt(char.name + " has left the marketplace.\n")
+                                else:
+                                        exit_shop = True
+                ui.push_prompt("%s has left the marketplace.\n" % (char.name))
         def shop_purchase(self, type, char):
-                ui.push_message(self.shop_types[type].capitalize())
-                ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?", "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.", "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
                 # price and weight positions may need to be adjusted across different types of items (dictionary)
                 price_pos = 0
                 weight_pos = 0
@@ -2336,7 +2355,7 @@ class Shop:
                         else:
                                 ui.push_prompt("Ah, you've changed your mind, I see...")
                 elif purchase_choice == -1:
-                        ui.push_prompt("Oh, not interested, huh?")
+                        ui.push_prompt(random.choice(["Oh, not interested, huh?", "OK, bye!", "Ola Kala, see you next time!", "Come back again if you need anything!"]))
                 return purchase_choice
 
 '''
@@ -3343,9 +3362,9 @@ ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
 chars = init_chars()
 allies = chars
 encounters = 10
-monsters = [4, 6]
+monsters = [1, 2, 3, 4, 5, 6, 7]
 dungeon = Dungeon(encounters, allies, monsters)
-enemy_cnt = math.ceil(len(allies) * 1.5)
+enemy_cnt = math.ceil(len(allies) * 2)
 enemies = init_enemies(dungeon, enemy_cnt)
 for enc in range(dungeon.enc_cnt):
         battle = dungeon.start_battle(enc, allies, enemies)
@@ -3374,9 +3393,8 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
+#TODO: fix rests & battle end
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
-#TODO: fix rests
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
-#TODO: after every 2nd battle pcs level up, get loot from opposing team
 #TODO: 4-lane battle formation/2-lane marching order, net restrain, whip pull, push/pull, move mechanic
