@@ -312,64 +312,73 @@ class GUI:
                 return input_val
         # create character status overlay
         def create_char_status(self, char):
+                # pop-up status main frame
                 char_stats = char.print_char_status()
                 self.char_stats_frame = tk.Frame(self.main_window, borderwidth = 2, relief = tk.RAISED)
                 self.char_stats_frame.place(x = 1, y = 1)
                 self.char_stats_frame.bind("<Key>", lambda event: self.destroy_char_status())
                 self.char_stats_frame.focus_set()
                 # title
-                self.title_label = tk.Label(self.char_stats_frame, text = char.name + "'s status", justify = tk.LEFT)
+                self.char_stats_title_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_title_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.title_label = tk.Label(self.char_stats_title_frame, text = "%s's status" % (char.name), justify = tk.LEFT)
                 self.title_label.grid(row = 0, column = 0)
-                self.class_label = tk.Label(self.char_stats_frame, text = char.get_char_class(), justify = tk.LEFT)
+                self.class_label = tk.Label(self.char_stats_title_frame, text = char.get_char_class(), justify = tk.LEFT)
                 self.class_label.grid(row = 0, column = 1)
-                self.race_label = tk.Label(self.char_stats_frame, text = char.get_char_race() + " (" + char.get_char_subrace() + ")", justify = tk.LEFT)
+                self.race_label = tk.Label(self.char_stats_title_frame, text = "%s (%s)" % (char.get_char_race(), char.get_char_subrace()), justify = tk.LEFT)
                 self.race_label.grid(row = 0, column = 2)
-                self.done_btn = tk.Button(self.char_stats_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.destroy_char_status())
-                self.done_btn.grid(row = 0, column = 3)
-                # separator
-                tk.Label(self.char_stats_frame, text=" ").grid(row = 1, column = 0)
+                self.xp_label = tk.Label(self.char_stats_title_frame, text = "Level: %s (XP: %s/%s)" % (char.level, char.xp, char.get_level_up_cap(char.level)), justify = tk.LEFT)
+                self.xp_label.grid(row = 0, column = 3)
+                self.done_btn = tk.Button(self.char_stats_title_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.destroy_char_status())
+                self.done_btn.grid(row = 0, column = 4)
                 # combat
-                self.combat_label = tk.Label(self.char_stats_frame, text = char_stats[5], justify = tk.LEFT)
-                self.combat_label.grid(row = 2, column = 0, columnspan = 4, sticky = "w")
-                # separator
-                tk.Label(self.char_stats_frame, text=" ").grid(row = 3, column = 0)
+                self.char_stats_combat_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_combat_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.combat_label = tk.Label(self.char_stats_combat_frame, text = char_stats[5], justify = tk.LEFT)
+                self.combat_label.grid(row = 0, column = 0)
                 # basic
-                self.abilities_label = tk.Label(self.char_stats_frame, text = char_stats[0], justify = tk.LEFT)
-                self.abilities_label.grid(row = 4, column = 0)
-                self.scores_label = tk.Label(self.char_stats_frame, text = char_stats[1], justify = tk.LEFT)
-                self.scores_label.grid(row = 4, column = 1)
-                self.mods_label = tk.Label(self.char_stats_frame, text = char_stats[2], justify = tk.LEFT)
-                self.mods_label.grid(row = 4, column = 2)
-                self.saving_throws_label = tk.Label(self.char_stats_frame, text = char_stats[3], justify = tk.LEFT)
-                self.saving_throws_label.grid(row = 4, column = 3)
-                self.skills_label = tk.Label(self.char_stats_frame, text = char_stats[10], justify = tk.LEFT)
-                self.skills_label.grid(row = 4, column = 4)
-                # separator
-                tk.Label(self.char_stats_frame, text=" ").grid(row = 5, column = 0)
+                self.char_stats_basic_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_basic_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.abilities_label = tk.Label(self.char_stats_basic_frame, text = char_stats[0], justify = tk.LEFT)
+                self.abilities_label.grid(row = 0, column = 0)
+                self.scores_label = tk.Label(self.char_stats_basic_frame, text = char_stats[1], justify = tk.LEFT)
+                self.scores_label.grid(row = 0, column = 1)
+                self.mods_label = tk.Label(self.char_stats_basic_frame, text = char_stats[2], justify = tk.LEFT)
+                self.mods_label.grid(row = 0, column = 2)
+                self.saving_throws_label = tk.Label(self.char_stats_basic_frame, text = char_stats[3], justify = tk.LEFT)
+                self.saving_throws_label.grid(row = 0, column = 3)
+                self.skills_label = tk.Label(self.char_stats_basic_frame, text = char_stats[10], justify = tk.LEFT)
+                self.skills_label.grid(row = 0, column = 4)
                 # conditions
-                self.conditions_label = tk.Label(self.char_stats_frame, text = char_stats[4], justify = tk.LEFT)
-                self.conditions_label.grid(row = 6, column = 0)
-                # separator
-                tk.Label(self.char_stats_frame, text=" ").grid(row = 7, column = 0)
+                self.char_stats_cond_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_cond_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.conditions_label = tk.Label(self.char_stats_cond_frame, text = char_stats[4], justify = tk.LEFT)
+                self.conditions_label.grid(row = 0, column = 0)
                 # resistances
-                self.resistances_label = tk.Label(self.char_stats_frame, text = char_stats[11], justify = tk.LEFT)
-                self.resistances_label.grid(row = 8, column = 0)
-                # separator
-                tk.Label(self.char_stats_frame, text=" ").grid(row = 9, column = 0)
+                self.char_stats_resist_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_resist_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.resistances_label = tk.Label(self.char_stats_resist_frame, text = char_stats[11], justify = tk.LEFT)
+                self.resistances_label.grid(row = 0, column = 0)
                 # equipped
-                self.equipped_label = tk.Label(self.char_stats_frame, text = char_stats[6], justify = tk.LEFT)
-                self.equipped_label.grid(row = 10, column = 0)
-                # separator
-                tk.Label(self.char_stats_frame, text=" ").grid(row = 11, column = 0)
-                # equipped
-                self.inventory_label = tk.Label(self.char_stats_frame, text = char_stats[7], justify = tk.LEFT)
-                self.inventory_label.grid(row = 12, column = 0)
+                self.char_stats_equip_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_equip_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.equipped_label = tk.Label(self.char_stats_equip_frame, text = char_stats[6], justify = tk.LEFT)
+                self.equipped_label.grid(row = 0, column = 0)
+                # inventory
+                self.char_stats_inv_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_inv_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.inventory_label = tk.Label(self.char_stats_inv_frame, text = char_stats[7], justify = tk.LEFT)
+                self.inventory_label.grid(row = 0, column = 0)
                 # specials
-                self.specials_label = tk.Label(self.char_stats_frame, text = char_stats[8], justify = tk.LEFT)
-                self.specials_label.grid(row = 13, column = 0)
+                self.char_stats_specials_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_specials_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.specials_label = tk.Label(self.char_stats_specials_frame, text = char_stats[8], justify = tk.LEFT)
+                self.specials_label.grid(row = 0, column = 0)
                 # death saves
-                self.death_saves_label = tk.Label(self.char_stats_frame, text = char_stats[9], justify = tk.LEFT)
-                self.death_saves_label.grid(row = 14, column = 0)
+                self.char_stats_death_saves_frame = tk.Frame(self.char_stats_frame, borderwidth = 1, relief = tk.GROOVE)
+                self.char_stats_death_saves_frame.pack(side = tk.TOP, fill = tk.BOTH)
+                self.death_saves_label = tk.Label(self.char_stats_death_saves_frame, text = char_stats[9], justify = tk.LEFT)
+                self.death_saves_label.grid(row = 0, column = 0)
         # remove character status overlay
         def destroy_char_status(self):
                 self.char_stats_frame.unbind("<Key>")

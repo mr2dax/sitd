@@ -255,7 +255,7 @@ class Character:
                         self.actions[5] = "grapple"
                 # paladin only touch heal
                 if self.char_class == 5:
-                        self.actions[7] = "lay on hands"
+                        self.actions[10] = "lay on hands"
                 # bonus actions (swift actions)
                 self.bonus_actions = {
                         0: "back" # back to main (battle) menu 
@@ -276,15 +276,23 @@ class Character:
                 self.specials = {
                         0: "back" # back to main (battle) menu 
                         }
+        '''
+        Death saving throws at death's door
+        IN
+          N/A
+        OUT
+          N/A
+        '''
         def deaths_door(self):
                 death_st = roll_dice(20, 0, 0)
-                ui.push_prompt("%s - Death Saving Throw: %s (S:%s,F:%s)" % (self.name, death_st[0], self.death_st_success, self.death_st_fail))
+                # check for nat 20 -> wake up with 1 HP
                 if death_st[1] == 1:
                         self.conditions["down"][0] = False
                         self.hp = 1
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt("%s is back up!" % (self.name))
+                # check for nat 1 -> 2 failures
                 elif death_st[1] == -1:
                         if self.death_st_fail == 2:
                                 self.death_st_fail += 1
@@ -295,35 +303,49 @@ class Character:
                                 self.death_st_fail += 1
                         elif death_st[0] >= 10:
                                 self.death_st_success += 1
+                ui.push_prompt("%s is down.\nDeath Saving Throw: %s (S:%s,F:%s)" % (self.name, death_st[0], self.death_st_success, self.death_st_fail))
+                # 3 fails -> dead
                 if self.death_st_fail > 2:
                         self.conditions["dead"][0] = True
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt("%s just died. RIP" % (self.name))
+                # 3 successes -> stabilized (but unconscious)
                 if self.death_st_success > 2:
                         self.hp = 0
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt("%s has stabilized." % (self.name))
                 ui.update_status()
+        '''
+        Character receives healing
+        IN
+        - healer (object)
+        - healed amount (int)
+        OUT
+        - actual heal amount (int)
+        '''
         def receive_healing(self, healer, heal_amount):
+                # negative hp first resets to 0 if healed and healing amount added after (5e RAW)
                 current_hp = self.hp
-                if self.hp < 0:
+                if current_hp <= 0:
                         self.hp = 0
+                        # reset down condition and death saves
                         self.conditions["down"][0] = False
                         self.death_st_success = 0
                         self.death_st_fail = 0
                         ui.push_prompt("%s is back up!" % (self.name))
+                # calculate actual healed amount to display properly (heal overflow)
                 self.hp = min(self.hp + heal_amount, self.max_hp)
                 if current_hp + heal_amount > self.max_hp:
                         actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
                 else:
                         actual_heal = heal_amount
-                ui.update_status()
                 if healer.name == self.name:
                         ui.push_prompt("%s healed self for %s HP." % (healer.name, actual_heal))
                 else:
                         ui.push_prompt("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
+                ui.update_status()
                 return actual_heal
         # return formatted character stats
         def print_char_status(self):
@@ -349,19 +371,21 @@ class Character:
                         skill_names[5].capitalize() + ": {0:+}".format(self.skills["persuasion"][0] + self.skills["persuasion"][1]) + " (%s,%s)" % (self.skills["persuasion"][2], self.skills["persuasion"][3]))
                 skills = "Skills (adv,disadv)\n%s\n%s\n%s\n%s\n%s\n%s" % skills_tup
                 cond_list = [" " +  key for key, value in self.conditions.items() if value[0]]
-                conditions = "Conditions:"
+                conditions = "Conditions"
                 for cond in cond_list:
                         conditions += cond
                 if self.char_class == 3:
                         if self.raging:
-                                conditions += " raging"
+                                conditions += "\nraging"
                 if self.grappled_by != "":
                         conditions += "\nGrappled by: " + battle.get_char_by_id(self.grappled_by).name
                 if self.grappling != "":
                         conditions += "\nGrappling: " + battle.get_char_by_id(self.grappling).name
                 if self.helpee != "":
                         conditions += "\nHelping: " + battle.get_char_by_id(self.helpee).name
-                resistances = "Resistances:\n"
+                if conditions == "Conditions":
+                        conditions += "\nN/A"
+                resistances = "Resistances\n"
                 r = 0
                 for key, value in self.resistances.items():
                         r += 1
@@ -973,14 +997,14 @@ class Character:
                                         self.armor_shield_disadv = True
                         # rogue
                         elif self.char_class == 4:
-                                # rogues are proficient in: simple weapons, hand crossbows, longswords, rapiers, shortswords, light armor
-                                if self.eq_weapon_main in all_items.simple_melee_weapons or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier"]:
+                                # rogues are proficient in: simple weapons (melee and ranged), hand crossbows, longswords, rapiers, shortswords, light armor
+                                if self.eq_weapon_main in all_items.simple_melee_weapons or self.eq_weapon_main in all_items.simple_ranged_weapons or self.eq_weapon_main in ["shortsword", "hand crossbow", "longsword", "rapier"]:
                                         self.main_hand_prof = True
                                         self.main_str_att_mod = self.str_mod + self.prof_bonus
                                         self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.main_str_dmg_mod = self.str_mod
                                         self.main_dex_dmg_mod = self.dex_mod
-                                if self.eq_weapon_offhand in all_items.simple_melee_weapons or self.eq_weapon_offhand in ["shortsword", "hand crossbow", "longsword", "rapier"]:
+                                if self.eq_weapon_offhand in all_items.simple_melee_weapons or self.eq_weapon_main in all_items.simple_ranged_weapons or self.eq_weapon_offhand in ["shortsword", "hand crossbow", "longsword", "rapier"]:
                                         self.off_hand_prof = True
                                         self.off_str_att_mod = self.str_mod + self.prof_bonus
                                         self.off_dex_att_mod = self.dex_mod + self.prof_bonus
@@ -1338,6 +1362,23 @@ class Character:
                         5: "archery"
                         }
                 return styles[self.fighting_style]
+        '''
+        Get next experience cap for certain level
+        IN
+        - level (int)
+        OUT
+        - level up limit (int)
+        '''
+        def get_level_up_cap(self, level):
+                level_limits = {
+                        0: 0,
+                        1: 300,
+                        2: 900,
+                        3: 2700,
+                        4: 6500,
+                        5: 14000
+                        }
+                return level_limits[level]
 
 '''
 Fighter (Character child)
@@ -1647,6 +1688,7 @@ class Monster(Character):
                 self.dmg_die_cnt_main = self.monster["attacks"][choice][3]
                 self.dmg_die_type_main = self.monster["attacks"][choice][1]
                 self.ench_main = 0
+                # check for extra damage
                 if self.monster["attacks"][choice][7] != "-":
                         self.extra_dmg = True
                         self.extra_dmg_dc = self.monster["attacks"][choice][4]
@@ -1655,6 +1697,7 @@ class Monster(Character):
                         self.extra_dmg_die = self.monster["attacks"][choice][8]
                         self.extra_dmg_cnt = self.monster["attacks"][choice][9]
                         self.extra_dmg_die_type = self.monster["attacks"][choice][7]
+                # check for extra status ailment
                 if self.monster["attacks"][choice][10] != "-":
                         self.extra_condition = True
                         self.extra_condition_type = self.monster["attacks"][choice][10]
@@ -2073,7 +2116,7 @@ class MonsterManual:
                                 "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         3: {
-                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 5, 1, 100],
+                                "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 4, 1, 100],
                                 "attacks": [["Tongue", "s", 6, 1, 0, "-", 0, "a", 8, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
@@ -2081,8 +2124,8 @@ class MonsterManual:
                                 "condimm": []
                                 },
                         4: {
-                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 5, 1, 100],
-                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "gr/r", 0, "-", 12]],
+                                "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 4, 1, 100],
+                                "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "r", 0, "-", 12]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
                                 "dmgres": [],
@@ -2401,7 +2444,7 @@ class AI:
                         choice = random.choice(list_of_choices)
                 elif self.diff == 1:
                         if type == 1:
-                                if char.battle_menu_options[1][1] < 1:
+                                if char.battle_menu_options[1][1] < 1 or 1 not in char.actions:
                                         choice = 4
                                 else:
                                         choice = 1
@@ -2519,17 +2562,13 @@ def act(attacker, act_choice, battle):
                                         attacker.bonus_actions.pop(1)
                                 if attacker.char_class == 3:
                                         attacker.did_attack = True
-                        # lay on hands (paladin only)
+                        # use action to escape a restraint
                         elif action in attacker.actions and action == 7:
-                                allies = battle.get_allies(attacker, 1)
-                                receiver = target_selector(attacker, battle, allies)
-                                receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
-                                lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable)
-                                actual_heal = receiver.receive_healing(attacker, lay_on_hands_heal)
-                                attacker.lay_on_hands_pool -= actual_heal
-                                if attacker.lay_on_hands_pool <= 0:
-                                        attacker.actions.pop(action)
-                                        attacker.lay_on_hands_pool = 0
+                                escape_restraint(attacker, battle)
+                                if attacker.bonus_attack:
+                                        attacker.bonus_actions.pop(1)
+                                if attacker.char_class == 3:
+                                        attacker.did_attack = True
                         # help action
                         elif action in attacker.actions and action == 8:
                                 allies = battle.get_allies(attacker, 0)
@@ -2562,6 +2601,17 @@ def act(attacker, act_choice, battle):
                                         attacker.carry -= all_items.potions[value][4]
                                 else:
                                         attacker.battle_menu_options[1][1] += 1
+                        # lay on hands (paladin only)
+                        elif action in attacker.actions and action == 10:
+                                allies = battle.get_allies(attacker, 1)
+                                receiver = target_selector(attacker, battle, allies)
+                                receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
+                                lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable)
+                                actual_heal = receiver.receive_healing(attacker, lay_on_hands_heal)
+                                attacker.lay_on_hands_pool -= actual_heal
+                                if attacker.lay_on_hands_pool <= 0:
+                                        attacker.actions.pop(action)
+                                        attacker.lay_on_hands_pool = 0
                         # back to battle menu
                         elif action in attacker.actions and action == 0:
                                 attacker.battle_menu_options[1][1] += 1
@@ -2628,7 +2678,7 @@ def act(attacker, act_choice, battle):
                 elif act_choice == 4:
                         attacker.turn_done = True
                         ui.clear_message()
-        # character is unconscious = death saving throw or stabilized (incapacitated)
+        # make death saving throws at the beginning of character's turn if character is unconscious
         elif attacker.conditions["down"][0] and not attacker.conditions["dead"][0] and attacker.death_st_success < 3:
                 attacker.deaths_door()
                 attacker.turn_done = True
@@ -2660,6 +2710,8 @@ def get_adv_disadv(source, target, type):
                 if source.help_adv:
                         roll_mod += 1
                         stop_help(source.player_id)
+                if target.conditions["restrained"][0]:
+                        roll_mod += 1
                 if source.attack_adv:
                         roll_mod += 1
                 elif source.attack_disadv:
@@ -2877,6 +2929,12 @@ def attack(source, target, type, adv_disadv, battle):
                                                 attack_message += "half %s damage." % (extra_dmg_type)
                                 else:
                                         attack_message += "\nFailed."
+                                        if source.extra_condition:
+                                                if source.extra_condition_type == "p" and not target.conditions["poisoned"][1]:
+                                                        target.conditions["poisoned"][0] = True
+                                                        target.attack_disadv = True
+                                                        for value in target.skills.items():
+                                                                value[3] = True
                                 extra_dmg = int(math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod)
                                 if extra_dmg > 0:
                                         attack_message += "\n%s takes plus %s %s damage.\n" % (target.name, extra_dmg, extra_dmg_type)
@@ -2887,6 +2945,9 @@ def attack(source, target, type, adv_disadv, battle):
                                         elif target.resistances[dmg_result[1][1]] == 0:
                                                 attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, extra_dmg_type)
                                         dmg += extra_dmg
+                elif not source.extra_dmg and source.extra_condition:
+                        if source.extra_condition_type == "r" and not target.conditions["restrained"][1]:
+                                restrain(source, target)
                 target.hp -= dmg
                 if target.char_class == 3:
                         target.got_attacked = True
@@ -2903,6 +2964,7 @@ def attack(source, target, type, adv_disadv, battle):
                 target.conditions["down"][0] = True
                 if target.grappling != "":
                         release_grapple(target, battle)
+                        release_restraint(target, battle)
                 if target.helpee != "":
                         stop_help(target.helpee)
                         target.helpee = ""
@@ -2910,10 +2972,10 @@ def attack(source, target, type, adv_disadv, battle):
                         if target.raging == True:
                                 target.got_attacked = True
                 if target.max_hp * -1 >= target.hp:
-                        ui.push_message("Death blow! %s falls dead. RIP" % (target.name))
+                        ui.push_prompt("Death blow! %s falls dead. RIP" % (target.name))
                         target.conditions["dead"][0] = True
                 else:
-                        ui.push_message("%s is down." % (target.name))
+                        ui.push_prompt("%s is down." % (target.name))
 
 '''
 Stop help
@@ -2931,11 +2993,12 @@ def stop_help(target_id):
 Shove attack
 IN
 - attacker (object)
-- defender (object) 
+- defender (object)
 OUT
   N/A
 '''
 def shove(source, target):
+        # contested roll: attacker's athletics skill vs target's athletics or acrobatics skill (whichever is higher)
         att_check = roll_dice(20, source.skills["athletics"][0] + source.skills["athletics"][1], get_adv_disadv(source, target, "athletics"))[0]
         def_check = (max(roll_dice(20, target.skills["athletics"][0] + target.skills["athletics"][1], get_adv_disadv(target, source, "athletics"))[0], roll_dice(20, target.skills["acrobatics"][0] + target.skills["acrobatics"][1], get_adv_disadv(target, source, "acrobatics"))[0]))
         ui.push_message("Contested check: %s vs %s" % (att_check, def_check))
@@ -2948,6 +3011,92 @@ def shove(source, target):
         else:
                 ui.push_prompt("Shove attempt failed.")
 
+'''
+Restrain attack
+IN
+- attacker (object)
+- defender (object)
+OUT
+  N/A
+'''
+def restrain(source, target):
+        # being restrained causes target to have disadvantage on attacks and DEX STs, advantage on attacks vs target and grappled status
+        target.attack_disadv = True
+        target.saving_throws["dex"][3] = True
+        target.conditions["restrained"][0] = True
+        target.conditions["grappled"][0] = True
+        target.grappled_by = source.player_id
+        source.grappling = target.player_id
+        # remove disengage and add escape restraint action while restrained
+        target.actions.pop(3)
+        target.actions[7] = "escape restraint"
+        # remove attack action from restrainer while restraining
+        source.actions.pop(1)
+        ui.push_prompt("%s is restrained by %s." % (target.name, source.name))
+
+'''
+Release restraint
+IN
+- restrainer (object)
+- battle (object)
+OUT
+  N/A
+'''
+def release_restraint(restrainer, battle):
+        # happens when restrainer gets downed
+        restrainee = battle.get_char_by_id(restrainer.grappling)
+        restrainee.grappled_by = ""
+        restrainee.conditions["grappled"][0] = False
+        restrainer.grappling = ""
+        # re-add disengage and remove escape restraint action
+        restrainee.actions[3] = "disengage"
+        restrainee.actions.pop(7)
+        # re-add attack action to restrainer upon releasing restraint if wielding two-handed, reset damage die if wielding versatile
+        if all_items.all_weapons[restrainer.eq_weapon_main][8] == 2:
+                restrainer.actions[1] = "attack"
+        elif all_items.all_weapons[restrainer.eq_weapon_main][8] == 1.5:
+                restrainer.dmg_die_main += 2
+
+'''
+Escape restraint
+IN
+- restrainee (object)
+- battle (object)
+OUT
+  N/A
+'''
+def escape_restraint(restrainee, battle):
+        # monsters have special rules for grapples and restraints
+        restrainer = battle.get_char_by_id(restrainee.grappled_by)
+        att_check = roll_dice(20, max(restrainee.skills["athletics"][0] + restrainee.skills["athletics"][1], restrainee.skills["acrobatics"][0] + restrainee.skills["acrobatics"][1]), 0)[0]
+        def_check = restrainer.extra_condition_escape_dc
+        ui.push_message("Special contested check: %s vs %s" % (att_check, def_check))
+        if att_check > def_check:
+                restrainee.grappled_by = ""
+                restrainee.conditions["grappled"][0] = False
+                restrainee.conditions["restrained"][0] = False
+                restrainer.grappling = ""
+                # re-add disengage and remove escape restraint action
+                restrainee.actions[3] = "disengage"
+                restrainee.actions.pop(7)
+                # re-add attack action to restrainer upon restraint end if wielding two-handed, reset damage die if wielding versatile
+                if all_items.all_weapons[restrainer.eq_weapon_main][8] == 2:
+                        restrainer.actions[1] = "attack"
+                if all_items.all_weapons[restrainer.eq_weapon_main][8] == 1.5:
+                        restrainer.dmg_die_main += 2
+                ui.push_prompt("%s has escaped the restraint." % (restrainee.name))
+        else:
+                ui.push_prompt("Restraint escape attempt failed.")
+
+'''
+Grapple attack
+IN
+- attacker (object)
+- defender (object)
+- advantage/disadvantage on grapple attack (int)
+OUT
+  N/A
+'''
 def grapple(source, target, adv_disadv):
         att_mod = max(source.off_dex_att_mod, source.off_str_att_mod)
         to_hit = roll_dice(20, att_mod, adv_disadv)
@@ -2956,9 +3105,11 @@ def grapple(source, target, adv_disadv):
                 target.conditions["grappled"][0] = True
                 target.grappled_by = source.player_id
                 source.grappling = target.player_id
+                # remove disengage and add escape grapple action while grappled
                 target.actions.pop(3)
                 target.actions[6] = "escape grapple"
                 ui.push_prompt("%s is grappled by %s." % (target.name, source.name))
+                # remove attack action from grappler while grappling if wielding two-handed, reduce damage die if wielding versatile
                 if source.eq_weapon_main != "unarmed strike":
                         if all_items.all_melee_weapons[source.eq_weapon_main][8] == 2:
                                 source.actions.pop(1)
@@ -2967,29 +3118,51 @@ def grapple(source, target, adv_disadv):
         else:
                 ui.push_prompt("%s failed to grapple %s." % (source.name, target.name))
 
+'''
+Release grapple
+IN
+- grappler (object)
+- battle (object)
+OUT
+  N/A
+'''
 def release_grapple(grappler, battle):
+        # happens when grappler gets downed
         grapplee = battle.get_char_by_id(grappler.grappling)
         grapplee.grappled_by = ""
         grapplee.conditions["grappled"][0] = False
         grappler.grappling = ""
+        # re-add disengage and remove escape grapple action
         grapplee.actions[3] = "disengage"
         grapplee.actions.pop(6)
+        # re-add attack action to grappler upon releasing grapple if wielding two-handed, reset damage die if wielding versatile
         if all_items.all_weapons[grappler.eq_weapon_main][8] == 2:
                 grappler.actions[1] = "attack"
         elif all_items.all_weapons[grappler.eq_weapon_main][8] == 1.5:
                 grappler.dmg_die_main += 2
 
+'''
+Escape grapple
+IN
+- grapplee (object)
+- battle (object)
+OUT
+  N/A
+'''
 def escape_grapple(grapplee, battle):
+        # contested roll: grappler's athletics skill vs grapplee's athletics or acrobatics skill (whichever is higher)
         grappler = battle.get_char_by_id(grapplee.grappled_by)
         att_check = roll_dice(20, max(grapplee.skills["athletics"][0] + grapplee.skills["athletics"][1], grapplee.skills["acrobatics"][0] + grapplee.skills["acrobatics"][1]), 0)[0]
         def_check = roll_dice(20, grappler.skills["athletics"][0] + grappler.skills["athletics"][1], 0)[0]
-        ui.push_message("Contested check: " + str(att_check) + " vs " + str(def_check))
+        ui.push_message("Contested check: %s vs %s" % (att_check, def_check))
         if att_check > def_check:
                 grapplee.grappled_by = ""
                 grapplee.conditions["grappled"][0] = False
                 grappler.grappling = ""
+                # re-add disengage and remove escape grapple action
                 grapplee.actions[3] = "disengage"
                 grapplee.actions.pop(6)
+                # re-add attack action to grappler upon grapple end if wielding two-handed, reset damage die if wielding versatile
                 if all_items.all_weapons[grappler.eq_weapon_main][8] == 2:
                         grappler.actions[1] = "attack"
                 if all_items.all_weapons[grappler.eq_weapon_main][8] == 1.5:
@@ -3410,7 +3583,6 @@ main_window.mainloop()
 
 #TODO: fix rests & dungeon continuity
 #TODO: enemy count xp pool
-#TODO: status ailments (prone immune, poison apply, poisoned state)
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
