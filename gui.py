@@ -48,7 +48,7 @@ class GUI:
         def __init__(self, main_window):
                 # window
                 self.main_window = main_window
-                main_window.title("Shining in the Dungeon (5e Duel)")
+                main_window.title("Shining in the Dungeon (5e Dungeon Crawler)")
                 main_window.minsize(1024, 768)
                 main_window.maxsize(1024, 768)
                 # main game frame

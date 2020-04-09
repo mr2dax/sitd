@@ -1755,6 +1755,7 @@ class Dungeon:
                 self.short_rest_cnt = 1
                 self.long_rest_cnt = 2
                 self.avail_monsters = avail_monsters
+                self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
         def get_respite_options(self):
                 respite_options = {
                         0: "Pass",
@@ -1800,6 +1801,25 @@ class Dungeon:
                 ui.push_battle_info("Battle #%s" % (enc + 1))
                 battle = Battle(allies, enemies)
                 return battle
+        '''
+        Initialize NPCs (non-player characters)
+        IN
+          N/A
+        OUT
+        - enemy_list (list of objects)
+        '''
+        def init_enemies(self):
+                enemy_counter = {}
+                enemy_list = []
+                for _ in range(self.enemy_cnt):
+                        enemy = gen_mon(all_monsters.monsters[random.choice(dungeon.avail_monsters)])
+                        if enemy.name not in enemy_counter:
+                                enemy_counter[enemy.name] = 1
+                        else:
+                                enemy_counter[enemy.name] += 1
+                        enemy.name = "%s #%s" % (enemy.name, enemy_counter[enemy.name])
+                        enemy_list.append(enemy)
+                return enemy_list
 
 '''
 Battle
@@ -3014,25 +3034,32 @@ def shove(source, target):
 '''
 Restrain attack
 IN
-- attacker (object)
-- defender (object)
+- restrainer (object)
+- restrainee (object)
 OUT
   N/A
 '''
-def restrain(source, target):
+def restrain(restrainer, restrainee):
         # being restrained causes target to have disadvantage on attacks and DEX STs, advantage on attacks vs target and grappled status
-        target.attack_disadv = True
-        target.saving_throws["dex"][3] = True
-        target.conditions["restrained"][0] = True
-        target.conditions["grappled"][0] = True
-        target.grappled_by = source.player_id
-        source.grappling = target.player_id
+        restrainee.attack_disadv = True
+        restrainee.saving_throws["dex"][3] = True
+        restrainee.conditions["restrained"][0] = True
+        restrainee.conditions["grappled"][0] = True
+        restrainee.grappled_by = restrainer.player_id
+        restrainer.grappling = restrainee.player_id
         # remove disengage and add escape restraint action while restrained
-        target.actions.pop(3)
-        target.actions[7] = "escape restraint"
-        # remove attack action from restrainer while restraining
-        source.actions.pop(1)
-        ui.push_prompt("%s is restrained by %s." % (target.name, source.name))
+        restrainee.actions.pop(3)
+        restrainee.actions[7] = "escape restraint"
+        # remove attack action from restrainer while restraining if wielding two-handed, reduce damage die if wielding versatile
+        if restrainer.mon:
+                restrainer.actions.pop(1)
+        else:
+                if restrainer.eq_weapon_main != "unarmed strike":
+                        if all_items.all_melee_weapons[restrainer.eq_weapon_main][8] == 2:
+                                restrainer.actions.pop(1)
+                        elif all_items.all_melee_weapons[restrainer.eq_weapon_main][8] == 1.5:
+                                restrainer.dmg_die_main -= 2
+        ui.push_prompt("%s is restrained by %s." % (restrainee.name, restrainer.name))
 
 '''
 Release restraint
@@ -3052,10 +3079,14 @@ def release_restraint(restrainer, battle):
         restrainee.actions[3] = "disengage"
         restrainee.actions.pop(7)
         # re-add attack action to restrainer upon releasing restraint if wielding two-handed, reset damage die if wielding versatile
-        if all_items.all_weapons[restrainer.eq_weapon_main][8] == 2:
+        if restrainer.mon:
                 restrainer.actions[1] = "attack"
-        elif all_items.all_weapons[restrainer.eq_weapon_main][8] == 1.5:
-                restrainer.dmg_die_main += 2
+        else:
+                if restrainer.eq_weapon_main != "unarmed strike":
+                        if all_items.all_weapons[restrainer.eq_weapon_main][8] == 2:
+                                restrainer.actions[1] = "attack"
+                        elif all_items.all_weapons[restrainer.eq_weapon_main][8] == 1.5:
+                                restrainer.dmg_die_main += 2
 
 '''
 Escape restraint
@@ -3080,10 +3111,14 @@ def escape_restraint(restrainee, battle):
                 restrainee.actions[3] = "disengage"
                 restrainee.actions.pop(7)
                 # re-add attack action to restrainer upon restraint end if wielding two-handed, reset damage die if wielding versatile
-                if all_items.all_weapons[restrainer.eq_weapon_main][8] == 2:
+                if restrainer.mon:
                         restrainer.actions[1] = "attack"
-                if all_items.all_weapons[restrainer.eq_weapon_main][8] == 1.5:
-                        restrainer.dmg_die_main += 2
+                else:
+                        if restrainer.eq_weapon_main != "unarmed strike":
+                                if all_items.all_weapons[restrainer.eq_weapon_main][8] == 2:
+                                        restrainer.actions[1] = "attack"
+                                if all_items.all_weapons[restrainer.eq_weapon_main][8] == 1.5:
+                                        restrainer.dmg_die_main += 2
                 ui.push_prompt("%s has escaped the restraint." % (restrainee.name))
         else:
                 ui.push_prompt("Restraint escape attempt failed.")
@@ -3091,32 +3126,35 @@ def escape_restraint(restrainee, battle):
 '''
 Grapple attack
 IN
-- attacker (object)
-- defender (object)
+- grappler (object)
+- grapplee (object)
 - advantage/disadvantage on grapple attack (int)
 OUT
   N/A
 '''
-def grapple(source, target, adv_disadv):
-        att_mod = max(source.off_dex_att_mod, source.off_str_att_mod)
+def grapple(grappler, grapplee, adv_disadv):
+        att_mod = max(grappler.off_dex_att_mod, grappler.off_str_att_mod)
         to_hit = roll_dice(20, att_mod, adv_disadv)
-        ui.push_message("Hit: %s vs AC %s\n" % (to_hit[0], target.ac))
-        if to_hit[0] > target.ac:
-                target.conditions["grappled"][0] = True
-                target.grappled_by = source.player_id
-                source.grappling = target.player_id
+        ui.push_message("Hit: %s vs AC %s\n" % (to_hit[0], grapplee.ac))
+        if to_hit[0] > grapplee.ac:
+                grapplee.conditions["grappled"][0] = True
+                grapplee.grappled_by = grappler.player_id
+                grappler.grappling = grapplee.player_id
                 # remove disengage and add escape grapple action while grappled
-                target.actions.pop(3)
-                target.actions[6] = "escape grapple"
-                ui.push_prompt("%s is grappled by %s." % (target.name, source.name))
+                grapplee.actions.pop(3)
+                grapplee.actions[6] = "escape grapple"
+                ui.push_prompt("%s is grappled by %s." % (grapplee.name, grappler.name))
                 # remove attack action from grappler while grappling if wielding two-handed, reduce damage die if wielding versatile
-                if source.eq_weapon_main != "unarmed strike":
-                        if all_items.all_melee_weapons[source.eq_weapon_main][8] == 2:
-                                source.actions.pop(1)
-                        elif all_items.all_melee_weapons[source.eq_weapon_main][8] == 1.5:
-                                source.dmg_die_main -= 2
+                if grappler.mon:
+                        grappler.actions.pop(1)
+                else:
+                        if grappler.eq_weapon_main != "unarmed strike":
+                                if all_items.all_melee_weapons[grappler.eq_weapon_main][8] == 2:
+                                        grappler.actions.pop(1)
+                                elif all_items.all_melee_weapons[grappler.eq_weapon_main][8] == 1.5:
+                                        grappler.dmg_die_main -= 2
         else:
-                ui.push_prompt("%s failed to grapple %s." % (source.name, target.name))
+                ui.push_prompt("%s failed to grapple %s." % (grappler.name, grapplee.name))
 
 '''
 Release grapple
@@ -3136,10 +3174,14 @@ def release_grapple(grappler, battle):
         grapplee.actions[3] = "disengage"
         grapplee.actions.pop(6)
         # re-add attack action to grappler upon releasing grapple if wielding two-handed, reset damage die if wielding versatile
-        if all_items.all_weapons[grappler.eq_weapon_main][8] == 2:
+        if grappler.mon:
                 grappler.actions[1] = "attack"
-        elif all_items.all_weapons[grappler.eq_weapon_main][8] == 1.5:
-                grappler.dmg_die_main += 2
+        else:
+                if grappler.eq_weapon_main != "unarmed strike":
+                        if all_items.all_weapons[grappler.eq_weapon_main][8] == 2:
+                                grappler.actions[1] = "attack"
+                        elif all_items.all_weapons[grappler.eq_weapon_main][8] == 1.5:
+                                grappler.dmg_die_main += 2
 
 '''
 Escape grapple
@@ -3163,10 +3205,14 @@ def escape_grapple(grapplee, battle):
                 grapplee.actions[3] = "disengage"
                 grapplee.actions.pop(6)
                 # re-add attack action to grappler upon grapple end if wielding two-handed, reset damage die if wielding versatile
-                if all_items.all_weapons[grappler.eq_weapon_main][8] == 2:
+                if grappler.mon:
                         grappler.actions[1] = "attack"
-                if all_items.all_weapons[grappler.eq_weapon_main][8] == 1.5:
-                        grappler.dmg_die_main += 2
+                else:
+                        if grappler.eq_weapon_main != "unarmed strike":
+                                if all_items.all_weapons[grappler.eq_weapon_main][8] == 2:
+                                        grappler.actions[1] = "attack"
+                                if all_items.all_weapons[grappler.eq_weapon_main][8] == 1.5:
+                                        grappler.dmg_die_main += 2
                 ui.push_prompt("%s has escaped the grapple." % (grapplee.name))
         else:
                 ui.push_prompt("Grapple escape attempt failed.")
@@ -3518,43 +3564,26 @@ def init_chars():
         allies = [p1_char, p2_char, p3_char, p4_char]
         return allies
 
-'''
-Initialize NPCs (non-player characters)
-IN
-- dungeon (object)
-- enemy count (int)
-OUT
-- enemy_list (list of objects)
-'''
-def init_enemies(dungeon, enemy_cnt):
-        enemy_counter = {}
-        enemy_list = []
-        for _ in range(enemy_cnt):
-                enemy = gen_mon(all_monsters.monsters[random.choice(dungeon.avail_monsters)])
-                if enemy.name not in enemy_counter:
-                        enemy_counter[enemy.name] = 1
-                else:
-                        enemy_counter[enemy.name] += 1
-                enemy.name = "%s #%s" % (enemy.name, enemy_counter[enemy.name])
-                enemy_list.append(enemy)
-        return enemy_list
-
+# main
 main_window = tk.Tk()
 ui = gui.GUI(main_window)
 all_items = AllItems()
 all_monsters = MonsterManual()
 ai = AI()
-ui.push_prompt("Welcome to Shining in the Dungeon (5e Duel)")
+# title
+ui.push_prompt("Welcome to Shining in the Dungeon (5e Dungeon Crawler)")
+# select difficulty
 ui.push_message("Choose the difficulty.")
 ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
-chars = init_chars()
-allies = chars
+# select dungeon length
 encounters = 10
+# generate PCs
+allies = init_chars()
+# generate dungeon with monsters
 monsters = [1, 2, 3, 4, 5, 6, 7]
 dungeon = Dungeon(encounters, allies, monsters)
-enemy_cnt = math.ceil(len(allies) * ai.mon_cnt_mod)
-enemies = init_enemies(dungeon, enemy_cnt)
 for enc in range(dungeon.enc_cnt):
+        enemies = dungeon.init_enemies()
         battle = dungeon.start_battle(enc, allies, enemies)
         battle.initiative()
         attacker = battle.get_first_init()
@@ -3582,7 +3611,6 @@ dungeon.end_dungeon()
 main_window.mainloop()
 
 #TODO: fix rests & dungeon continuity
-#TODO: enemy count xp pool
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
