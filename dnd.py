@@ -417,7 +417,7 @@ class Character:
                         combat += "To hit: " + "{0:+}".format(max(self.main_dex_att_mod, self.main_str_att_mod) + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(max(self.main_dex_dmg_mod, self.main_str_dmg_mod) + self.ench_main)
                 else:
                         combat += "To hit: " + "{0:+}".format(self.main_str_att_mod + self.ench_main) + ", Damage: " + str(self.dmg_die_cnt_main) + "d" + str(self.dmg_die_main) + "{0:+}".format(self.main_str_dmg_mod + self.ench_main)
-                combat += " (%s)\nOff Hand:\n" % (get_dmg_type(self.dmg_die_type_main))
+                combat += " (%s)\nOff-Hand:\n" % (get_dmg_type(self.dmg_die_type_main))
                 if not self.bonus_attack:
                         combat += "-"
                 else:
@@ -426,7 +426,7 @@ class Character:
                         else:
                                 combat += "To hit: " + "{0:+}".format(self.off_str_att_mod + self.ench_off) + ", Damage: " + str(self.dmg_die_cnt_off) + "d" + str(self.dmg_die_off) + "{0:+}".format(self.off_str_dmg_mod + self.ench_off)
                         combat += " (%s)" % (get_dmg_type(self.dmg_die_type_off))
-                equipped = "Equipped\nMain Hand: " + self.eq_weapon_main + "\nOff Hand: " + self.eq_weapon_offhand + "\nArmor: " + self.eq_armor
+                equipped = "Equipped\nMain Hand: " + self.eq_weapon_main + "\nOff-Hand: " + self.eq_weapon_offhand + "\nArmor: " + self.eq_armor
                 inventory = "Inventory\n"
                 inventory += "Gold: " + str(self.gold) + " GP\nCarry weight: " + str(self.carry) + "/" + str(self.max_carry) + " lbs.\n"
                 for key, value in self.inv.inv.items():
@@ -633,23 +633,12 @@ class Character:
                                 dmg_die_cnt = item_list[item][2]
                                 ench = item_list[item][3]
                                 dmg_type = item_list[item][4]
-                                light_heavy = item_list[item][6]
                                 finesse = item_list[item][7]
                                 hands = item_list[item][8]
                                 if type == 1:
                                         thrown = item_list[item][9]
                                 elif type == 2:
                                         load = item_list[item][9]
-                                # stats of the weapon that is currently equipped in main hand
-                                if self.eq_weapon_main == "unarmed strike":
-                                        eq_main_light_heavy = 0
-                                else:
-                                        eq_main_light_heavy = everything[self.eq_weapon_main][6]
-                                # stats of the weapon that is currently equipped in the off-hand
-                                if self.eq_weapon_offhand in ["nothing", "unarmed strike"]:
-                                        eq_off_light_heavy = 0
-                                else:
-                                        eq_off_light_heavy = everything[self.eq_weapon_offhand][6]
                                 # 1. nothing in main hand, shield in off-hand and weapon to equip is one-handed or versatile (1.5 hands)
                                 if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand in all_items.shields and hands < 2:
                                         self.eq_weapon_main = item
@@ -683,11 +672,6 @@ class Character:
                                                 self.dmg_die_type_off = dmg_type
                                                 self.ench_off = ench
                                                 self.eq_weapon_offhand_finesse = finesse
-                                                # check for two-weapon fighting
-                                                if light_heavy and eq_main_light_heavy:
-                                                        self.bonus_attack = True
-                                                else:
-                                                        self.bonus_attack = False
                                         # something in main hand, but want to equip 2-handed, then switch weapons in main hand
                                         elif self.eq_weapon_main != "unarmed strike" and hands > 1:
                                                 self.eq_weapon_main = item
@@ -739,16 +723,11 @@ class Character:
                                                 self.offhand_dmg_mod = False
                                         # equip 1-handed weapon to main hand, don't touch off-hand
                                         elif hands == 1:
-                                                if self.eq_weapon_offhand in all_items.shields or curr_hands == 1:
-                                                        pass
-                                                else:
-                                                        
+                                                if self.eq_weapon_offhand in all_items.shields:
+                                                        self.bonus_attack = False
+                                                elif curr_hands > 1:
                                                         self.eq_weapon_offhand = "nothing"
-                                        # check for two-weapon fighting
-                                        if light_heavy and eq_off_light_heavy:
-                                                self.bonus_attack = True
-                                        else:
-                                                self.bonus_attack = False
+                                                        self.bonus_attack = False
                                 # 4. nothing in main hand, weapon or shield in off-hand and weapon to equip is 2-handed
                                 elif self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand != "nothing" and hands == 2:
                                         self.eq_weapon_main = item
@@ -774,6 +753,19 @@ class Character:
                                         self.ranged = True
                                 elif type == 1:
                                         self.ranged = False
+                                # check for two-weapon fighting
+                                if self.eq_weapon_main == "unarmed strike":
+                                        eq_main_light_heavy = 0
+                                else:
+                                        eq_main_light_heavy = everything[self.eq_weapon_main][6]
+                                if self.eq_weapon_offhand in ["nothing", "unarmed strike"] or self.eq_weapon_offhand in all_items.shields:
+                                        eq_off_light_heavy = 0
+                                else:
+                                        eq_off_light_heavy = everything[self.eq_weapon_offhand][6]
+                                if eq_main_light_heavy == 1 and eq_off_light_heavy == 1:
+                                        self.bonus_attack = True
+                                else:
+                                        self.bonus_attack = False
                         # armor or shield
                         elif type == 3:
                                 # stats of the armor/shield to be equipped
@@ -1136,6 +1128,7 @@ class Character:
                                         self.main_dex_att_mod = self.dex_mod + self.prof_bonus
                                         self.main_str_dmg_mod = self.str_mod
                                         self.main_dex_dmg_mod = self.dex_mod
+                                        self.bonus_attack = False
                                 # unequip off-hand weapon
                                 elif item == self.eq_weapon_offhand:
                                         self.eq_weapon_offhand = "nothing"
@@ -1755,8 +1748,8 @@ class Dungeon:
                 self.short_rest_cnt = 1
                 self.long_rest_cnt = 3
                 self.avail_monsters = avail_monsters
-                #self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
-                self.enemy_cnt = math.ceil(len(pc_list) * 0.25)
+                self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
+                #self.enemy_cnt = math.ceil(len(pc_list) * 0.25)
         '''
         Between encounters PCs get the choice of taking a short or a long rest, if needed and any available.
         IN
