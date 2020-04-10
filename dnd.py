@@ -334,7 +334,7 @@ class Character:
                         self.conditions["down"][0] = False
                         self.death_st_success = 0
                         self.death_st_fail = 0
-                        ui.push_prompt("%s is back up!" % (self.name))
+                        ui.push_message("%s is back up!" % (self.name))
                 # calculate actual healed amount to display properly (heal overflow)
                 self.hp = min(self.hp + heal_amount, self.max_hp)
                 if current_hp + heal_amount > self.max_hp:
@@ -1753,9 +1753,17 @@ class Dungeon:
                 self.enc_cnt = enc_cnt
                 self.pc_list = pc_list
                 self.short_rest_cnt = 1
-                self.long_rest_cnt = 2
+                self.long_rest_cnt = 3
                 self.avail_monsters = avail_monsters
-                self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
+                #self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
+                self.enemy_cnt = math.ceil(len(pc_list) * 0.25)
+        '''
+        Between encounters PCs get the choice of taking a short or a long rest, if needed and any available.
+        IN
+          N/A
+        OUT
+          N/A
+        '''
         def get_respite_options(self):
                 respite_options = {
                         0: "Pass",
@@ -1772,34 +1780,65 @@ class Dungeon:
                         self.short_rest()
                 elif rest == 2 and rest in respite_options:
                         self.long_rest()
+        '''
+        Short rest: spend hit dice to heal
+        IN
+          N/A
+        OUT
+          N/A
+        '''
         def short_rest(self):
                 for pc in self.pc_list:
-                        if not pc.conditions["dead"][0] and pc.conditions["down"][0]:
+                        # downed PCs will wake up naturally with 1 hp in 1d4 hours if not treated and if the PC doesn't have HD left
+                        if not pc.conditions["dead"][0] and pc.conditions["down"][0] and pc.hd_cnt < 1:
                                 wake_up = roll_dice(4, 0, 0)[0]
                                 if wake_up == 1:
                                         pc.conditions["down"][0] = False
-                        if pc.hp < pc.max_hp and not pc.conditions["dead"][0] and not pc.conditions["down"][0]:
+                                        pc.hp = 1
+                        if pc.hp < pc.max_hp and not pc.conditions["dead"][0] and pc.hp > 0:
                                 while pc.hp < pc.max_hp and pc.hd_cnt != 0:
-                                        pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0), pc.max_hp)
-                        if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.second_wind:
+                                        pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0)[0], pc.max_hp)
+                        if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.char_class == 1:
                                 pc.second_wind_cnt = 1
                 self.short_rest_cnt = 0
+        '''
+        Long rest: heal to max, get half of max HD count back
+        IN
+          N/A
+        OUT
+          N/A
+        '''
         def long_rest(self):
                 for pc in self.pc_list:
                         if not pc.conditions["dead"][0]:
                                 pc.hp = pc.max_hp
                                 pc.hd_cnt = max(math.floor(pc.level / 2), 1)
                                 pc.conditions["down"][0] = False
-                        if not pc.conditions["dead"][0] and pc.second_wind:
+                        if not pc.conditions["dead"][0] and pc.char_class == 1:
                                 pc.second_wind_cnt = 1
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
+        '''
+        Dungeon ends if all PCs are defeated.
+        IN
+          N/A
+        OUT
+          N/A
+        '''
         def end_dungeon(self):
                 ui.push_prompt("GG")
                 quit()
-        def start_battle(self, enc, allies, enemies):
+        '''
+       Start a battle.
+        IN
+        - current encounter (int)
+        OUT
+        - battle (object)
+        '''
+        def start_battle(self, enc):
                 ui.push_battle_info("Battle #%s" % (enc + 1))
-                battle = Battle(allies, enemies)
+                enemies = self.init_enemies()
+                battle = Battle(self.pc_list, enemies)
                 return battle
         '''
         Initialize NPCs (non-player characters)
@@ -1939,7 +1978,7 @@ class Battle:
                         self.round_end = True
                 if self.init_order[self.current_init - 1][0] == -100:
                         self.round_end = False
-        def end(self):
+        def end_battle(self):
                 ui.push_message("Duel has ended. *jingle*\n")
                 winner_team = []
                 loser_team = []
@@ -1980,6 +2019,7 @@ class Battle:
                                 wt.xp += xp
                         ui.push_message("%s's team stands victorious. Each surviving member gets: +%s GP +%s XP." % (winner_team[0].name, loot, xp))
                         ui.update_status()
+                        
                 return True
         def check_end(self):
                 end = False
@@ -2844,6 +2884,8 @@ def attack(source, target, type, adv_disadv, battle):
         dex_dmg_mod = 0
         ench = 0
         attack_message = ""
+        damage_message = ""
+        extra_damage_message = ""
         # main hand attack
         if type == 1:
                 attack_message += "%s attacks %s with %s.\n" % (source.name, target.name, source.eq_weapon_main)
@@ -2896,6 +2938,7 @@ def attack(source, target, type, adv_disadv, battle):
                 else:
                         to_hit_conf_flag = True
         # hit -> calculate damage
+        ui.push_prompt(attack_message)
         dmg = 0
         extra_dmg = 0
         if to_hit[0] >= target.ac or crit == 1:
@@ -2919,78 +2962,85 @@ def attack(source, target, type, adv_disadv, battle):
                 dmg_type = get_dmg_type(dmg_result[1][0])
                 # critical threat and confirmation for critical damage (double damage dice) (D&D 3.5 style)
                 if crit == 0:
-                        attack_message += "Hit: %s vs AC %s\nDamage: %s (%s)\n" % (to_hit[0], target.ac, dmg, dmg_type)
+                        damage_message += "Hit: %s vs AC %s\nDamage: %s (%s)\n" % (to_hit[0], target.ac, dmg, dmg_type)
                 elif crit == 1:
-                        attack_message += "Critical hit: %s vs AC %s" % (to_hit[0], target.ac)
-                        attack_message += "\nCritical hit confirmation: %s vs AC %s" % (to_hit_conf[0], target.ac)
+                        damage_message += "Critical hit: %s vs AC %s" % (to_hit[0], target.ac)
+                        damage_message += "\nCritical hit confirmation: %s vs AC %s" % (to_hit_conf[0], target.ac)
                         if not to_hit_conf_flag:
-                                attack_message += "Damage: %s (%s)\n" % (dmg, dmg_type)
+                                damage_message += "Damage: %s (%s)\n" % (dmg, dmg_type)
                         else:
-                                attack_message += "\n2x dice damage: %s (%s)\n" % (dmg, dmg_type)
+                                damage_message += "\n2x dice damage: %s (%s)\n" % (dmg, dmg_type)
                 if target.resistances[dmg_result[1][0]] == 0.5:
-                        attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
+                        damage_message += "%s didn't seem to take as much damage as expected." % (target.name)
                 elif target.resistances[dmg_result[1][0]] == 1.5:
-                        attack_message += "%s seems to have taken more damage than expected." % (target.name)
+                        damage_message += "%s seems to have taken more damage than expected." % (target.name)
                 elif target.resistances[dmg_result[1][0]] == 0:
-                        attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, dmg_type)
+                        damage_message += "%s was immune to %s's %s damage." % (target.name, source.name, dmg_type)
+                ui.push_prompt(damage_message)
+                ui.update_status()
                 # extra damage
                 if source.extra_dmg:
                         extra_dmg_mod = 1
                         extra_dmg_type = get_dmg_type(dmg_result[1][1])
+                        # extra damage triggers on hit with a saving throw
                         if source.extra_dmg_dc_type != "-":
                                 target_save = roll_dice(20, target.saving_throws[source.extra_dmg_dc_type][0] + target.saving_throws[source.extra_dmg_dc_type][1], get_adv_disadv(target, source, source.extra_dmg_dc_type))[0]
-                                attack_message += "\n%s Saving Throw: %s vs %s" % (source.extra_dmg_dc_type.upper(), target_save, source.extra_dmg_dc)
+                                extra_damage_message = "%s Saving Throw: %s vs %s" % (source.extra_dmg_dc_type.upper(), target_save, source.extra_dmg_dc)
                                 if target_save >= source.extra_dmg_dc:
-                                        attack_message += "\nSuccess: "
+                                        extra_damage_message += "\nSuccess: "
                                         extra_dmg_mod = source.extra_dmg_save_type
                                         if source.extra_dmg_save_type == 0:
-                                                attack_message += "no %s damage." % (extra_dmg_type)
+                                                extra_damage_message += "no %s damage." % (extra_dmg_type)
                                         elif source.extra_dmg_save_type == 0.5:
-                                                attack_message += "half %s damage." % (extra_dmg_type)
+                                                extra_damage_message += "half %s damage." % (extra_dmg_type)
                                 else:
-                                        attack_message += "\nFailed."
+                                        extra_damage_message += "\nFailed."
                                         if source.extra_condition:
                                                 if source.extra_condition_type == "p" and not target.conditions["poisoned"][1]:
                                                         target.conditions["poisoned"][0] = True
                                                         target.attack_disadv = True
-                                                        for value in target.skills.items():
-                                                                value[3] = True
-                                extra_dmg = int(math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod)
-                                if extra_dmg > 0:
-                                        attack_message += "\n%s takes plus %s %s damage.\n" % (target.name, extra_dmg, extra_dmg_type)
-                                        if target.resistances[dmg_result[1][1]] == 0.5:
-                                                attack_message += "%s didn't seem to take as much damage as expected." % (target.name)
-                                        elif target.resistances[dmg_result[1][1]] == 1.5:
-                                                attack_message += "%s seems to have taken more damage than expected." % (target.name)
-                                        elif target.resistances[dmg_result[1][1]] == 0:
-                                                attack_message += "%s was immune to %s's %s damage." % (target.name, source.name, extra_dmg_type)
-                                        dmg += extra_dmg
+                                                        for key in target.skills.keys():
+                                                                target.skills[key][3] = True
+                        extra_dmg = int(math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod)
+                        if extra_dmg > 0:
+                                extra_damage_message += "\n%s takes extra %s %s damage.\n" % (target.name, extra_dmg, extra_dmg_type)
+                                if target.resistances[dmg_result[1][1]] == 0.5:
+                                        extra_damage_message += "%s didn't seem to take as much damage as expected." % (target.name)
+                                elif target.resistances[dmg_result[1][1]] == 1.5:
+                                        extra_damage_message += "%s seems to have taken more damage than expected." % (target.name)
+                                elif target.resistances[dmg_result[1][1]] == 0:
+                                        extra_damage_message += "%s was immune to %s's %s damage." % (target.name, source.name, extra_dmg_type)
+                                dmg += extra_dmg
+                # extra status ailment on attack, no ST
                 elif not source.extra_dmg and source.extra_condition:
                         if source.extra_condition_type == "r" and not target.conditions["restrained"][1]:
                                 restrain(source, target)
                 target.hp -= dmg
+                ui.update_status()
                 if target.char_class == 3:
                         target.got_attacked = True
-                ui.update_status()
+                if extra_damage_message != "":
+                        ui.push_prompt(extra_damage_message)
         # miss
         elif to_hit[0] < target.ac or crit == -1:
                 if crit == 0:
-                        attack_message += "Miss: %s vs AC %s\n" % (to_hit[0], target.ac)
+                        damage_message += "Miss: %s vs AC %s\n" % (to_hit[0], target.ac)
                 elif crit == -1:
-                        attack_message += "Critical miss\n"
-        ui.push_prompt(attack_message)
+                        damage_message += "Critical miss\n"
+                ui.push_prompt(damage_message)
         # check if target got downed
         if target.hp <= 0:
                 target.conditions["down"][0] = True
-                if target.grappling != "":
+                if target.grappled_by != "":
                         release_grapple(target, battle)
-                        release_restraint(target, battle)
+                        if target.conditions["restrained"] == True:
+                                release_restraint(target, battle)
                 if target.helpee != "":
                         stop_help(target.helpee)
                         target.helpee = ""
                 if target.char_class == 3:
                         if target.raging == True:
-                                target.got_attacked = True
+                                target.rage_off()
                 if target.max_hp * -1 >= target.hp:
                         ui.push_prompt("Death blow! %s falls dead. RIP" % (target.name))
                         target.conditions["dead"][0] = True
@@ -3525,7 +3575,7 @@ def gen_char(name, starting_level, npc):
 
 def gen_mon(monster):
         mon = Monster(monster)
-        ui.create_status(mon)
+        #ui.create_status(mon)
         mon.action_economy()
         return mon
 
@@ -3583,8 +3633,8 @@ allies = init_chars()
 monsters = [1, 2, 3, 4, 5, 6, 7]
 dungeon = Dungeon(encounters, allies, monsters)
 for enc in range(dungeon.enc_cnt):
-        enemies = dungeon.init_enemies()
-        battle = dungeon.start_battle(enc, allies, enemies)
+        # battle flow
+        battle = dungeon.start_battle(enc)
         battle.initiative()
         attacker = battle.get_first_init()
         battle_end = False
@@ -3599,10 +3649,11 @@ for enc in range(dungeon.enc_cnt):
                 attacker.reset_until_end_of_current_turn()
                 if battle.check_end():
                         battle.get_hp_init_board()
-                        battle_end = battle.end()
+                        battle_end = battle.end_battle()
                 else:
                         battle.set_next_init()
                         battle.check_round_end()
+        # post battle activities
         if battle.pcs_won or battle.pcs_fled or battle.foes_fled:
                 dungeon.get_respite_options()
         else:
@@ -3610,7 +3661,6 @@ for enc in range(dungeon.enc_cnt):
 dungeon.end_dungeon()
 main_window.mainloop()
 
-#TODO: fix rests & dungeon continuity
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
 #TODO: back option for menus
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)

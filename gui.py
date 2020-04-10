@@ -232,6 +232,7 @@ class GUI:
                 if input_val != 0:
                         self.clear_message()
                 self.submit_var = ""
+                self.input_frame.unbind("<space>")
                 for btn in self.input_choice_btns:
                         btn.destroy()
                 return input_val
