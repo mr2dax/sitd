@@ -1734,20 +1734,19 @@ class Inventory:
 '''
 Dungeon: consecutive battles, looting, resting and some skill checks.
 IN
-- encounter count (int)
 - PCs (list)
-- available monsters (list)
+- adventure settings (tuple(int, list))
 OUT
 - dungeon (object)
 '''
 class Dungeon:
         "Dungeon creation."
-        def __init__(self, enc_cnt, pc_list, avail_monsters):
-                self.enc_cnt = enc_cnt
+        def __init__(self, pc_list, adv_settings):
+                self.enc_cnt = adv_settings[1]
+                self.avail_monsters = adv_settings[2]
                 self.pc_list = pc_list
                 self.short_rest_cnt = 1
                 self.long_rest_cnt = 3
-                self.avail_monsters = avail_monsters
                 self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
                 #self.enemy_cnt = math.ceil(len(pc_list) * 0.25)
         '''
@@ -2487,9 +2486,9 @@ class AI:
                 if self.diff == 0:
                         self.mon_cnt_mod = 0.5
                 elif self.diff == 1:
-                        self.mon_cnt_mod = 1.5
+                        self.mon_cnt_mod = 1.25
                 elif self.diff == 2:
-                        self.mon_cnt_mod = 2
+                        self.mon_cnt_mod = 1.5
         def choose(self, char, choices, type):
                 choice = 0
                 list_of_choices = list(choices)
@@ -3607,6 +3606,22 @@ def init_chars():
         allies = [p1_char, p2_char, p3_char, p4_char]
         return allies
 
+'''
+Initialize adventures
+IN
+  N/A
+OUT
+- allies (array)
+'''
+def init_adventures():
+        # ix: [name, enc cnt, avail_mons]
+        adventures = {
+                1: ["Labyrinth Proper", 10, [1, 2, 3, 4, 5, 6, 7]]
+        }
+        ui.push_message("Which adventure?")
+        adventure_choice = int(ui.get_dict_choice_input_adv(adventures))
+        return adventures[adventure_choice]
+
 # main
 main_window = tk.Tk()
 ui = gui.GUI(main_window)
@@ -3618,13 +3633,11 @@ ui.push_prompt("Welcome to Shining in the Dungeon (5e Dungeon Crawler)")
 # select difficulty
 ui.push_message("Choose the difficulty.")
 ai.set_diff_lvl(ui.get_dict_choice_input(ai.get_diff_lvls()))
-# select dungeon length
-encounters = 10
+# select adventure
+adventure = init_adventures()
 # generate PCs
 allies = init_chars()
-# generate dungeon with monsters
-monsters = [1, 2, 3, 4, 5, 6, 7]
-dungeon = Dungeon(encounters, allies, monsters)
+dungeon = Dungeon(allies, adventure)
 for enc in range(dungeon.enc_cnt):
         # battle flow
         battle = dungeon.start_battle(enc)

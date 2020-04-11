@@ -214,6 +214,22 @@ class GUI:
                 for btn in self.input_choice_btns:
                         btn.destroy()
                 return input_val
+        # populate input frame with buttons from hashtable input (especially for adventure choice), then destroy them once choice was fetched
+        def get_dict_choice_input_adv(self, choices):
+                self.submit_var = tk.IntVar()
+                self.input_choice_btns = []
+                for key, value in choices.items():
+                        self.input_choice_btn = tk.Button(self.input_frame, text = value[0], fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
+                        self.input_choice_btn.grid(row = 0, column = (key))
+                        self.input_choice_btns.append(self.input_choice_btn)
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.submit_var.get()
+                if input_val != 0:
+                        self.clear_message()
+                self.submit_var = ""
+                for btn in self.input_choice_btns:
+                        btn.destroy()
+                return input_val
         # populate input frame with buttons from hashtable input (specially for shopping flow), then destroy them once choice was fetched
         def get_dict_choice_input_shop(self, choices):
                 self.submit_var = tk.IntVar()
