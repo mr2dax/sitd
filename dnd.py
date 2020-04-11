@@ -190,6 +190,7 @@ class Character:
                 self.grappled_by = ""
                 self.grappling = ""
                 self.helpee = ""
+                # level up for higher level adventures
                 if self.starting_lvl > 2:
                         self.level_up(self.starting_lvl - 1)
         '''
@@ -303,7 +304,7 @@ class Character:
                                 self.death_st_fail += 1
                         elif death_st[0] >= 10:
                                 self.death_st_success += 1
-                ui.push_prompt("%s is down.\nDeath Saving Throw: %s (S:%s,F:%s)" % (self.name, death_st[0], self.death_st_success, self.death_st_fail))
+                ui.push_prompt("%s is unconscious.\nDeath Saving Throw: %s (S:%s,F:%s)" % (self.name, death_st[0], self.death_st_success, self.death_st_fail))
                 # 3 fails -> dead
                 if self.death_st_fail > 2:
                         self.conditions["dead"][0] = True
@@ -341,11 +342,11 @@ class Character:
                         actual_heal = heal_amount - ((current_hp + heal_amount) - self.max_hp)
                 else:
                         actual_heal = heal_amount
+                ui.update_status()
                 if healer.name == self.name:
                         ui.push_prompt("%s healed self for %s HP." % (healer.name, actual_heal))
                 else:
                         ui.push_prompt("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
-                ui.update_status()
                 return actual_heal
         # return formatted character stats
         def print_char_status(self):
@@ -509,6 +510,7 @@ class Character:
                         self.skills["acrobatics"][0] += self.prof_bonus
                         self.saving_throws["str"][0] += self.prof_bonus
                         self.saving_throws["con"][0] += self.prof_bonus
+                        ui.update_status()
                         self.gen_fighting_style(self.inv)
                 elif class_choice == 2:
                         self.char_class = 2
@@ -1772,6 +1774,7 @@ class Dungeon:
                         self.short_rest()
                 elif rest == 2 and rest in respite_options:
                         self.long_rest()
+                ui.update_status()
         '''
         Short rest: spend hit dice to heal
         IN
@@ -1781,7 +1784,7 @@ class Dungeon:
         '''
         def short_rest(self):
                 for pc in self.pc_list:
-                        # downed PCs will wake up naturally with 1 hp in 1d4 hours if not treated and if the PC doesn't have HD left
+                        # downed PCs will wake up naturally with 1 hp in 1d4 hours if not treated and the PC doesn't have HD left
                         if not pc.conditions["dead"][0] and pc.conditions["down"][0] and pc.hd_cnt < 1:
                                 wake_up = roll_dice(4, 0, 0)[0]
                                 if wake_up == 1:
@@ -1790,6 +1793,7 @@ class Dungeon:
                         if pc.hp < pc.max_hp and not pc.conditions["dead"][0] and pc.hp > 0:
                                 while pc.hp < pc.max_hp and pc.hd_cnt != 0:
                                         pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0)[0], pc.max_hp)
+                                        pc.hd_cnt -= 1
                         if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.char_class == 1:
                                 pc.second_wind_cnt = 1
                 self.short_rest_cnt = 0
@@ -2459,7 +2463,8 @@ class Shop:
                         else:
                                 ui.push_prompt("Ah, you've changed your mind, I see...")
                 elif purchase_choice == -1:
-                        ui.push_prompt(random.choice(["Oh, not interested, huh?", "OK, bye!", "Ola Kala, see you next time!", "Come back again if you need anything!"]))
+                        pass
+                        #ui.push_prompt(random.choice(["Oh, not interested, huh?", "OK, bye!", "Ola Kala, see you next time!", "Come back again if you need anything!"]))
                 return purchase_choice
 
 '''
@@ -2968,8 +2973,8 @@ def attack(source, target, type, adv_disadv, battle):
                         damage_message += "%s seems to have taken more damage than expected." % (target.name)
                 elif target.resistances[dmg_result[1][0]] == 0:
                         damage_message += "%s was immune to %s's %s damage." % (target.name, source.name, dmg_type)
-                ui.push_prompt(damage_message)
                 ui.update_status()
+                ui.push_prompt(damage_message)
                 # extra damage
                 if source.extra_dmg:
                         extra_dmg_mod = 1
@@ -3618,7 +3623,7 @@ def init_adventures():
         adventures = {
                 1: ["Labyrinth Proper", 10, [1, 2, 3, 4, 5, 6, 7]]
         }
-        ui.push_message("Which adventure?")
+        ui.push_message("Which adventure to embark on?")
         adventure_choice = int(ui.get_dict_choice_input_adv(adventures))
         return adventures[adventure_choice]
 
