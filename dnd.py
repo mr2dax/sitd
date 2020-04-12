@@ -348,6 +348,35 @@ class Character:
                 else:
                         ui.push_prompt("%s healed %s for %s HP." % (healer.name, self.name, actual_heal))
                 return actual_heal
+        '''
+        Use healing potion
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def use_healing_potion(self):
+                avail_potions = self.inv.get_potions()
+                potions = []
+                potions_for_choice = []
+                for key, value in avail_potions.items():
+                        potions_for_choice.append([value, key, "%sd%s+%s" % (all_items.potions[value][2], all_items.potions[value][1], all_items.potions[value][3])])
+                        potions.append([value, key, all_items.potions[value]])
+                potion_choice = int(ui.get_list_choice_input(potions_for_choice))
+                if potion_choice != -1:
+                        allies = battle.get_allies(self, 1)
+                        receiver = target_selector(self, battle, allies)
+                        receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
+                        potion_heal = 0
+                        potion_stats = all_items.potions[avail_potions[potion_choice]]
+                        for _ in range(potion_stats[2]):
+                                potion_heal += roll_dice(potion_stats[1], 0, 0)[0]
+                        potion_heal += potion_stats[3]
+                        actual_heal = receiver.receive_healing(self, potion_heal)
+                        self.inv.remove_item(avail_potions[potion_choice])
+                        self.carry -= all_items.potions[value][4]
+                else:
+                        self.battle_menu_options[1][1] += 1
         # return formatted character stats
         def print_char_status(self):
                 abilities = "Abilities\nStrengh\nDexterity\nConstitution\nIntelligence\nWisdom\nCharisma"
@@ -1401,6 +1430,25 @@ class Fighter(Character):
                 self.second_wind_cnt = 1
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
+        '''
+        Use second wind
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def use_second_wind(self):
+                current_hp = self.hp
+                second_wind_heal = roll_dice(10, self.level, 0)[0]
+                self.hp = min(self.hp + second_wind_heal, self.max_hp)
+                if current_hp + second_wind_heal > self.max_hp:
+                        actual_heal = second_wind_heal - ((current_hp + second_wind_heal) - self.max_hp)
+                else:
+                        actual_heal = second_wind_heal
+                ui.update_status()
+                ui.push_prompt("%s healed %s HP." % (self.name, actual_heal))
+                self.second_wind = False
+                self.bonus_actions.pop(2)
 
 '''
 Monk (Character child)
@@ -1585,6 +1633,24 @@ class Paladin(Character):
                 self.divine_smite = []
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
+        '''
+        Use lay on hands
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def use_lay_on_hands(self):
+                allies = battle.get_allies(self, 1)
+                receiver = target_selector(self, battle, allies)
+                receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
+                lay_on_hands_heal = amount_selector(self.lay_on_hands_pool, receiver_max_healable)
+                actual_heal = receiver.receive_healing(self, lay_on_hands_heal)
+                self.lay_on_hands_pool -= actual_heal
+                if self.lay_on_hands_pool <= 0:
+                        self.actions.pop(10)
+                        self.lay_on_hands_pool = 0
+                        self.lay_on_hands = False
 
 '''
 Ranger (Character child)
@@ -1736,7 +1802,7 @@ class Inventory:
 '''
 Dungeon: consecutive battles, looting, resting and some skill checks.
 IN
-- PCs (list)
+- PCs (list of objects)
 - adventure settings (tuple(int, list))
 OUT
 - dungeon (object)
@@ -1750,7 +1816,6 @@ class Dungeon:
                 self.short_rest_cnt = 1
                 self.long_rest_cnt = 3
                 self.enemy_cnt = math.ceil(len(pc_list) * ai.mon_cnt_mod)
-                #self.enemy_cnt = math.ceil(len(pc_list) * 0.25)
         '''
         Between encounters PCs get the choice of taking a short or a long rest, if needed and any available.
         IN
@@ -1762,19 +1827,39 @@ class Dungeon:
                 respite_options = {
                         0: "Pass",
                         1: "Short rest",
-                        2: "Long rest"
+                        2: "Long rest",
+                        3: "Healing",
+                        4: "Equipment"
+                        }
+                equipment_options = {
+                        0: "Back",
+                        1: "Equip",
+                        2: "Unequip",
+                        3: "Give",
+                        4: "Drop",
+                        5: "Transfer GP"
                         }
                 if self.short_rest_cnt < 1:
                         respite_options.pop(1)
                 if self.long_rest_cnt < 1:
                         respite_options.pop(2)
-                ui.push_message("Out of initiative order. What would you like to do?")
-                rest = int(ui.get_dict_choice_input(respite_options))
-                if rest == 1 and rest in respite_options:
-                        self.short_rest()
-                elif rest == 2 and rest in respite_options:
-                        self.long_rest()
-                ui.update_status()
+                rest = -1
+                while rest != 0:
+                        ui.push_message("Out of initiative order. What would you like to do?")
+                        rest = int(ui.get_dict_choice_input(respite_options))
+                        if rest == 1 and rest in respite_options:
+                                self.short_rest()
+                                respite_options.pop(1)
+                                respite_options.pop(2)
+                        elif rest == 2 and rest in respite_options:
+                                self.long_rest()
+                                respite_options.pop(1)
+                                respite_options.pop(2)
+                        elif rest == 3 and rest in respite_options:
+                                self.rest_heal()
+                        elif rest == 4 and rest in respite_options:
+                                self.rest_equip()
+                        ui.update_status()
         '''
         Short rest: spend hit dice to heal
         IN
@@ -1795,6 +1880,7 @@ class Dungeon:
                                         pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0)[0], pc.max_hp)
                                         pc.hd_cnt -= 1
                         if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.char_class == 1:
+                                pc.second_wind = True
                                 pc.second_wind_cnt = 1
                 self.short_rest_cnt = 0
         '''
@@ -1811,9 +1897,49 @@ class Dungeon:
                                 pc.hd_cnt = max(math.floor(pc.level / 2), 1)
                                 pc.conditions["down"][0] = False
                         if not pc.conditions["dead"][0] and pc.char_class == 1:
+                                pc.second_wind = True
                                 pc.second_wind_cnt = 1
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
+        '''
+        Healing during rest
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def rest_heal(self):
+                # gather healing options (potions, abilities)
+                healing_options = []
+                for pc in self.pc_list:
+                        # conscious characters can use healing abilities and potions
+                        if not pc.conditions["down"][0]:
+                                # class abilities
+                                if pc.char_class == 1:
+                                        if pc.second_wind:
+                                                healing_options.append(["Second Wind", pc])
+                                elif pc.char_class == 5:
+                                        if pc.lay_on_hands:
+                                                healing_options.append(["Lay on Hands", pc])
+                                # healing potions
+                                avail_potions = pc.inv.get_potions()
+                                if len(avail_potions) > 0:
+                                        healing_options.append(["Healing Potion", pc])
+                        # unconscious characters can be looted for healing potions
+                        else:
+                                avail_potions = pc.inv.get_potions()
+                                if len(avail_potions) > 0:
+                                        healing_options.append(["Healing Potion", pc])
+                ui.push_message("Available healing options")
+                healing_choice = int(ui.get_list_choice_input_rest_heal(healing_options))
+                while healing_choice != -1:
+                        if healing_options[healing_choice][0] == "Second Wind":
+                                healing_options[healing_choice][1].use_second_wind()
+                        elif healing_options[healing_choice][0] == "Lay on Hands":
+                                healing_options[healing_choice][1].use_lay_on_hands()
+                        elif healing_options[healing_choice][0] == "Healing Potion":
+                                healing_options[healing_choice][1].use_healing_potion()
+
         '''
         Dungeon ends if all PCs are defeated.
         IN
@@ -2008,7 +2134,7 @@ class Battle:
                         for lt in loser_team:
                                 loot += lt.gold
                                 xp += lt.xp
-                        loot = round(loot / len(winner_team))
+                        loot = round(loot / len(winner_team), 3)
                         xp = round(xp / len(winner_team))
                         for wt in winner_team:
                                 wt.gold += loot
@@ -2440,11 +2566,11 @@ class Shop:
                         purchased_item = shop_list[purchase_choice - 1][0]
                         purchased_item_price = item_list[purchased_item][price_pos]
                         purchased_item_weight = item_list[purchased_item][weight_pos]
-                        ui.push_message("You sure you want the " + purchased_item + " (" + str(purchased_item_price) + " GP)?")
+                        ui.push_message("You sure you want the %s (%s GP)?" % (purchased_item, purchased_item_price))
                         if int(ui.get_binary_input()) == 1:
                                 if char.gold >= purchased_item_price:
                                         if char.carry + purchased_item_weight > char.max_carry:
-                                                ui.push_prompt("You cannot purchase the " + purchased_item + ". Get rid of something first.")
+                                                ui.push_prompt("You cannot purchase the %s. Get rid of something first." % (purchased_item))
                                         else:
                                                 char.inv.add_item(purchased_item, type)
                                                 char.gold -= purchased_item_price
@@ -2452,10 +2578,10 @@ class Shop:
                                                 char.carry += purchased_item_weight
                                                 char.carry = round(char.carry, 2)
                                                 shop_list[purchase_choice - 1][0] = "sold"
-                                                ui.push_prompt("You bought the " + purchased_item + " for " + str(purchased_item_price) + " GP.")
+                                                ui.push_prompt("You bought the %s for %s GP." % (purchased_item, purchased_item_price))
                                                 ui.update_status()
                                                 if type != 4:
-                                                        ui.push_message("Wanna equip the " + purchased_item + "?")
+                                                        ui.push_message("Wanna equip the %s?" % (purchased_item))
                                                         if int(ui.get_binary_input()) == 1:
                                                                 char.equip(1, purchased_item, type, item_list, self.everything, self.all_melee_weapons, self.all_ranged_weapons)
                                 else:
@@ -2491,7 +2617,7 @@ class AI:
                 if self.diff == 0:
                         self.mon_cnt_mod = 0.5
                 elif self.diff == 1:
-                        self.mon_cnt_mod = 1.25
+                        self.mon_cnt_mod = 0.5 # 1.25
                 elif self.diff == 2:
                         self.mon_cnt_mod = 1.5
         def choose(self, char, choices, type):
@@ -2637,38 +2763,10 @@ def act(attacker, act_choice, battle):
                                         attacker.bonus_actions.pop(1)
                         # use potion action
                         elif action in attacker.actions and action == 9:
-                                avail_potions = attacker.inv.get_potions()
-                                potions = []
-                                potions_for_choice = []
-                                for key, value in avail_potions.items():
-                                        potions_for_choice.append([value, key, "%sd%s+%s" % (all_items.potions[value][2], all_items.potions[value][1], all_items.potions[value][3])])
-                                        potions.append([value, key, all_items.potions[value]])
-                                potion_choice = int(ui.get_list_choice_input(potions_for_choice))
-                                if potion_choice != -1:
-                                        allies = battle.get_allies(attacker, 1)
-                                        receiver = target_selector(attacker, battle, allies)
-                                        receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
-                                        potion_heal = 0
-                                        potion_stats = all_items.potions[avail_potions[potion_choice]]
-                                        for _ in range(potion_stats[2]):
-                                                potion_heal += roll_dice(potion_stats[1], 0, 0)[0]
-                                        potion_heal += potion_stats[3]
-                                        actual_heal = receiver.receive_healing(attacker, potion_heal)
-                                        attacker.inv.remove_item(avail_potions[potion_choice])
-                                        attacker.carry -= all_items.potions[value][4]
-                                else:
-                                        attacker.battle_menu_options[1][1] += 1
+                                attacker.use_healing_potion()
                         # lay on hands (paladin only)
                         elif action in attacker.actions and action == 10:
-                                allies = battle.get_allies(attacker, 1)
-                                receiver = target_selector(attacker, battle, allies)
-                                receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
-                                lay_on_hands_heal = amount_selector(attacker.lay_on_hands_pool, receiver_max_healable)
-                                actual_heal = receiver.receive_healing(attacker, lay_on_hands_heal)
-                                attacker.lay_on_hands_pool -= actual_heal
-                                if attacker.lay_on_hands_pool <= 0:
-                                        attacker.actions.pop(action)
-                                        attacker.lay_on_hands_pool = 0
+                                attacker.use_lay_on_hands()
                         # back to battle menu
                         elif action in attacker.actions and action == 0:
                                 attacker.battle_menu_options[1][1] += 1
@@ -2696,17 +2794,7 @@ def act(attacker, act_choice, battle):
                                         attacker.battle_menu_options[2][1] += 1
                         # second wind bonus action (fighter only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 2:
-                                current_hp = attacker.hp
-                                second_wind_heal = roll_dice(10, attacker.level, 0)[0]
-                                attacker.hp = min(attacker.hp + second_wind_heal, attacker.max_hp)
-                                if current_hp + second_wind_heal > attacker.max_hp:
-                                        actual_heal = second_wind_heal - ((current_hp + second_wind_heal) - attacker.max_hp)
-                                else:
-                                        actual_heal = second_wind_heal
-                                ui.update_status()
-                                ui.push_prompt(attacker.name + " healed " + str(actual_heal) + " HP.")
-                                attacker.second_wind = False
-                                attacker.bonus_actions.pop(bonus_action)
+                                attacker.use_second_wind()
                         # rage bonus action (barbarian only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 3:
                                 if attacker.raging == False:
@@ -2716,7 +2804,7 @@ def act(attacker, act_choice, battle):
                         # disengage bonus action (rogue only)
                         elif bonus_action in attacker.bonus_actions and bonus_action == 4:
                                 attacker.conditions["flee"][0] = True
-                                ui.push_prompt(attacker.name + " has disengaged and is about to flee from combat.")
+                                ui.push_prompt("%s has disengaged and is about to flee from combat." % (attacker.name))
                         # back to battle menu
                         elif bonus_action in attacker.bonus_actions and bonus_action == 0:
                                 attacker.battle_menu_options[2][1] += 1
@@ -2998,6 +3086,7 @@ def attack(source, target, type, adv_disadv, battle):
                                                         target.attack_disadv = True
                                                         for key in target.skills.keys():
                                                                 target.skills[key][3] = True
+                                                        extra_damage_message += "\n%s is poisoned." % (target.name)
                         extra_dmg = int(math.floor(dmg_result[0][1] * target.resistances[dmg_result[1][1]]) * extra_dmg_mod)
                         if extra_dmg > 0:
                                 extra_damage_message += "\n%s takes extra %s %s damage.\n" % (target.name, extra_dmg, extra_dmg_type)
@@ -3564,9 +3653,9 @@ def gen_char(name, starting_level, npc):
         if class_choice == 6:
                 char = Ranger(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         ui.create_status(char)
-        char.gen_starting_gold(char.char_class)
+        #char.gen_starting_gold(char.char_class)
         char.gen_class(char.char_class)
-        char.gen_starting_equipment()
+        #char.gen_starting_equipment()
         char.action_economy()
         return char
 
@@ -3581,7 +3670,7 @@ Initialize PCs (player characters)
 IN
   N/A
 OUT
-- allies (array)
+- allies (list of objects)
 '''
 def init_chars():
         starting_level = 1
@@ -3598,17 +3687,18 @@ def init_chars():
         ui.push_message(name)
         p2_char = gen_char(name, starting_level, npc)
         
-        name = "Benny"
-        npc = False
-        ui.push_message(name)
-        p3_char = gen_char(name, starting_level, npc)
+        # name = "Benny"
+        # npc = False
+        # ui.push_message(name)
+        # p3_char = gen_char(name, starting_level, npc)
         
-        name = "Alf"
-        npc = False
-        ui.push_message(name)
-        p4_char = gen_char(name, starting_level, npc)
+        # name = "Alf"
+        # npc = False
+        # ui.push_message(name)
+        # p4_char = gen_char(name, starting_level, npc)
         
-        allies = [p1_char, p2_char, p3_char, p4_char]
+        # allies = [p1_char, p2_char, p3_char, p4_char]
+        allies = [p1_char, p2_char]
         return allies
 
 '''
@@ -3621,8 +3711,9 @@ OUT
 def init_adventures():
         # ix: [name, enc cnt, avail_mons]
         adventures = {
-                1: ["Labyrinth Proper", 10, [1, 2, 3, 4, 5, 6, 7]]
-        }
+                #1: ["Labyrinth Proper", 10, [1, 2, 3, 4, 5, 6, 7]]
+                1: ["Labyrinth Proper", 10, [2]]
+                }
         ui.push_message("Which adventure to embark on?")
         adventure_choice = int(ui.get_dict_choice_input_adv(adventures))
         return adventures[adventure_choice]
