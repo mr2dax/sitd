@@ -5,6 +5,7 @@ import string
 import tkinter as tk
 import gui
 import time
+import copy
 
 # Classes
 '''
@@ -270,9 +271,6 @@ class Character:
                 # barbarian only self buff
                 if self.char_class == 3:
                         self.bonus_actions[3] = "rage"
-                # rogue only (as part of cunning action ability from 2nd level)
-                if self.char_class == 4:
-                        pass
                 # specials (no action required)
                 self.specials = {
                         0: "back" # back to main (battle) menu 
@@ -540,7 +538,7 @@ class Character:
                         self.saving_throws["str"][0] += self.prof_bonus
                         self.saving_throws["con"][0] += self.prof_bonus
                         ui.update_status()
-                        self.gen_fighting_style(self.inv)
+                        self.gen_fighting_style()
                 elif class_choice == 2:
                         self.char_class = 2
                         self.hd = 10
@@ -594,7 +592,7 @@ class Character:
                         self.saving_throws["str"][0] += self.prof_bonus
                         self.saving_throws["dex"][0] += self.prof_bonus
                 ui.update_status()
-        def gen_fighting_style(self, inv):
+        def gen_fighting_style(self):
                 styles = {
                         1: "defense",
                         2: "great weapon fighting",
@@ -1262,12 +1260,17 @@ class Character:
                         self.hp += rolled_hp
                         if self.level == 2:
                                 if self.char_class == 1:
-                                        self.specials["action surge"] = 1
+                                        self.specials[1] = "action surge"
+                                        self.action_surge = 1
                                 if self.char_class == 2:
-                                        self.specials["ki"] = self.level
+                                        self.bonus_actions[5] = "flurry of blows"
+                                        self.bonus_actions[6] = "patient defense"
+                                        self.bonus_actions[7] = "step of the wind"
+                                        self.ki_pool = self.level
+                                        self.ki_pool_max = self.level
                                 if self.char_class == 3:
-                                        self.specials["reckless attack"] = True
-                                        self.dex_st_adv = True
+                                        self.specials[3] = "reckless attack"
+                                        self.saving_throws["dex"][2] = True
                                 if self.char_class == 4:
                                         self.bonus_actions[4] = "disengage"
                                         self.sneak_damage = [6, math.ceil(self.level / 2)]
@@ -1275,9 +1278,9 @@ class Character:
                                         self.divine_smite = [2, 0, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
-                                        self.gen_fighting_style(self.inv)
+                                        self.gen_fighting_style()
                                 if self.char_class == 6:
-                                        self.gen_fighting_style(self.inv)
+                                        self.gen_fighting_style()
                         if self.level == 3:
                                 if self.char_class == 1:
                                         pass
@@ -1341,41 +1344,9 @@ class Character:
                         }
                 return classes[self.char_class]
         def get_char_race(self):
-                races = {
-                        0: "monster",
-                        1: "human",
-                        2: "halfling",
-                        3: "dwarf",
-                        4: "gnome",
-                        5: "elf",
-                        6: "half-orc",
-                        7: "dragonborn",
-                        8: "tiefling",
-                        9: "aarakocra"
-                        }
-                return races[self.race]
+                return all_races.races[self.race]
         def get_char_subrace(self):
-                subraces = {
-                        0: "none",
-                        11: "vanilla",
-                        21: "lightfoot",
-                        22: "stout",
-                        23: "ghostwise",
-                        31: "hill",
-                        32: "mountain",
-                        33: "duergar",
-                        41: "forest",
-                        42: "rock",
-                        43: "svirfneblin",
-                        51: "high elf",
-                        52: "wood elf",
-                        53: "drow",
-                        61: "vanilla",
-                        71: "vanilla",
-                        81: "vanilla",
-                        91: "vanilla"
-                        }
-                return subraces[self.subrace]
+                return all_races.subraces[self.subrace]
         def get_fighting_style(self):
                 styles = {
                         0: "none",
@@ -1430,6 +1401,7 @@ class Fighter(Character):
                 self.second_wind_cnt = 1
                 self.main_hand_prof = True
                 self.main_str_att_mod = self.str_mod + self.prof_bonus
+                self.action_surge = 0
         '''
         Use second wind
         IN
@@ -1643,14 +1615,17 @@ class Paladin(Character):
         def use_lay_on_hands(self):
                 allies = battle.get_allies(self, 1)
                 receiver = target_selector(self, battle, allies)
-                receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
-                lay_on_hands_heal = amount_selector(self.lay_on_hands_pool, receiver_max_healable)
-                actual_heal = receiver.receive_healing(self, lay_on_hands_heal)
-                self.lay_on_hands_pool -= actual_heal
-                if self.lay_on_hands_pool <= 0:
-                        self.actions.pop(10)
-                        self.lay_on_hands_pool = 0
-                        self.lay_on_hands = False
+                if receiver.hp != receiver.max_hp:
+                        receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
+                        lay_on_hands_heal = amount_selector(self.lay_on_hands_pool, receiver_max_healable)
+                        actual_heal = receiver.receive_healing(self, lay_on_hands_heal)
+                        self.lay_on_hands_pool -= actual_heal
+                        if self.lay_on_hands_pool <= 0:
+                                self.actions.pop(10)
+                                self.lay_on_hands_pool = 0
+                                self.lay_on_hands = False
+                else:
+                        ui.push_prompt("%s is already at full health!" % receiver.name)
 
 '''
 Ranger (Character child)
@@ -1829,7 +1804,8 @@ class Dungeon:
                         1: "Short rest",
                         2: "Long rest",
                         3: "Healing",
-                        4: "Equipment"
+                        4: "Equipment",
+                        5: "Level up"
                         }
                 equipment_options = {
                         0: "Back",
@@ -1853,12 +1829,15 @@ class Dungeon:
                                 respite_options.pop(2)
                         elif rest == 2 and rest in respite_options:
                                 self.long_rest()
-                                respite_options.pop(1)
+                                if 1 in respite_options:
+                                        respite_options.pop(1)
                                 respite_options.pop(2)
                         elif rest == 3 and rest in respite_options:
                                 self.rest_heal()
                         elif rest == 4 and rest in respite_options:
                                 self.rest_equip()
+                        elif rest == 5 and rest in respite_options:
+                                self.rest_level_up()    
                         ui.update_status()
         '''
         Short rest: spend hit dice to heal
@@ -1882,7 +1861,10 @@ class Dungeon:
                         if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.char_class == 1:
                                 pc.second_wind = True
                                 pc.second_wind_cnt = 1
+                                if pc.level > 1:
+                                        pc.action_surge = 1
                 self.short_rest_cnt = 0
+                ui.push_prompt("Short rest successful.")
         '''
         Long rest: heal to max, get half of max HD count back
         IN
@@ -1899,8 +1881,15 @@ class Dungeon:
                         if not pc.conditions["dead"][0] and pc.char_class == 1:
                                 pc.second_wind = True
                                 pc.second_wind_cnt = 1
+                                if pc.level > 1:
+                                        pc.action_surge = 1
+                        if not pc.conditions["dead"][0] and pc.char_class == 5:
+                                pc.lay_on_hands = True
+                                pc.lay_on_hands_pool = pc.lay_on_hands_pool_max
+                                pc.actions[10] = "lay on hands"
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
+                ui.push_prompt("Long rest successful.")
         '''
         Healing during rest
         IN
@@ -1930,7 +1919,7 @@ class Dungeon:
                                 avail_potions = pc.inv.get_potions()
                                 if len(avail_potions) > 0:
                                         healing_options.append(["Healing Potion", pc])
-                ui.push_message("Available healing options")
+                ui.push_message("Available healing options.")
                 healing_choice = int(ui.get_list_choice_input_rest_heal(healing_options))
                 while healing_choice != -1:
                         if healing_options[healing_choice][0] == "Second Wind":
@@ -1939,7 +1928,6 @@ class Dungeon:
                                 healing_options[healing_choice][1].use_lay_on_hands()
                         elif healing_options[healing_choice][0] == "Healing Potion":
                                 healing_options[healing_choice][1].use_healing_potion()
-
         '''
         Dungeon ends if all PCs are defeated.
         IN
@@ -1958,6 +1946,8 @@ class Dungeon:
         - battle (object)
         '''
         def start_battle(self, enc):
+                ui.clear_message()
+                ui.push_prompt("Enemies have appeared! Roll initiative!")
                 ui.push_battle_info("Battle #%s" % (enc + 1))
                 enemies = self.init_enemies()
                 battle = Battle(self.pc_list, enemies)
@@ -2282,22 +2272,14 @@ class MonsterManual:
                 #       condition immunities: [condition 1, condition 2 ...]}
                 self.monsters = {
                         1: {
-                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, 1, 100],
-                                "attacks": [["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, "-", 0]],
-                                "skills": [0, 0, 0, 0, 2, 0],
-                                "stmods": [0, 0, 0, 0, 0, 0],
-                                "dmgres": [["a", 0.5], ["c", 0.5], ["f", 0.5], ["s", 0.5]],
-                                "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
-                                },
-                        2: {
-                                "attrs": ["Green Slime", 8, 6, 4, 1, 6, 2, 12, 1, 1, 25],
+                                "attrs": ["Slimy Ooze", 8, 6, 4, 1, 6, 2, 12, 1, 1, 25],
                                 "attacks": [["Slime Attack", "b", 4, 1, 10, "dex", 0, "a", 10, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 2, 0],
                                 "stmods": [0, 0, 0, 0, 0, 0],
                                 "dmgres": [["a", 0.5], ["c", 0.5], ["f", 0.5], ["s", 0.5]],
                                 "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
-                        3: {
+                        2: {
                                 "attrs": ["Giant Slug", 15, 10, 13, 1, 9, 2, 8, 4, 1, 100],
                                 "attacks": [["Tongue", "s", 6, 1, 0, "-", 0, "a", 8, 1, "-", 0, "-", 0]],
                                 "skills": [0, 0, 0, 0, 0, 0],
@@ -2305,13 +2287,21 @@ class MonsterManual:
                                 "dmgres": [],
                                 "condimm": []
                                 },
-                        4: {
+                        3: {
                                 "attrs": ["Hunter Worm", 15, 9, 17, 1, 7, 3, 6, 4, 1, 100],
                                 "attacks": [["Bite", "p", 6, 1, 0, "-", 0, "-", 0, 0, "r", 0, "-", 12]],
                                 "skills": [0, 0, 0, 0, 0, 0],
                                 "stmods": [0, 0, 0, 0, 2, 0],
                                 "dmgres": [],
                                 "condimm": []
+                                },
+                        4: {
+                                "attrs": ["Gray Ooze", 12, 6, 16, 1, 6, 2, 8, 3, 1, 100],
+                                "attacks": [["Pseudopod", "b", 6, 1, 0, "-", 0, "a", 6, 2, "-", 0, "-", 0]],
+                                "skills": [0, 0, 0, 0, 2, 0],
+                                "stmods": [0, 0, 0, 0, 0, 0],
+                                "dmgres": [["a", 0.5], ["c", 0.5], ["f", 0.5], ["s", 0.5]],
+                                "condimm": ["blinded", "charmed", "deafened", "fatigued", "frightened", "prone"]
                                 },
                         5: {
                                 "attrs": ["Ape", 16, 14, 14, 6, 12, 7, 8, 3, 2, 100],
@@ -2639,6 +2629,164 @@ class AI:
                         pass
                 return choice
 
+'''
+Races/subraces
+IN
+  N/A
+OUT
+- all races (object)
+'''
+class AllRaces:
+        def __init__(self):
+                self.races = {
+                        0: "monster",
+                        1: "human",
+                        2: "halfling",
+                        3: "dwarf",
+                        4: "gnome",
+                        5: "elf",
+                        6: "half-orc",
+                        7: "dragonborn",
+                        8: "tiefling",
+                        9: "aarakocra",
+                        10: "genasi",
+                        11: "goliath",
+                        12: "aasimar",
+                        13: "firbolg",
+                        14: "gith"
+                        }
+                self.subraces = {
+                        0: "monster",
+                        11: "vanilla",
+                        21: "lightfoot",
+                        22: "stout",
+                        23: "ghostwise",
+                        31: "hill",
+                        32: "mountain",
+                        33: "duergar",
+                        41: "forest",
+                        42: "rock",
+                        43: "svirfneblin",
+                        51: "high",
+                        52: "wood",
+                        53: "drow",
+                        61: "vanilla",
+                        71: "vanilla",
+                        81: "vanilla",
+                        91: "vanilla",
+                        101: "air",
+                        102: "earth",
+                        103: "fire",
+                        104: "water",
+                        111: "vanilla",
+                        121: "fallen",
+                        122: "protector",
+                        123: "scourge",
+                        131: "vanilla",
+                        141: "githyanki",
+                        142: "githzerai"
+                        }
+        '''
+        Add racial modifiers to rolled stats.
+        IN
+        - stats (list of ints)
+        - race/subrace choice (int)
+        - race/subrace flag (int)
+        OUT
+        - stats (list of ints)
+        '''
+        def add_racial_stats(self, stats, race_choice, flag):
+                str_stat = stats[0]
+                dex_stat = stats[1]
+                con_stat = stats[2]
+                int_stat = stats[3]
+                wis_stat = stats[4]
+                cha_stat = stats[5]
+                if flag == 1:
+                        if race_choice == 1:
+                                str_stat += 1
+                                dex_stat += 1
+                                con_stat += 1
+                                int_stat += 1
+                                wis_stat += 1
+                                cha_stat += 1
+                        elif race_choice == 2:
+                                dex_stat += 2
+                        elif race_choice == 3:
+                                con_stat += 2
+                        elif race_choice == 4:
+                                int_stat += 2
+                        elif race_choice == 5:
+                                dex_stat += 2
+                        elif race_choice == 6:
+                                str_stat += 2
+                                con_stat += 1
+                        elif race_choice == 7:
+                                str_stat += 2
+                                cha_stat += 1
+                        elif race_choice == 8:
+                                cha_stat += 2
+                                int_stat += 1
+                        elif race_choice == 9:
+                                dex_stat += 2
+                                wis_stat += 1
+                        elif race_choice == 10:
+                                con_stat += 2
+                        elif race_choice == 11:
+                                str_stat += 2
+                                con_stat += 1
+                        elif race_choice == 12:
+                                cha_stat += 2
+                        elif race_choice == 13:
+                                wis_stat += 2
+                                str_stat += 1
+                        elif race_choice == 14:
+                                int_stat += 1
+                elif flag == 2:
+                        if race_choice == 21:
+                                cha_stat += 1
+                        elif race_choice == 22:
+                                con_stat += 1
+                        elif race_choice == 23:
+                                wis_stat += 1
+                        elif race_choice == 31:
+                                wis_stat += 1
+                        elif race_choice == 32:
+                                str_stat += 2
+                        elif race_choice == 33:
+                                str_stat += 1
+                        elif race_choice == 41:
+                                dex_stat += 1
+                        elif race_choice == 42:
+                                con_stat += 1
+                        elif race_choice == 43:
+                                dex_stat += 1
+                        elif race_choice == 51:
+                                int_stat += 1
+                        elif race_choice == 52:
+                                wis_stat += 1
+                        elif race_choice == 53:
+                                cha_stat += 1
+                        elif race_choice == 101:
+                                dex_stat += 1
+                        elif race_choice == 102:
+                                str_stat += 1
+                        elif race_choice == 103:
+                                int_stat += 1
+                        elif race_choice == 104:
+                                wis_stat += 1
+                        elif race_choice == 121:
+                                str_stat += 1
+                        elif race_choice == 122:
+                                wis_stat += 1
+                        elif race_choice == 123:
+                                con_stat += 1
+                        elif race_choice == 141:
+                                str_stat += 2
+                        elif race_choice == 142:
+                                wis_stat += 2
+                stats = [str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat]
+                return stats
 # Utilities
 '''
 Roll dice
@@ -2814,8 +2962,11 @@ def act(attacker, act_choice, battle):
                                 special = int(ui.get_dict_choice_input(attacker.specials))
                         else:
                                 special = ai.choose(attacker, attacker.specials.keys(), 4)
+                        # action surge (fighter only)
                         if special in attacker.specials and special == 1:
-                                pass
+                                attacker.battle_menu_options[1][1] += 1
+                                attacker.action_surge -= 1
+                                attacker.specials.pop(1)
                         # back to main menu
                         elif special in attacker.specials and special == 0:
                                 pass
@@ -3427,174 +3578,122 @@ def calc_dmg(source, crit, dmg_mod, type):
         return [dmg, extra_dmg], [dmg_type, extra_dmg_type]
 
 # Character initialization
-def gen_stats():
-        stre = 0
-        dex = 0
-        con = 0
-        inte = 0
-        wis = 0
-        cha = 0
+'''
+Generate ability scores (stats)
+IN
+- name of character (string)
+OUT
+- ability scores (tuple of ints)
+'''
+def gen_stats(name):
+        strength = 0
+        dexterity = 0
+        constitution = 0
+        intelligence = 0
+        wisdom = 0
+        charisma = 0
         roll = 0
+        # strength
         min = 6
         for _ in range(4):
                 roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
-                stre += roll
-        stre -= min
+                strength += roll
+        strength -= min
+        # dexterity
         min = 6
         for _ in range(4):
                 roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
-                dex += roll
-        dex -= min
+                dexterity += roll
+        dexterity -= min
+        # constitution
         min = 6
         for _ in range(4):
                 roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
-                con += roll
-        con -= min
+                constitution += roll
+        constitution -= min
+        # intelligence
         min = 6
         for _ in range(4):
                 roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
-                inte += roll
-        inte -= min
+                intelligence += roll
+        intelligence -= min
+        # widom
         min = 6
         for _ in range(4):
                 roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
-                wis += roll
-        wis -= min
+                wisdom += roll
+        wisdom -= min
+        # charisma
         min = 6
         for _ in range(4):
                 roll = roll_dice(6, 0, 0)[0]
                 if roll < min:
                         min = roll
-                cha += roll
-        cha -= min
-        ui.push_message("============")
-        ui.push_message("Rolled stats\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (stre, dex, con, inte, wis, cha))
-        return stre, dex, con, inte, wis, cha
+                charisma += roll
+        charisma -= min
+        ui.push_message("%s\n============\nRolled stats\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n"
+                % (name, strength, dexterity, constitution, intelligence, wisdom, charisma))
+        return strength, dexterity, constitution, intelligence, wisdom, charisma
 
-def gen_race(stats):
-        str_stat = stats[0]
-        dex_stat = stats[1]
-        con_stat = stats[2]
-        int_stat = stats[3]
-        wis_stat = stats[4]
-        cha_stat = stats[5]
-        races = {
-                1: "human",
-                2: "halfling",
-                3: "dwarf",
-                4: "gnome",
-                5: "elf",
-                6: "half-orc",
-                7: "dragonborn",
-                8: "tiefling",
-                9: "aarakocra"
-                }
-        ui.push_message("Choose your race.")
-        race_choice = int(ui.get_dict_choice_input_racial(races))
-        if race_choice == 1:
-                str_stat += 1
-                dex_stat += 1
-                con_stat += 1
-                int_stat += 1
-                wis_stat += 1
-                cha_stat += 1
-        elif race_choice == 2:
-                dex_stat += 2
-        elif race_choice == 3:
-                con_stat += 2
-        elif race_choice == 4:
-                int_stat += 2
-        elif race_choice == 5:
-                dex_stat += 2
-        elif race_choice == 6:
-                str_stat += 2
-                con_stat += 1
-        elif race_choice == 7:
-                str_stat += 2
-                cha_stat += 1
-        elif race_choice == 8:
-                cha_stat += 2
-                int_stat += 1
-        elif race_choice == 9:
-                dex_stat += 2
-                wis_stat += 1
-        ui.push_message("============")
-        ui.push_message("Stats with racial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat))
-        subraces = {
-                11: "vanilla",
-                21: "lightfoot",
-                22: "stout",
-                23: "ghostwise",
-                31: "hill",
-                32: "mountain",
-                33: "duergar",
-                41: "forest",
-                42: "rock",
-                43: "svirfneblin",
-                51: "high",
-                52: "wood",
-                53: "drow",
-                61: "vanilla",
-                71: "vanilla",
-                81: "vanilla",
-                91: "vanilla"
-                }
-        for sr in subraces.copy():
-                if race_choice != math.floor(sr / 10):
-                        subraces.pop(sr)
-        ui.push_message("Choose your subrace.")
-        subrace_choice = int(ui.get_dict_choice_input_racial(subraces))
-        if subrace_choice == 11:
-                pass
-        elif subrace_choice == 21:
-                cha_stat += 1
-        elif subrace_choice == 22:
-                con_stat += 1
-        elif subrace_choice == 23:
-                wis_stat += 1
-        elif subrace_choice == 31:
-                wis_stat += 1
-        elif subrace_choice == 32:
-                str_stat += 2
-        elif subrace_choice == 33:
-                str_stat += 1
-        elif subrace_choice == 41:
-                dex_stat += 1
-        elif subrace_choice == 42:
-                con_stat += 1
-        elif subrace_choice == 43:
-                dex_stat += 1
-        elif subrace_choice == 51:
-                int_stat += 1
-        elif subrace_choice == 52:
-                wis_stat += 1
-        elif subrace_choice == 53:
-                cha_stat += 1
-        elif subrace_choice == 61:
-                pass
-        elif subrace_choice == 71:
-                pass
-        elif subrace_choice == 81:
-                pass
-        elif subrace_choice == 91:
-                pass
-        ui.push_message("============")
-        ui.push_message("Stats with subracial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n" % (str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat))
-        return race_choice, subrace_choice, [str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat]
+'''
+Generate race and subrace
+IN
+- name of character (string)
+OUT
+- tuple(race choice (int), subrace choice (int), ability scores (array of ints))
+'''
+def gen_race(name):
+        races = all_races.races
+        subraces = all_races.subraces
+        need_to_roll = True
+        while need_to_roll:
+                stats = gen_stats(name)
+                ui.push_message("Choose your race.")
+                race_choice = int(ui.get_dict_choice_input_racial(races))
+                # reroll bad stats
+                if race_choice == -1:
+                        need_to_roll = True
+                else:
+                        need_to_roll = False
+                        stats = all_races.add_racial_stats(stats, race_choice, 1)
+                        ui.push_message("%s\n============\nStats with racial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n"
+                                % (name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5]))
+                        # create a subset of subraces for selection
+                        subraces_redux = {}
+                        for key, value in subraces.items():
+                                if race_choice == math.floor(key / 10):
+                                        subraces_redux[key] = value
+                        subrace_choice = 0
+                        # skip vanilla subrace (no subrace is available)
+                        ui.push_message("Choose your subrace.")
+                        subrace_choice = int(ui.get_dict_choice_input_subracial(subraces_redux))
+                        stats = all_races.add_racial_stats(stats, subrace_choice, 2)
+                        ui.push_message("%s\n============\nStats with subracial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n"
+                                % (name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5]))
+        return race_choice, subrace_choice, [stats[0], stats[1], stats[2], stats[3], stats[4], stats[5]]
 
+'''
+Generate character
+IN
+- name of character (string)
+- starting level (int)
+- NPC/PC (bool)
+OUT
+- character (object)
+'''
 def gen_char(name, starting_level, npc):
-        need_stat_reroll = True
-        while need_stat_reroll:
+        need_stats = True
+        while need_stats:
                 classes = {
                         1: "fighter",
                         2: "monk",
@@ -3602,9 +3701,8 @@ def gen_char(name, starting_level, npc):
                         4: "rogue",
                         5: "paladin",
                         6: "ranger"
-                        }
-                stats = gen_stats()
-                stats_post_race = gen_race(stats)
+                }
+                stats_post_race = gen_race(name)
                 str_stat = stats_post_race[2][0]
                 dex_stat = stats_post_race[2][1]
                 con_stat = stats_post_race[2][2]
@@ -3632,12 +3730,11 @@ def gen_char(name, starting_level, npc):
                 # ranger
                 if dex_stat < 13 or wis_stat < 13:
                         classes.pop(6)
-                if classes:
-                        need_stat_reroll = False
-                elif not classes:
-                        need_stat_reroll = True
-                        ui.clear_message()
-                        ui.push_message("Rerolling stats.")
+                if not classes:
+                        need_stats = True
+                        ui.push_prompt("No eligible classes, rerolling stats.")
+                else:
+                        need_stats = False
         ui.push_message("Choose your class.")
         class_choice = int(ui.get_dict_choice_input(classes))
         if class_choice == 1:
@@ -3659,6 +3756,13 @@ def gen_char(name, starting_level, npc):
         char.action_economy()
         return char
 
+'''
+Generate monster
+IN
+- monster stats (dict)
+OUT
+- monster (object)
+'''
 def gen_mon(monster):
         mon = Monster(monster)
         #ui.create_status(mon)
@@ -3679,22 +3783,18 @@ def init_chars():
         npc = False
         if name == "":
                 name = "Rick"
-        ui.push_message(name)
         p1_char = gen_char(name, starting_level, npc)
         
         name = "Rei"
         npc = False
-        ui.push_message(name)
         p2_char = gen_char(name, starting_level, npc)
         
         # name = "Benny"
         # npc = False
-        # ui.push_message(name)
         # p3_char = gen_char(name, starting_level, npc)
         
         # name = "Alf"
         # npc = False
-        # ui.push_message(name)
         # p4_char = gen_char(name, starting_level, npc)
         
         # allies = [p1_char, p2_char, p3_char, p4_char]
@@ -3712,7 +3812,7 @@ def init_adventures():
         # ix: [name, enc cnt, avail_mons]
         adventures = {
                 #1: ["Labyrinth Proper", 10, [1, 2, 3, 4, 5, 6, 7]]
-                1: ["Labyrinth Proper", 10, [2]]
+                1: ["Labyrinth Proper", 10, [1]]
                 }
         ui.push_message("Which adventure to embark on?")
         adventure_choice = int(ui.get_dict_choice_input_adv(adventures))
@@ -3722,6 +3822,7 @@ def init_adventures():
 main_window = tk.Tk()
 ui = gui.GUI(main_window)
 all_items = AllItems()
+all_races = AllRaces()
 all_monsters = MonsterManual()
 ai = AI()
 # title
@@ -3764,6 +3865,6 @@ dungeon.end_dungeon()
 main_window.mainloop()
 
 #TODO: separate extra attack (attack+shove, attack+grapple, attackx2 etc...)
-#TODO: back option for menus
+#TODO: work on respite
 #TODO: level up, proficiency up, asi choice (unequip-equip flow to recalc stats)
 #TODO: 4-lane battle formation/2-lane marching order, net restrain, whip pull, push/pull, move mechanic

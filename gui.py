@@ -256,10 +256,35 @@ class GUI:
         def get_dict_choice_input_racial(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
+                self.input_choice_reroll_btn = tk.Button(self.input_frame, text = "reroll", width = 6, fg = "black", bg = "white", command = lambda j = -1: self.submit_var.set(j))
+                r = 0
+                self.input_choice_reroll_btn.grid(row = r, column = 3, sticky = "nesw")
+                self.input_choice_btns.append(self.input_choice_reroll_btn)
+                r += 1
+                for key, value in choices.items():
+                        if key != 0:
+                                self.input_choice_btn = tk.Button(self.input_frame, text = value, fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
+                                if (key - 1) % 7 == 0:
+                                        r += 1
+                                self.input_choice_btn.grid(row = r, column = (key - 1) % 7, sticky = "nesw")
+                                self.input_choice_btn_ttp = CreateToolTip(self.input_choice_btn, self.race_stats_lookup(key, 1))
+                                self.input_choice_btns.append(self.input_choice_btn)
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.submit_var.get()
+                if input_val != 0:
+                        self.clear_message()
+                self.submit_var = ""
+                for btn in self.input_choice_btns:
+                        btn.destroy()
+                return input_val
+        # populate input frame with buttons from hashtable input (specially for subracial menu), then destroy them once choice was fetched
+        def get_dict_choice_input_subracial(self, choices):
+                self.submit_var = tk.IntVar()
+                self.input_choice_btns = []
                 for key, value in choices.items():
                         self.input_choice_btn = tk.Button(self.input_frame, text = value, fg = "black", bg = "white", command = lambda j = key: self.submit_var.set(j))
-                        self.input_choice_btn.grid(row = 0, column = (key))
-                        self.input_choice_btn_ttp = CreateToolTip(self.input_choice_btn, self.race_stats_lookup(key))
+                        self.input_choice_btn.grid(row = 0, column = key)
+                        self.input_choice_btn_ttp = CreateToolTip(self.input_choice_btn, self.race_stats_lookup(key, 2))
                         self.input_choice_btns.append(self.input_choice_btn)
                 self.input_frame.wait_variable(self.submit_var)
                 input_val = self.submit_var.get()
@@ -425,9 +450,17 @@ class GUI:
         # disable battle menu button according to action economy rules
         def disable_button(self, btn):
                 btn.configure(state = tk.DISABLED)
-        # lookup for racial float text
-        def race_stats_lookup(self, race):
-                races = {
+        '''
+        Lookup for racial/subracial float text
+        IN
+        - race/subrace value (int)
+        - race/subrace flag (int)
+        OUT
+        - stats text (string)
+        '''
+        def race_stats_lookup(self, race, flag):
+                racial_stats = {
+                        0: "N/A",
                         1: "+1 STR +1 DEX +1 CON +1 INT +1 WIS +1 CHA",
                         2: "+2 DEX",
                         3: "+2 CON",
@@ -437,6 +470,14 @@ class GUI:
                         7: "+2 STR +1 CHA",
                         8: "+2 CHA +1 INT",
                         9: "+2 DEX +1 WIS",
+                        10: "+2 CON",
+                        11: "+2 STR +1 CON",
+                        12: "+2 CHA",
+                        13: "+2 WIS +1 STR",
+                        14: "+1 INT"
+                        }
+                subracial_stats = {
+                        0: "N/A",
                         11: "N/A",
                         21: "+1 CHA",
                         22: "+1 CON",
@@ -454,6 +495,20 @@ class GUI:
                         71: "N/A",
                         81: "N/A",
                         91: "N/A",
+                        101: "+1 DEX",
+                        102: "+1 STR",
+                        103: "+1 INT",
+                        104: "+1 WIS",
+                        111: "N/A",
+                        121: "+1 STR",
+                        122: "+1 WIS",
+                        123: "+1 CON",
+                        131: "N/A",
+                        141: "+2 STR",
+                        142: "+2 WIS"
                         }
-                stats = races[race]
+                if flag == 1:
+                        stats = racial_stats[race]
+                elif flag == 2:
+                        stats = subracial_stats[race]
                 return stats
