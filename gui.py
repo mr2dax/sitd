@@ -181,9 +181,26 @@ class GUI:
                 self.input_btn.destroy()
                 self.clear_message()
                 return input_val
-        # select amount of units from a pool
-        def get_amount(self, pool, max_avail):
-                self.scale_pane = tk.Scale(self.input_frame, from_ = 1, to = min(pool, max_avail), orient = tk.HORIZONTAL)
+        # select amount of units from a pool (specifically for lay on hands)
+        def get_amount_lay_on_hands(self, pool, max_healable):
+                self.scale_pane = tk.Scale(self.input_frame, from_ = 1, to = min(pool, max_healable), orient = tk.HORIZONTAL)
+                self.scale_pane.grid(row = 0, column = 0)
+                self.submit_var = tk.StringVar()
+                self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
+                self.input_btn.grid(row = 0, column = 1)
+                self.input_frame.bind("<Return>", lambda event: self.submit_var.set(1))
+                self.input_frame.focus_set()
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.scale_pane.get()
+                self.submit_var = ""
+                self.input_frame.unbind("<Return>")
+                self.scale_pane.destroy()
+                self.input_btn.destroy()
+                self.clear_message()
+                return input_val
+        # select amount
+        def get_amount(self, max_amount):
+                self.scale_pane = tk.Scale(self.input_frame, from_ = 0, to = max_amount, resolution = 0.01, orient = tk.HORIZONTAL)
                 self.scale_pane.grid(row = 0, column = 0)
                 self.submit_var = tk.StringVar()
                 self.input_btn = tk.Button(self.input_frame, text = "OK", width = 2, fg = "black", bg = "white", command = lambda: self.submit_var.set(1))
@@ -295,7 +312,7 @@ class GUI:
                         btn.destroy()
                 return input_val
         # populate input frame with buttons from array input (specially for shop's item listing), then destroy them once choice was fetched
-        def get_list_choice_input(self, choices):
+        def get_list_choice_input_shop(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
                 self.input_choice_skip_btn = tk.Button(self.input_frame, text = "exit", width = 4, fg = "black", bg = "white", command = lambda j = -1: self.submit_var.set(j))
@@ -321,7 +338,7 @@ class GUI:
         def get_list_choice_input_rest_heal(self, choices):
                 self.submit_var = tk.IntVar()
                 self.input_choice_btns = []
-                self.input_choice_skip_btn = tk.Button(self.input_frame, text = "back", width = 4, fg = "black", bg = "white", command = lambda j = -1: self.submit_var.set(j))
+                self.input_choice_skip_btn = tk.Button(self.input_frame, text = "back", width = 4, fg = "black", bg = "white", command = lambda j = 0: self.submit_var.set(j))
                 self.input_choice_skip_btn.grid(row = 0, column = 0)
                 self.input_choice_btns.append(self.input_choice_skip_btn)
                 btn_text = ""
@@ -329,6 +346,23 @@ class GUI:
                 for c in choices:
                         btn_text = "%s (%s)" % (c[0], c[1].name)
                         self.input_choice_btn = tk.Button(self.input_frame, text = btn_text, width = len(btn_text), fg = "black", bg = "white", command = lambda j = i: self.submit_var.set(j))
+                        self.input_choice_btn.grid(row = 0, column = i)
+                        self.input_choice_btns.append(self.input_choice_btn)
+                        i += 1
+                self.input_frame.wait_variable(self.submit_var)
+                input_val = self.submit_var.get()
+                self.submit_var = ""
+                for btn in self.input_choice_btns:
+                        btn.destroy()
+                self.clear_message()
+                return input_val
+         # populate input frame with buttons from array input, then destroy them once choice was fetched
+        def get_list_choice_input(self, choices):
+                self.submit_var = tk.IntVar()
+                self.input_choice_btns = []
+                i = 0
+                for c in choices:
+                        self.input_choice_btn = tk.Button(self.input_frame, text = c.name, width = len(c.name), fg = "black", bg = "white", command = lambda j = i: self.submit_var.set(j))
                         self.input_choice_btn.grid(row = 0, column = i)
                         self.input_choice_btns.append(self.input_choice_btn)
                         i += 1
@@ -391,7 +425,7 @@ class GUI:
                 self.class_label.grid(row = 0, column = 1)
                 self.race_label = tk.Label(self.char_stats_title_frame, text = "%s (%s)" % (char.get_char_race(), char.get_char_subrace()), justify = tk.LEFT)
                 self.race_label.grid(row = 0, column = 2)
-                self.xp_label = tk.Label(self.char_stats_title_frame, text = "Level: %s (XP: %s/%s)" % (char.level, char.xp, char.get_level_up_cap(char.level)), justify = tk.LEFT)
+                self.xp_label = tk.Label(self.char_stats_title_frame, text = "Level: %s (XP: %s/%s)" % (char.level, char.xp, char.get_level_up_cap()), justify = tk.LEFT)
                 self.xp_label.grid(row = 0, column = 3)
                 self.done_btn = tk.Button(self.char_stats_title_frame, text = "Done", width = 4, fg = "black", bg = "white", command = lambda: self.destroy_char_status())
                 self.done_btn.grid(row = 0, column = 4)

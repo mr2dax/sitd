@@ -275,6 +275,11 @@ class Character:
                 self.specials = {
                         0: "back" # back to main (battle) menu 
                         }
+                # reactions
+                self.reactions = {
+                        0: "back", # back to main (battle) menu
+                        1: "opportunity attack" # performed when a foe leaves a character's threat range without disengaging
+                }
         '''
         Death saving throws at death's door
         IN
@@ -360,7 +365,7 @@ class Character:
                 for key, value in avail_potions.items():
                         potions_for_choice.append([value, key, "%sd%s+%s" % (all_items.potions[value][2], all_items.potions[value][1], all_items.potions[value][3])])
                         potions.append([value, key, all_items.potions[value]])
-                potion_choice = int(ui.get_list_choice_input(potions_for_choice))
+                potion_choice = int(ui.get_list_choice_input_shop(potions_for_choice))
                 if potion_choice != -1:
                         allies = battle.get_allies(self, 1)
                         receiver = target_selector(self, battle, allies)
@@ -635,7 +640,7 @@ class Character:
                                 self.fighting_style = 4
                         elif style_choice == 5:
                                 self.fighting_style = 5
-        def equip(self, eq_uneq, item, type, item_list, everything, all_melee_weapons, all_ranged_weapons):
+        def equip(self, eq_uneq, item, type):
                 # stats for currently equipped armor, shield and/or weapon
                 curr_armor_ac = 0
                 curr_armor_ench = 0
@@ -650,24 +655,24 @@ class Character:
                         curr_shield_ac = all_items.shields[self.eq_weapon_offhand][1]
                         curr_shield_ench = all_items.shields[self.eq_weapon_offhand][2]
                 if self.eq_weapon_main != "unarmed strike":
-                        curr_main_weapon_ench = everything[self.eq_weapon_main][3]
+                        curr_main_weapon_ench = all_items.everything[self.eq_weapon_main][3]
                 if self.eq_weapon_offhand not in ["unarmed strike", "nothing"] and self.eq_weapon_offhand not in all_items.shields:
-                        curr_off_weapon_ench = everything[self.eq_weapon_offhand][3]
+                        curr_off_weapon_ench = all_items.everything[self.eq_weapon_offhand][3]
                 # equip
                 if eq_uneq == 1:
                         # melee or ranged weapon
                         if type in [1, 2]:
                                 # stats of the weapon to be equipped
-                                dmg_die = item_list[item][1]
-                                dmg_die_cnt = item_list[item][2]
-                                ench = item_list[item][3]
-                                dmg_type = item_list[item][4]
-                                finesse = item_list[item][7]
-                                hands = item_list[item][8]
+                                dmg_die = all_items.all_weapons[item][1]
+                                dmg_die_cnt = all_items.all_weapons[item][2]
+                                ench = all_items.all_weapons[item][3]
+                                dmg_type = all_items.all_weapons[item][4]
+                                finesse = all_items.all_weapons[item][7]
+                                hands = all_items.all_weapons[item][8]
                                 if type == 1:
-                                        thrown = item_list[item][9]
+                                        thrown = all_items.all_weapons[item][9]
                                 elif type == 2:
-                                        load = item_list[item][9]
+                                        load = all_items.all_weapons[item][9]
                                 # 1. nothing in main hand, shield in off-hand and weapon to equip is one-handed or versatile (1.5 hands)
                                 if self.eq_weapon_main == "unarmed strike" and self.eq_weapon_offhand in all_items.shields and hands < 2:
                                         self.eq_weapon_main = item
@@ -786,11 +791,11 @@ class Character:
                                 if self.eq_weapon_main == "unarmed strike":
                                         eq_main_light_heavy = 0
                                 else:
-                                        eq_main_light_heavy = everything[self.eq_weapon_main][6]
+                                        eq_main_light_heavy = all_items.everything[self.eq_weapon_main][6]
                                 if self.eq_weapon_offhand in ["nothing", "unarmed strike"] or self.eq_weapon_offhand in all_items.shields:
                                         eq_off_light_heavy = 0
                                 else:
-                                        eq_off_light_heavy = everything[self.eq_weapon_offhand][6]
+                                        eq_off_light_heavy = all_items.everything[self.eq_weapon_offhand][6]
                                 if eq_main_light_heavy == 1 and eq_off_light_heavy == 1:
                                         self.bonus_attack = True
                                 else:
@@ -798,11 +803,11 @@ class Character:
                         # armor or shield
                         elif type == 3:
                                 # stats of the armor/shield to be equipped
-                                armor_class = item_list[item][1]
-                                armor_ench = item_list[item][2]
-                                str_req = item_list[item][3]
-                                armor_type = item_list[item][4]
-                                stealth_disadv = item_list[item][5]
+                                armor_class = all_items.all_protectors[item][1]
+                                armor_ench = all_items.all_protectors[item][2]
+                                str_req = all_items.all_protectors[item][3]
+                                armor_type = all_items.all_protectors[item][4]
+                                stealth_disadv = all_items.all_protectors[item][5]
                                 # light armor: unlimited +/- DEX bonus, disadv on stealth for padded
                                 if armor_type == 0:
                                         self.eq_armor = item
@@ -842,7 +847,7 @@ class Character:
                                                 self.ac -= curr_shield_ac - curr_shield_ench + armor_class + armor_ench
                                         else:
                                                 # unequip 2-handed weapon
-                                                if all_melee_weapons[self.eq_weapon_main][8] == 2 or (self.ranged and all_ranged_weapons[self.eq_weapon_main][8] == 2):
+                                                if all_items.all_melee_weapons[self.eq_weapon_main][8] == 2 or (self.ranged and all_items.all_ranged_weapons[self.eq_weapon_main][8] == 2):
                                                         self.eq_weapon_main = "unarmed strike"
                                                         self.dmg_die_main = 1
                                                         self.dmg_die_cnt_main = 1
@@ -854,8 +859,8 @@ class Character:
                                                         self.ench_off = 0
                                                         self.ranged = False
                                                 # one-hand if weapon held is versatile
-                                                elif all_melee_weapons[self.eq_weapon_main][8] == 1.5:
-                                                        self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
+                                                elif all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5:
+                                                        self.dmg_die_main = all_items.all_melee_weapons[self.eq_weapon_main][1]
                                                 # unequip off-hand weapon
                                                 else:
                                                         self.dmg_die_off = 1
@@ -889,11 +894,11 @@ class Character:
                                 elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                         self.reroll_dmg = True
                                 # dueling: +2 dmg if no other weapon in off-hand
-                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5 or self.eq_weapon_offhand in all_items.shields):
+                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5 or self.eq_weapon_offhand in all_items.shields):
                                         self.main_str_dmg_mod = self.str_mod + 2
                                         self.main_dex_dmg_mod = self.dex_mod + 2
-                                        if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
-                                                self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
+                                        if all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5:
+                                                self.dmg_die_main = all_items.all_melee_weapons[self.eq_weapon_main][1]
                                 # two weapon fighting: add dmg mod to bonus attack
                                 elif self.fighting_style == 4 and self.bonus_attack:
                                         self.offhand_dmg_mod = True
@@ -908,13 +913,13 @@ class Character:
                                 if self.eq_weapon_main == "unarmed strike":
                                         monk_weapon_main = True
                                 else:
-                                        monk_weapon_main = all_melee_weapons[self.eq_weapon_main][10]
+                                        monk_weapon_main = all_items.all_melee_weapons[self.eq_weapon_main][10]
                                 if self.eq_weapon_offhand in ["unarmed strike", "nothing"]:
                                         monk_weapon_offhand = True
                                 elif self.eq_weapon_offhand in all_items.shields:
                                         monk_weapon_offhand = False
                                 else:
-                                        monk_weapon_offhand = all_melee_weapons[self.eq_weapon_offhand][10]
+                                        monk_weapon_offhand = all_items.all_melee_weapons[self.eq_weapon_offhand][10]
                                 # monks get their WIS mod to AC, martial arts die, unarmed finesse and bonus action unarmed strike if they don't wear armor or shield, and only wielding monk weapons
                                 if self.eq_armor != "unarmored" or self.eq_weapon_offhand in all_items.shields or not monk_weapon_main or not monk_weapon_offhand:
                                         self.bonus_attack = False
@@ -1061,11 +1066,11 @@ class Character:
                                         if armor_type != 3:
                                                 self.ac += 1
                                 # dueling: +2 dmg if no other weapon in off-hand
-                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
+                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
                                         self.main_str_dmg_mod = self.str_mod + 2
                                         self.main_dex_dmg_mod = self.dex_mod + 2
-                                        if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
-                                                self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
+                                        if all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5:
+                                                self.dmg_die_main = all_items.all_melee_weapons[self.eq_weapon_main][1]
                                 # two weapon fighting: add dmg mod to bonus attack
                                 elif self.fighting_style == 4 and self.bonus_attack:
                                         self.offhand_dmg_mod = True
@@ -1093,11 +1098,11 @@ class Character:
                                 elif self.fighting_style == 2 and self.eq_weapon_main == self.eq_weapon_offhand:
                                         self.reroll_dmg = True
                                 # dueling: +2 dmg if no other weapon in off-hand
-                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
+                                elif self.fighting_style == 3 and self.eq_weapon_main != "unarmed strike" and (self.eq_weapon_offhand in ["nothing", "unarmed strike"] or all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5) and type == 1:
                                         self.main_str_dmg_mod = self.str_mod + 2
                                         self.main_dex_dmg_mod = self.dex_mod + 2
-                                        if all_melee_weapons[self.eq_weapon_main][8] == 1.5:
-                                                self.dmg_die_main = all_melee_weapons[self.eq_weapon_main][1]
+                                        if all_items.all_melee_weapons[self.eq_weapon_main][8] == 1.5:
+                                                self.dmg_die_main = all_items.all_melee_weapons[self.eq_weapon_main][1]
                                 # two weapon fighting: add dmg mod to bonus attack
                                 elif self.fighting_style == 4 and self.bonus_attack:
                                         self.offhand_dmg_mod = True
@@ -1175,7 +1180,7 @@ class Character:
                                         self.off_dex_dmg_mod = 0
                         # armor or shield
                         elif type == 3:
-                                stealth_disadv = item_list[item][5]
+                                stealth_disadv = all_items.all_protectors[item][5]
                                 if item in all_items.armors:
                                         self.eq_armor = "unarmored"
                                         self.ac = 10 + self.dex_mod
@@ -1251,42 +1256,48 @@ class Character:
                         elif self.char_class == 6:
                                 pass
         def level_up(self, levels):
-                for lvl in levels:
-                        self.level = 1 + lvl
-                        self.hd_cnt += 1 + lvl
-                        self.hd_max += 1 + lvl
+                for _ in range(levels):
+                        self.level += 1
+                        self.hd_cnt += 1
+                        self.hd_max += 1
                         rolled_hp = roll_dice(self.hd, self.con_mod, 0)[0]
+                        # a char does not get healed upon levelling up
                         self.max_hp += rolled_hp
-                        self.hp += rolled_hp
                         if self.level == 2:
+                                # fighter
                                 if self.char_class == 1:
                                         self.specials[1] = "action surge"
                                         self.action_surge = 1
+                                # monk
                                 if self.char_class == 2:
                                         self.bonus_actions[5] = "flurry of blows"
                                         self.bonus_actions[6] = "patient defense"
                                         self.bonus_actions[7] = "step of the wind"
                                         self.ki_pool = self.level
                                         self.ki_pool_max = self.level
+                                # barbarian
                                 if self.char_class == 3:
                                         self.specials[3] = "reckless attack"
                                         self.saving_throws["dex"][2] = True
+                                # rogue
                                 if self.char_class == 4:
                                         self.bonus_actions[4] = "disengage"
                                         self.sneak_damage = [6, math.ceil(self.level / 2)]
+                                # paladin
                                 if self.char_class == 5:
                                         self.divine_smite = [2, 0, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
                                         self.lay_on_hands_pool += 5
                                         self.gen_fighting_style()
+                                # ranger
                                 if self.char_class == 6:
                                         self.gen_fighting_style()
                         if self.level == 3:
                                 if self.char_class == 1:
                                         pass
                                 if self.char_class == 2:
-                                        self.specials["ki"] = self.level
-                                        #self.specials["deflect missiles"] = True
+                                        self.ki_pool_max = self.level
+                                        self.reactions[2] = "deflect missiles"
                                 if self.char_class == 3:
                                         self.rage_cnt = 3
                                 if self.char_class == 4:
@@ -1302,7 +1313,7 @@ class Character:
                                 if self.char_class == 1:
                                         pass
                                 if self.char_class == 2:
-                                        self.specials["ki"] = self.level
+                                        self.ki_pool_max = self.level
                                 if self.char_class == 3:
                                         pass
                                 if self.char_class == 4:
@@ -1319,13 +1330,13 @@ class Character:
                                 if self.char_class == 1:
                                         pass
                                 if self.char_class == 2:
-                                        self.specials["ki"] = self.level
-                                        #self.specials["stunning strike"] = True
-                                        #self.specials["uncanny dodge"] = True
+                                        self.ki_pool_max = self.level
+                                        self.stunning_strike = True
                                 if self.char_class == 3:
                                         pass
                                 if self.char_class == 4:
                                         self.sneak_damage = [6, math.ceil(self.level / 2)]
+                                        self.uncanny_dodge = True
                                 if self.char_class == 5:
                                         self.divine_smite = [4, 2, 0, 0, 0]
                                         self.lay_on_hands_pool_max += 5
@@ -1360,11 +1371,11 @@ class Character:
         '''
         Get next experience cap for certain level
         IN
-        - level (int)
+          N/A
         OUT
         - level up limit (int)
         '''
-        def get_level_up_cap(self, level):
+        def get_level_up_cap(self):
                 level_limits = {
                         0: 0,
                         1: 300,
@@ -1373,7 +1384,7 @@ class Character:
                         4: 6500,
                         5: 14000
                         }
-                return level_limits[level]
+                return level_limits[self.level]
 
 '''
 Fighter (Character child)
@@ -1617,7 +1628,7 @@ class Paladin(Character):
                 receiver = target_selector(self, battle, allies)
                 if receiver.hp != receiver.max_hp:
                         receiver_max_healable = receiver.max_hp - max(0, receiver.hp)
-                        lay_on_hands_heal = amount_selector(self.lay_on_hands_pool, receiver_max_healable)
+                        lay_on_hands_heal = amount_selector_lay_on_hands(self.lay_on_hands_pool, receiver_max_healable)
                         actual_heal = receiver.receive_healing(self, lay_on_hands_heal)
                         self.lay_on_hands_pool -= actual_heal
                         if self.lay_on_hands_pool <= 0:
@@ -1800,20 +1811,12 @@ class Dungeon:
         '''
         def get_respite_options(self):
                 respite_options = {
-                        0: "Pass",
-                        1: "Short rest",
-                        2: "Long rest",
-                        3: "Healing",
-                        4: "Equipment",
-                        5: "Level up"
-                        }
-                equipment_options = {
-                        0: "Back",
-                        1: "Equip",
-                        2: "Unequip",
-                        3: "Give",
-                        4: "Drop",
-                        5: "Transfer GP"
+                        0: "pass",
+                        1: "short rest",
+                        2: "long rest",
+                        3: "healing",
+                        4: "equipment",
+                        5: "level up"
                         }
                 if self.short_rest_cnt < 1:
                         respite_options.pop(1)
@@ -1840,7 +1843,7 @@ class Dungeon:
                                 self.rest_level_up()    
                         ui.update_status()
         '''
-        Short rest: spend hit dice to heal
+        Short rest: spend hit dice to heal, regain abilities
         IN
           N/A
         OUT
@@ -1848,25 +1851,38 @@ class Dungeon:
         '''
         def short_rest(self):
                 for pc in self.pc_list:
+                        short_rest_message = "%s takes a short rest:\n" % (pc.name)
                         # downed PCs will wake up naturally with 1 hp in 1d4 hours if not treated and the PC doesn't have HD left
                         if not pc.conditions["dead"][0] and pc.conditions["down"][0] and pc.hd_cnt < 1:
                                 wake_up = roll_dice(4, 0, 0)[0]
                                 if wake_up == 1:
                                         pc.conditions["down"][0] = False
                                         pc.hp = 1
+                                        short_rest_message += "Wakes up from unconsciousness.\n"
+                        # recover health per HD, if any or if needed
                         if pc.hp < pc.max_hp and not pc.conditions["dead"][0] and pc.hp > 0:
+                                hd_used = 0
+                                hp_healed = 0
                                 while pc.hp < pc.max_hp and pc.hd_cnt != 0:
-                                        pc.hp = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0)[0], pc.max_hp)
+                                        hp_heal = min(pc.hp + roll_dice(pc.hd, pc.con_mod, 0)[0], pc.max_hp)
+                                        hd_used += 1
+                                        hp_healed += hp_heal
+                                        pc.hp = hp_heal
                                         pc.hd_cnt -= 1
+                                short_rest_message += "Uses %s HD to recover %s health.\n" % (hd_used, hp_healed)
+                        # regain 'on short rest' abilities
                         if not pc.conditions["dead"][0] and not pc.conditions["down"][0] and pc.char_class == 1:
                                 pc.second_wind = True
                                 pc.second_wind_cnt = 1
+                                short_rest_message += "Regains ability: second wind.\n"
                                 if pc.level > 1:
                                         pc.action_surge = 1
+                                        short_rest_message += "Regains ability: action surge.\n"
+                        ui.push_prompt(short_rest_message)
                 self.short_rest_cnt = 0
-                ui.push_prompt("Short rest successful.")
+                ui.push_prompt("Short rest finished.")
         '''
-        Long rest: heal to max, get half of max HD count back
+        Long rest: heal to max, get half of max HD count back, regain abilities
         IN
           N/A
         OUT
@@ -1874,22 +1890,31 @@ class Dungeon:
         '''
         def long_rest(self):
                 for pc in self.pc_list:
+                        long_rest_message = "%s takes a long rest:\n" % (pc.name)
+                        # heal to full HP, get half of max HD back and regain 'on full rest' abilities
                         if not pc.conditions["dead"][0]:
                                 pc.hp = pc.max_hp
-                                pc.hd_cnt = max(math.floor(pc.level / 2), 1)
+                                long_rest_message += "Recovers all lost health."
+                                hd_recovered = max(math.floor(pc.level / 2), 1)
+                                pc.hd_cnt += hd_recovered
+                                long_rest_message += "Recovers %s HD."
                                 pc.conditions["down"][0] = False
-                        if not pc.conditions["dead"][0] and pc.char_class == 1:
-                                pc.second_wind = True
-                                pc.second_wind_cnt = 1
-                                if pc.level > 1:
-                                        pc.action_surge = 1
-                        if not pc.conditions["dead"][0] and pc.char_class == 5:
-                                pc.lay_on_hands = True
-                                pc.lay_on_hands_pool = pc.lay_on_hands_pool_max
-                                pc.actions[10] = "lay on hands"
+                                if pc.char_class == 1:
+                                        pc.second_wind = True
+                                        pc.second_wind_cnt = 1
+                                        long_rest_message += "Regains ability: second wind.\n"
+                                        if pc.level > 1:
+                                                pc.action_surge = 1
+                                                long_rest_message += "Regains ability: action surge.\n"
+                                elif pc.char_class == 5:
+                                        pc.lay_on_hands = True
+                                        pc.lay_on_hands_pool = pc.lay_on_hands_pool_max
+                                        pc.actions[10] = "lay on hands"
+                                        long_rest_message += "Refills lay on hands.\n"
+                        ui.push_prompt(long_rest_message)
                 self.long_rest_cnt -= 1
                 self.short_rest_cnt = 1
-                ui.push_prompt("Long rest successful.")
+                ui.push_prompt("Long rest finished.")
         '''
         Healing during rest
         IN
@@ -1906,28 +1931,107 @@ class Dungeon:
                                 # class abilities
                                 if pc.char_class == 1:
                                         if pc.second_wind:
-                                                healing_options.append(["Second Wind", pc])
+                                                healing_options.append(["second wind", pc])
                                 elif pc.char_class == 5:
                                         if pc.lay_on_hands:
-                                                healing_options.append(["Lay on Hands", pc])
+                                                healing_options.append(["lay on hands", pc])
                                 # healing potions
                                 avail_potions = pc.inv.get_potions()
                                 if len(avail_potions) > 0:
-                                        healing_options.append(["Healing Potion", pc])
+                                        healing_options.append(["healing potion", pc])
                         # unconscious characters can be looted for healing potions
                         else:
                                 avail_potions = pc.inv.get_potions()
                                 if len(avail_potions) > 0:
-                                        healing_options.append(["Healing Potion", pc])
-                ui.push_message("Available healing options.")
-                healing_choice = int(ui.get_list_choice_input_rest_heal(healing_options))
-                while healing_choice != -1:
-                        if healing_options[healing_choice][0] == "Second Wind":
+                                        healing_options.append(["healing Potion", pc])
+                healing_choice = -1
+                while healing_choice != 0:
+                        ui.push_message("Available healing options.")
+                        healing_choice = int(ui.get_list_choice_input_rest_heal(healing_options))
+                        if healing_options[healing_choice][0] == "second wind":
                                 healing_options[healing_choice][1].use_second_wind()
-                        elif healing_options[healing_choice][0] == "Lay on Hands":
+                        elif healing_options[healing_choice][0] == "lay on hands":
                                 healing_options[healing_choice][1].use_lay_on_hands()
-                        elif healing_options[healing_choice][0] == "Healing Potion":
+                        elif healing_options[healing_choice][0] == "healing potion":
                                 healing_options[healing_choice][1].use_healing_potion()
+        '''
+        Level up if xp limit is reached for next level.
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def rest_level_up(self):
+                for pc in self.pc_list:
+                        if pc.xp >= pc.get_level_up_cap():
+                                pc.level_up(1)
+        '''
+        Equipment menu during resting.
+        IN
+          N/A
+        OUT
+          N/A
+        '''
+        def rest_equip(self):
+                equip_options = {
+                        0: "back",
+                        1: "equip",
+                        2: "unequip",
+                        3: "give",
+                        4: "dispose",
+                        5: "transfer gold"
+                        }
+                equipment_options = ["main hand", "off-hand", "armor"]
+                ui.push_message("What to do?")
+                equip_choice = -1
+                while equip_choice != 0:
+                        equip_choice = int(ui.get_dict_choice_input(equip_options))
+                        if equip_choice == 1:
+                                ui.push_message("Do equip with whom?")
+                                char_choice = int(ui.get_list_choice_input(self.pc_list))
+                                pc = self.pc_list[char_choice]
+                                ui.push_message("What do you want to equip?")
+                                equipment_choice = int(ui.get_list_choice_input(equipment_options))
+                                if equipment_choice in [1, 2]:
+                                        item = pc.eq_weapon_main
+                                elif equipment_choice == 3:
+                                        item = pc.eq_armor
+                                pc.equip(1, item, equipment_choice)
+                        elif equip_choice == 2:
+                                ui.push_message("Do unequip with whom?")
+                                char_choice = int(ui.get_list_choice_input(self.pc_list))
+                                pc = self.pc_list[char_choice]
+                                ui.push_message("What do you want to unequip?")
+                                equipment_choice = int(ui.get_list_choice_input(equipment_options))
+                                if equipment_choice in [1, 2]:
+                                        item = pc.eq_weapon_main
+                                elif equipment_choice == 3:
+                                        item = pc.eq_armor
+                                pc.equip(1, item, equipment_choice)
+                        elif equip_choice == 3:
+                                pass
+                        elif equip_choice == 4:
+                                pass
+                        elif equip_choice == 5:
+                                givers = self.pc_list.copy()
+                                ui.push_message(givers)
+                                #tbc
+                                for i in range(len(givers)):
+                                        if givers[i].gold <= 0:
+                                                givers.pop(i)
+                                ui.push_message("Whose gold do you want to transfer?")
+                                giver_choice = int(ui.get_list_choice_input(givers))
+                                giver_pc = givers[giver_choice]
+                                ui.push_message("How much GP do you want to transfer from %s?" % (giver_pc.name))
+                                transfer_amount = amount_selector(giver_pc.gold)
+                                ui.push_message("To whom do you want to transfer %s's %s GP?" % (giver_pc.name, transfer_amount))
+                                receivers = self.pc_list.copy()
+                                receivers.pop(giver_choice)
+                                receiver_pc = receivers[int(ui.get_list_choice_input(receivers))]
+                                giver_pc.gold -= transfer_amount
+                                receiver_pc.gold += transfer_amount
+                                ui.update_status()
+                                ui.push_prompt("%s gave %s GP to %s." % (giver_pc.name, transfer_amount, receiver_pc.name))            
         '''
         Dungeon ends if all PCs are defeated.
         IN
@@ -2248,10 +2352,12 @@ class AllItems:
                         "potion of healing": [50, 4, 2, 2, 0.5],
                         "potion of greater healing": [225, 4, 4, 4, 0.5]
                         }
-                # all melee weapons
+                # unions
                 self.all_melee_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons}
-                # all weapons
+                self.all_ranged_weapons = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
                 self.all_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons, **self.simple_ranged_weapons, **self.martial_ranged_weapons}
+                self.all_protectors = {**self.armors, **self.shields}
+                self.everything = {**self.simple_melee_weapons, **self.martial_melee_weapons, **self.simple_ranged_weapons, **self.martial_ranged_weapons, **self.armors, **self.shields, **self.potions}
 
 '''
 Beastiary: all the monsters available in this game.
@@ -2339,16 +2445,6 @@ OUT
 class Shop:
         "Shop creation."
         def __init__(self):
-                self.simple_melee_weapons = all_items.simple_melee_weapons
-                self.martial_melee_weapons = all_items.martial_melee_weapons
-                self.simple_ranged_weapons = all_items.simple_ranged_weapons
-                self.martial_ranged_weapons = all_items.martial_ranged_weapons
-                self.all_melee_weapons = {**self.simple_melee_weapons, **self.martial_melee_weapons}
-                self.all_ranged_weapons = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
-                self.armors = all_items.armors
-                self.shields = all_items.shields
-                self.potions = all_items.potions
-                self.everything = {**self.simple_melee_weapons, **self.martial_melee_weapons, **self.simple_ranged_weapons, **self.martial_ranged_weapons, **self.armors, **self.shields, **self.potions}
                 self.shop_list_melee_weapons = []
                 self.shop_list_ranged_weapons = []
                 self.shop_list_armors = []
@@ -2448,46 +2544,46 @@ class Shop:
         def gen_shop_listing(self):
                 type = 1
                 index = 0
-                for _ in range(math.floor(len(self.simple_melee_weapons) / 3)):
+                for _ in range(math.floor(len(all_items.simple_melee_weapons) / 3)):
                         index += 1
-                        random_choice = random.choice(list(self.simple_melee_weapons.keys()))
-                        attributes = self.convert_attributes(self.simple_melee_weapons[random_choice], type)
+                        random_choice = random.choice(list(all_items.simple_melee_weapons.keys()))
+                        attributes = self.convert_attributes(all_items.simple_melee_weapons[random_choice], type)
                         self.shop_list_melee_weapons.append([random_choice, index, attributes])
-                for _ in range(math.floor(len(self.martial_melee_weapons) / 3)):
+                for _ in range(math.floor(len(all_items.martial_melee_weapons) / 3)):
                         index += 1
-                        random_choice = random.choice(list(self.martial_melee_weapons.keys()))
-                        attributes = self.convert_attributes(self.martial_melee_weapons[random_choice], type)
+                        random_choice = random.choice(list(all_items.martial_melee_weapons.keys()))
+                        attributes = self.convert_attributes(all_items.martial_melee_weapons[random_choice], type)
                         self.shop_list_melee_weapons.append([random_choice, index, attributes])
                 type = 2
                 index = 0
-                for _ in range(math.floor(len(self.simple_ranged_weapons) / 2)):
+                for _ in range(math.floor(len(all_items.simple_ranged_weapons) / 2)):
                         index += 1
-                        random_choice = random.choice(list(self.simple_ranged_weapons.keys()))
-                        attributes = self.convert_attributes(self.simple_ranged_weapons[random_choice], type)
+                        random_choice = random.choice(list(all_items.simple_ranged_weapons.keys()))
+                        attributes = self.convert_attributes(all_items.simple_ranged_weapons[random_choice], type)
                         self.shop_list_ranged_weapons.append([random_choice, index, attributes])
-                for _ in range(math.floor(len(self.martial_ranged_weapons) / 2)):
+                for _ in range(math.floor(len(all_items.martial_ranged_weapons) / 2)):
                         index += 1
-                        random_choice = random.choice(list(self.martial_ranged_weapons.keys()))
-                        attributes = self.convert_attributes(self.martial_ranged_weapons[random_choice], type)
+                        random_choice = random.choice(list(all_items.martial_ranged_weapons.keys()))
+                        attributes = self.convert_attributes(all_items.martial_ranged_weapons[random_choice], type)
                         self.shop_list_ranged_weapons.append([random_choice, index, attributes])
                 type = 3
                 index = 0
-                for _ in range(math.floor(len(self.armors) / 2)):
+                for _ in range(math.floor(len(all_items.armors) / 2)):
                         index += 1
-                        random_choice = random.choice(list(self.armors.keys()))
-                        attributes = self.convert_attributes(self.armors[random_choice], type)
+                        random_choice = random.choice(list(all_items.armors.keys()))
+                        attributes = self.convert_attributes(all_items.armors[random_choice], type)
                         self.shop_list_armors.append([random_choice, index, attributes])
-                for _ in range(math.ceil(len(self.shields) / 2)):
+                for _ in range(math.ceil(len(all_items.shields) / 2)):
                         index += 1
-                        random_choice = random.choice(list(self.shields.keys()))
-                        attributes = self.convert_attributes(self.shields[random_choice], type)
+                        random_choice = random.choice(list(all_items.shields.keys()))
+                        attributes = self.convert_attributes(all_items.shields[random_choice], type)
                         self.shop_list_armors.append([random_choice, index, attributes])
                 type = 4
                 index = 0
-                for _ in range(len(self.potions)):
+                for _ in range(len(all_items.potions)):
                         index += 1
-                        random_choice = random.choice(list(self.potions.keys()))
-                        attributes = self.convert_attributes(self.potions[random_choice], type)
+                        random_choice = random.choice(list(all_items.potions.keys()))
+                        attributes = self.convert_attributes(all_items.potions[random_choice], type)
                         self.shop_list_potions.append([random_choice, index, attributes])
         '''
         Shopping flow.
@@ -2527,31 +2623,31 @@ class Shop:
                 # melee weaponsmith
                 if type == 1:
                         shop_list = self.shop_list_melee_weapons
-                        item_list = {**self.simple_melee_weapons, **self.martial_melee_weapons}
+                        item_list = all_items.all_melee_weapons
                         weight_pos = 5
                         ui.push_message("What do you need?")
-                        purchase_choice = int(ui.get_list_choice_input(shop_list))
+                        purchase_choice = int(ui.get_list_choice_input_shop(shop_list))
                 # ranged weaponsmith
                 elif type == 2:
                         shop_list = self.shop_list_ranged_weapons
-                        item_list = {**self.simple_ranged_weapons, **self.martial_ranged_weapons}
+                        item_list = all_items.all_ranged_weapons
                         weight_pos = 5
                         ui.push_message("What do you need?")
-                        purchase_choice = int(ui.get_list_choice_input(shop_list))
+                        purchase_choice = int(ui.get_list_choice_input_shop(shop_list))
                 # armorer
                 elif type == 3:
                         shop_list = self.shop_list_armors
-                        item_list = {**self.armors, **self.shields}
+                        item_list = all_items.all_protectors
                         weight_pos = 6
                         ui.push_message("What do you need?")
-                        purchase_choice = int(ui.get_list_choice_input(shop_list))
+                        purchase_choice = int(ui.get_list_choice_input_shop(shop_list))
                 # alchemist
                 elif type == 4:
                         shop_list = self.shop_list_potions
-                        item_list = self.potions
+                        item_list = all_items.potions
                         weight_pos = 4
                         ui.push_message("Name your poison!")
-                        purchase_choice = int(ui.get_list_choice_input(shop_list))
+                        purchase_choice = int(ui.get_list_choice_input_shop(shop_list))
                 if purchase_choice != -1:
                         purchased_item = shop_list[purchase_choice - 1][0]
                         purchased_item_price = item_list[purchased_item][price_pos]
@@ -2573,7 +2669,7 @@ class Shop:
                                                 if type != 4:
                                                         ui.push_message("Wanna equip the %s?" % (purchased_item))
                                                         if int(ui.get_binary_input()) == 1:
-                                                                char.equip(1, purchased_item, type, item_list, self.everything, self.all_melee_weapons, self.all_ranged_weapons)
+                                                                char.equip(1, purchased_item, type)
                                 else:
                                         ui.push_prompt(random.choice(["Not enough gold.", "You've not enough gold coins."]))
                         else:
@@ -2656,7 +2752,7 @@ class AllRaces:
                         14: "gith"
                         }
                 self.subraces = {
-                        0: "monster",
+                        0: "N/A",
                         11: "vanilla",
                         21: "lightfoot",
                         22: "stout",
@@ -2986,7 +3082,7 @@ def act(attacker, act_choice, battle):
                 attacker.turn_done = True
 
 '''
-Determine advantage/disadvantage
+Determine advantage/disadvantage.
 IN
 - attacker (object)
 - defender (object) 
@@ -3034,6 +3130,15 @@ def get_adv_disadv(source, target, type):
         #         ui.push_message("Straight roll.")
         return roll_mod
 
+'''
+Target selection.
+IN
+- source (object)
+- battle (object)
+- targets (dict of {object: name})
+OUT
+- target (object)
+'''
 def target_selector(source, battle, targets):
         if not source.npc:
                 ui.push_message("Choose a target.")
@@ -3046,13 +3151,32 @@ def target_selector(source, battle, targets):
         else:
                 return None
 
-def amount_selector(pool, max_avail):
+'''
+Select healing point pool amount for lay on hands.
+IN
+- lay on hands current pool (int)
+- max healable on target (int)
+OUT
+- heal amount (int)
+'''
+def amount_selector_lay_on_hands(pool, max_healable):
         ui.push_message("Heal for how much?")
-        amount = int(ui.get_amount(pool, max_avail))
+        amount = int(ui.get_amount_lay_on_hands(pool, max_healable))
         return amount
 
 '''
-Get full damage type name from abbreviation
+Select amount.
+IN
+- max amount of something (int)
+OUT
+- selected amount (int)
+'''
+def amount_selector(max_amount):
+        selected_amount = ui.get_amount(max_amount)
+        return selected_amount
+
+'''
+Get full damage type name from abbreviation.
 IN
 - dmg type abbreviation (string)
 OUT
@@ -3675,11 +3799,12 @@ def gen_race(name):
                                         subraces_redux[key] = value
                         subrace_choice = 0
                         # skip vanilla subrace (no subrace is available)
-                        ui.push_message("Choose your subrace.")
-                        subrace_choice = int(ui.get_dict_choice_input_subracial(subraces_redux))
-                        stats = all_races.add_racial_stats(stats, subrace_choice, 2)
-                        ui.push_message("%s\n============\nStats with subracial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n"
-                                % (name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5]))
+                        if len(subraces_redux) > 1:
+                                ui.push_message("Choose your subrace.")
+                                subrace_choice = int(ui.get_dict_choice_input_subracial(subraces_redux))
+                                stats = all_races.add_racial_stats(stats, subrace_choice, 2)
+                                ui.push_message("%s\n============\nStats with subracial traits\nStrength: %s\nDexterity: %s\nConstitution: %s\nIntelligence: %s\nWisdom: %s\nCharisma: %s\n"
+                                        % (name, stats[0], stats[1], stats[2], stats[3], stats[4], stats[5]))
         return race_choice, subrace_choice, [stats[0], stats[1], stats[2], stats[3], stats[4], stats[5]]
 
 '''
@@ -3750,7 +3875,7 @@ def gen_char(name, starting_level, npc):
         if class_choice == 6:
                 char = Ranger(name, str_stat, dex_stat, con_stat, int_stat, wis_stat, cha_stat, starting_level, race, subrace, npc)
         ui.create_status(char)
-        #char.gen_starting_gold(char.char_class)
+        char.gen_starting_gold(char.char_class)
         char.gen_class(char.char_class)
         #char.gen_starting_equipment()
         char.action_economy()
