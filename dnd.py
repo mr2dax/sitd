@@ -2601,9 +2601,10 @@ class Shop:
                         shop_choice = ui.get_dict_choice_input_shop(self.shop_types)
                         if shop_choice != -1:
                                 ui.push_message(self.shop_types[shop_choice].capitalize())
-                                ui.push_message(random.choice(["Looking to protect yourself, or deal some damage?",
+                                ui.push_message(random.choice(["Looking to protect yourself? Or deal some damage?",
                                         "Welcome to my shop. Take a look!", "Tabaxi has wares if you have the coin.", "Hail to you champion.",
-                                        "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.", "Approach and let's trade."]))
+                                        "What's up, boy? We guarantee all items to be in good condition.", "Some may call this junk. Me, I call them treasures.",
+                                        "Approach and let's trade.", "So you're an alchemist then."]))
                         else:
                                 exit_shop = True
                         # stay in selected shop until exiting

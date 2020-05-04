@@ -342,11 +342,11 @@ class GUI:
                 self.input_choice_skip_btn.grid(row = 0, column = 0)
                 self.input_choice_btns.append(self.input_choice_skip_btn)
                 btn_text = ""
-                i = 1
+                i = 0
                 for c in choices:
                         btn_text = "%s (%s)" % (c[0], c[1].name)
                         self.input_choice_btn = tk.Button(self.input_frame, text = btn_text, width = len(btn_text), fg = "black", bg = "white", command = lambda j = i: self.submit_var.set(j))
-                        self.input_choice_btn.grid(row = 0, column = i)
+                        self.input_choice_btn.grid(row = 0, column = i + 1)
                         self.input_choice_btns.append(self.input_choice_btn)
                         i += 1
                 self.input_frame.wait_variable(self.submit_var)
